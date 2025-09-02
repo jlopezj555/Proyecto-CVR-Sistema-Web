@@ -46,11 +46,11 @@ export const Header = () => {
           <img src={contactIcon} alt="" className="nav-icon" />
           Contáctenos
         </a>
-      </nav>
-      <button className="login-button">
-        <img src={loginIcon} alt="Iniciar Sesión" className="login-icon" />
+            </nav>
+            <button className="login-button" style={{ marginLeft: '2rem' }}>
+        <img src={loginIcon} alt="" className="login-icon" />
         <span className="login-text">Iniciar Sesión</span>
-      </button>
+            </button>
     </header>
   )
 }

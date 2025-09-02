@@ -31,6 +31,9 @@
 
 .card-content {
   padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .card-title {
@@ -44,4 +47,16 @@
   color: #666;
   line-height: 1.5;
   text-orientation: inherit;
+}
+
+.card-text ul {
+  text-align: left;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.card-text li {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  line-height: 1.3;
 }

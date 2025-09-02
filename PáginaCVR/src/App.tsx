@@ -1,66 +1,12 @@
-import { useState } from 'react'
+import { Header } from './components/Header'
 import './App.css'
-import './components/Header.css'
-import aboutIcon from './assets/about-icon.svg'
-import servicesIcon from './assets/services-icon.svg'
-import experienceIcon from './assets/experience-icon.svg'
-import contactIcon from './assets/contact-icon.svg'
-import loginIcon from './assets/login-icon.svg'
-import cvrLogo from './assets/cvr-logo-blanco.svg'
-import heroImage from './assets/hero-image.jpg' // Importa tu imagen aquí
-import Card from './components/Card';
+import heroImage from './assets/hero-image.jpg'
+import Card from './components/Card'
 
 function App() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
-
-  const handleNavClick = () => {
-    setIsMenuOpen(false);
-  };
-
   return (
     <>
-      <header className="header">
-        <div className="header-logos">
-          <div className="cvr-logo-container">
-            <img src={cvrLogo} alt="CVR Logo" className="cvr-logo" />
-          </div>
-        </div>
-
-        <div className="menu-toggle" onClick={toggleMenu}>
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-
-        <nav className={`nav-menu ${isMenuOpen ? 'active' : ''}`}>
-          <span className="experience-text">25 años de experiencia</span>
-          <a href="#about" onClick={handleNavClick}>
-            <img src={aboutIcon} alt="" className="nav-icon" />
-            Acerca de
-          </a>
-          <a href="#services" onClick={handleNavClick}>
-            <img src={servicesIcon} alt="" className="nav-icon" />
-            Servicios
-          </a>
-          <a href="#experience" onClick={handleNavClick}>
-            <img src={experienceIcon} alt="" className="nav-icon" />
-            Experiencia
-          </a>
-          <a href="#contact" onClick={handleNavClick}>
-            <img src={contactIcon} alt="" className="nav-icon" />
-            Contáctenos
-          </a>
-        </nav>
-
-        <button className="login-button">
-          <img src={loginIcon} alt="Iniciar Sesión" className="login-icon" />
-          Iniciar Sesión
-        </button>
-      </header>
+      <Header />
       
       <div className="hero-image-container">
         <img src={heroImage} alt="Hero" className="hero-image" />
@@ -93,21 +39,40 @@ function App() {
           />
           <Card
             title="Objetivo General"
-            text="Contamos con profesionales altamente calificados y comprometidos con la excelencia en el servicio."
-            image="/src/assets/equipo.jpg"
+            text="Generar información oportuna, de forma continua, ordenada y sistemática, sobre la marcha y/o desenvolvimiento de hechos económicos,
+            financieros, sociales y legales suscitados en una empresa u organización, con el fin de conocer sus resultados, para una acertada toma de decisiones."
+            image="/src/assets/objetivo-general.jpg"
             imageAlt="Equipo de trabajo"
           />
-
-
         </div>
       </section>
 
-      <div>
-        <a href="https://vite.dev" target="_blank">
-        </a>
-        <a href="https://react.dev" target="_blank">
-        </a>
-      </div>
+      <section id="services" className="about-section">
+        <h2 className="section-title">Servicios</h2>
+        <div className="cards-container">
+          <Card 
+            title="Auditoría y consultoría"
+            text={
+              <ul>
+                <li>Peritajes Judiciales</li>
+                <li>Valuación de control interno</li>
+                <li>Asesoría en la planificación de impuestos y atención a requerimientos de SAT</li>
+                <li>Auditoría forense</li>
+                <li>Asesoría Tributaria en procesos ante las honorables Salas del Tribunal de lo Contencioso Administrativo</li>
+                <li>Diagnósticos fiscales</li>
+                <li>Asesoría legal-tributaria adecuada al giro de cada negocio</li>
+                <li>Auditorías Externas de propósito especial y razonabilidad de Estados Financieros</li>
+                <li>Expertajes Judiciales</li>
+                <li>Consultoría y asesoría fiscal, financiera y administrativa</li>
+                <li>Informes Gerenciales para toma de decisiones</li>
+              </ul>
+            }
+            image="/src/assets/auditoria-home.png"
+            imageAlt="Servicios de auditoría"
+          />
+          {/* Puedes agregar más tarjetas de servicios aquí */}
+        </div>
+      </section>
     </>
   )
 }

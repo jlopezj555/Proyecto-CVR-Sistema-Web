@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import './Card.css';
 
 interface CardProps {
   title: string;
-  text: string;
+  text: ReactNode; // Cambiamos string | JSX.Element por ReactNode
   image: string;
   imageAlt: string;
 }
@@ -41,7 +42,7 @@ const Card = ({ title, text, image, imageAlt }: CardProps) => {
       <div className="card-content">
         <h3 className="card-title">{title}</h3>
         <img src={image} alt={imageAlt} className="card-image" />
-        <p className="card-text">{text}</p>
+        <div className="card-text">{text}</div> {/* Cambiamos <p> por <div> */}
       </div>
     </div>
   );
