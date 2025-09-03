@@ -70,6 +70,39 @@ function App() {
             image="/src/assets/auditoria-home.png"
             imageAlt="Servicios de auditoría"
           />
+          <Card 
+            title="Jurídico"
+            text={
+              <ul>
+                <li>Mercantil</li>
+                <li>Civil</li>
+                <li>Notariado</li>
+                <li>Administrativo</li>
+                <li>Laboral</li>
+                <li>Seguridad social</li>
+                <li>Registral</li>
+                <li>Penal</li>
+                <li>Defensa fiscal en materia tributaria ante SAT y Tribunales</li>
+              </ul>
+            }
+            image="/src/assets/juridico1-home.png"
+            imageAlt="Servicios de auditoría"
+          />
+          <Card 
+            title="Contabilidad"
+            text={
+              <ul>
+                <li>Control de impuestos</li>
+                <li>Cierre Anual Fiscal</li>
+                <li>Actualización ante la SAT</li>
+                <li>Contabilidades Fiscales</li>
+                <li>Control de cuenta corriente</li>
+                <li>Libros habilitados</li>
+              </ul>
+            }
+            image="/src/assets/conta-home.png"
+            imageAlt="Servicios de auditoría"
+          />
           {/* Puedes agregar más tarjetas de servicios aquí */}
         </div>
       </section>
