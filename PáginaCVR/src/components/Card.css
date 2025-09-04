@@ -3,16 +3,35 @@
   border-radius: 8px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
   margin: 20px;
+  font-family: "Segoe UI", Roboto, sans-serif;
   max-width: 400px;
+  width: 100%;
   opacity: 0;
   transform: translateY(20px);
   transition: opacity 0.6s ease-out, transform 0.6s ease-out;
   overflow: hidden;
 }
 
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+
 .card.visible {
-  opacity: 1;
-  transform: translateY(0);
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .card-image {
@@ -39,12 +58,12 @@
 .card-title {
   font-size: 1.5rem;
   margin-bottom: 10px;
-  color: #333;
+  color: #222;
 }
 
 .card-text {
   font-size: 1rem;
-  color: #666;
+  color: #444;
   line-height: 1.5;
   text-orientation: inherit;
 }

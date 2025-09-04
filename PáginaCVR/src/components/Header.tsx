@@ -9,9 +9,22 @@ import './Header.css'
 
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
 
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen)
+    if (isMenuOpen) {
+      setIsClosing(true)
+      setTimeout(() => {
+        setIsMenuOpen(false)
+        setIsClosing(false)
+      }, 600) // Tiempo total de la animación de cierre
+    } else {
+      setIsMenuOpen(true)
+    }
+  }
+
+  const handleNavClick = () => {
+    setIsMenuOpen(false)
   }
 
   return (
@@ -23,34 +36,34 @@ export const Header = () => {
         <span className="experience-text">25 años de experiencia</span>
       </div>
 
-      <div className="menu-toggle" onClick={toggleMenu}>
+      <div className={`menu-toggle ${isMenuOpen ? 'active' : ''}`} onClick={toggleMenu}>
         <span></span>
         <span></span>
         <span></span>
       </div>
 
-      <nav className={`nav-menu ${isMenuOpen ? 'active' : ''}`}>
-        <a href="#about">
+      <nav className={`nav-menu ${isMenuOpen ? 'active' : ''} ${isClosing ? 'closing' : ''}`}>
+        <a href="#about" onClick={handleNavClick}>
           <img src={aboutIcon} alt="" className="nav-icon" />
           Acerca de
         </a>
-        <a href="#services">
+        <a href="#services" onClick={handleNavClick}>
           <img src={servicesIcon} alt="" className="nav-icon" />
           Servicios
         </a>
-        <a href="#experience">
+        <a href="#experience" onClick={handleNavClick}>
           <img src={experienceIcon} alt="" className="nav-icon" />
           Experiencia
         </a>
-        <a href="#contact">
+        <a href="#contact" onClick={handleNavClick}>
           <img src={contactIcon} alt="" className="nav-icon" />
           Contáctenos
         </a>
-            </nav>
-            <button className="login-button" style={{ marginLeft: '2rem' }}>
-        <img src={loginIcon} alt="" className="login-icon" />
-        <span className="login-text">Iniciar Sesión</span>
-            </button>
+        <button className="login-button" onClick={handleNavClick}>
+          <img src={loginIcon} alt="" className="login-icon" />
+          <span className="login-text">Iniciar Sesión</span>
+        </button>
+      </nav>
     </header>
   )
 }

@@ -160,6 +160,28 @@
   transition: 0.3s;
 }
 
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
 /* Media queries para responsive */
 @media screen and (max-width: 768px) {
   .header {
@@ -167,13 +189,8 @@
     justify-content: space-between;
   }
 
-  .header-logos {
-    flex: 0;
-  }
-
-  .login-button {
-    flex: 0;
-    margin-left: 0;
+  .menu-toggle {
+    display: flex;
   }
 
   .nav-menu {
@@ -186,32 +203,102 @@
     flex-direction: column;
     align-items: center;
     padding: 1rem 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
 
   .nav-menu.active {
     display: flex;
   }
 
-  .nav-menu a {
+  .nav-menu a,
+  .login-button {
     width: 90%;
+    max-width: 300px;
+    margin: 0.5rem auto;
     justify-content: center;
-    margin: 0.5rem 0;
   }
 
-  .header {
-    justify-content: space-between;
+  .login-button {
+    position: relative;
+    border-radius: 8px;
+    width: 90%;
+    height: auto;
+    margin: 0.5rem auto;
+    padding: 0.4rem 0.8rem;
+    background-color: #2563eb;
+  }
+
+  .login-button .login-icon {
+    opacity: 1;
+    width: 24px;
+    position: static;
+  }
+
+  .login-button .login-text {
+    position: static;
+    width: auto;
+    opacity: 1;
+    visibility: visible;
+    margin-left: 8px;
   }
 
   .header-logos {
     flex: none;
   }
 
-  .login-button {
-    margin-left: 0;
+  .login-button:hover {
+    width: 90%;
   }
 
-  .cvr-logo {
-    height: 40px;
+  .nav-menu.active a,
+  .nav-menu.active .login-button {
+    animation: slideIn 0.5s ease forwards;
+    opacity: 0;
+  }
+
+  .nav-menu.active a:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+  .nav-menu.active a:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .nav-menu.active a:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  .nav-menu.active a:nth-child(4) {
+    animation-delay: 0.4s;
+  }
+  .nav-menu.active .login-button {
+    animation-delay: 0.5s;
+  }
+
+  .nav-menu.closing a,
+  .nav-menu.closing .login-button {
+    animation: slideOut 0.5s ease forwards;
+  }
+
+  .nav-menu.closing a:nth-child(4) { animation-delay: 0.1s; }
+  .nav-menu.closing a:nth-child(3) { animation-delay: 0.2s; }
+  .nav-menu.closing a:nth-child(2) { animation-delay: 0.3s; }
+  .nav-menu.closing a:nth-child(1) { animation-delay: 0.4s; }
+  .nav-menu.closing .login-button { animation-delay: 0s; }
+
+  /* Animación para el menú hamburguesa */
+  .menu-toggle.active span:first-child {
+    transform: rotate(45deg) translate(5px, 5px);
+  }
+
+  .menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .menu-toggle.active span:last-child {
+    transform: rotate(-45deg) translate(5px, -5px);
+  }
+
+  /* Ocultar el botón de login original en modo móvil */
+  .header > .login-button {
+    display: none;
   }
 }
 

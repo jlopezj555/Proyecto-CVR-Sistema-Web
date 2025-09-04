@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
-import './Card.css';
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import "./Card.css";
 
 interface CardProps {
   title: string;
-  text: ReactNode; // Cambiamos string | JSX.Element por ReactNode
+  text: ReactNode; // Permite string, JSX.Element, listas, etc.
   image: string;
   imageAlt: string;
 }
 
-const Card = ({ title, text, image, imageAlt }: CardProps) => {
+const Card: React.FC<CardProps> = ({ title, text, image, imageAlt }) => {
   const [isVisible, setIsVisible] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -18,9 +18,7 @@ const Card = ({ title, text, image, imageAlt }: CardProps) => {
       ([entry]) => {
         setIsVisible(entry.isIntersecting);
       },
-      {
-        threshold: 0.1
-      }
+      { threshold: 0.1 }
     );
 
     if (cardRef.current) {
@@ -35,14 +33,13 @@ const Card = ({ title, text, image, imageAlt }: CardProps) => {
   }, []);
 
   return (
-    <div 
-      ref={cardRef} 
-      className={`card ${isVisible ? 'visible' : ''}`}
-    >
+    <div ref={cardRef} className={`card ${isVisible ? "visible" : ""}`}>
+      {/* Imagen arriba, con hover y borde redondeado */}
+      <img src={image} alt={imageAlt} className="card-image" />
+
       <div className="card-content">
         <h3 className="card-title">{title}</h3>
-        <img src={image} alt={imageAlt} className="card-image" />
-        <div className="card-text">{text}</div> {/* Cambiamos <p> por <div> */}
+        <div className="card-text">{text}</div>
       </div>
     </div>
   );
