@@ -71,3 +71,41 @@
     font-size: 1rem;
   }
 }
+
+/* Contenedor tooltip oculto por defecto */
+.experience-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  width: 250px; /* ancho de la burbuja */
+  background-color: #333; /* color de fondo */
+  color: #fff; /* color de texto */
+  text-align: left;
+  border-radius: 10px;
+  padding: 15px;
+  position: absolute; /* se posiciona relativo a la tarjeta */
+  top: 10%; /* debajo del elemento */
+  left: 80%;
+  transform: translateX(-50%);
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  z-index: 1000;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  pointer-events: none; /* para que no bloquee hover */
+}
+
+/* Mostrar tooltip al pasar el cursor sobre la tarjeta */
+.experience-card:hover .experience-tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Opcional: flecha de la burbuja */
+.experience-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 50%; /* verticalmente centrada */
+  left: -10px; /* fuera de la burbuja hacia la derecha */
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent #333 transparent transparent; /* solo la punta izquierda */
+}

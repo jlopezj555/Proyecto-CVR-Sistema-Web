@@ -121,7 +121,7 @@
   margin-left: 0;
 }
 
-.experience-text {
+.cvr-text {
   color: white;
   font-size: 1.1rem;
   font-weight: bold;
@@ -129,7 +129,7 @@
   transition: opacity 0.3s ease;
 }
 
-.cvr-logo-container:hover ~ .experience-text {
+.cvr-logo-container:hover ~ .cvr-text {
   opacity: 1;
   animation: glow 2s ease-in-out infinite alternate;
 }

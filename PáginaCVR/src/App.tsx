@@ -118,32 +118,65 @@ function App() {
       </section>
 
       <section id="experience" className="experience-section">
-        <h2 className="section-title">Experiencia</h2>
+        <h2 className="white-title">Experiencia</h2>
         <div className="cards-container">
           <ExperienceCard
             image={ExperienciaHome}
             imageAlt="Experiencia profesional"
             title="Licda. Cristabel Velásquez Rodríguez
             CPA & Asociados"
-            subtitle="SOCIA FUNDADORA Y GERENTE GENERAL-CVR ASESORÍA CONTABLE FINANCIERA S. A."
-               text="Cristabel, Contadora Pública y Auditora, ha desarrollado su profesión con valores éticos, con destacada experiencia en temas tributarios. Cuenta con 45 años de experiencia en el área fiscal, contable, consultoría gerencial administrativa y financiera, auditoría externa y forense, peritajes judiciales en área civil, penal y laboral. Ha tenido a su cargo la dirección, planificación, y ejecución de auditorías realizadas a entidades del país de los diferentes sectores económicos."
+            subtitle="Cristabel, Contadora Pública y Auditora, ha desarrollado su profesión con valores éticos, con destacada experiencia en temas tributarios. Cuenta con 45 años de experiencia en el área fiscal, contable, consultoría gerencial administrativa y financiera, auditoría externa y forense, peritajes judiciales en área civil, penal y laboral. Ha tenido a su cargo la dirección, planificación, y ejecución de auditorías realizadas a entidades del país de los diferentes sectores económicos."
+               text="SOCIA FUNDADORA Y GERENTE GENERAL-CVR ASESORÍA CONTABLE FINANCIERA S. A."
           />
           </div>
         </section>
 
-        <section id="contact" className="about-section">
-        <h2 className="section-title">Contáctanos</h2>
-        <div className="cards-container">
-        <Card 
-            title="¿Quienes somos?"
-            text="Una organización competitiva dedicada a brindar servicios profesionales, 
-            ofreciendo asesorías en las áreas administrativas, financieras, económicas, fiscales, tributarias y legales para el estricto cumplimiento de las leyes 
-            positivas y vigentes en el país, a los que toda persona individual y jurídica está sujeta."
-            image="/src/assets/about-us-home.png"
-            imageAlt="Misión empresarial"
-          />
-          </div>
-      </section>
+        <section id="contact" className="contact-section">
+  <h2 className="white-title">Contáctanos</h2>
+  <div className="cards-container contact-container">
+    
+    {/* Formulario de contacto */}
+    <form className="contact-form">
+      <label>
+        Nombre:
+        <input type="text" name="nombre" required />
+      </label>
+
+      <label>
+        Teléfono:
+        <input type="tel" name="telefono" required />
+      </label>
+
+      <label>
+        Correo electrónico:
+        <input type="email" name="correo" required />
+      </label>
+
+      <label>
+        Empresa:
+        <input type="text" name="empresa" />
+      </label>
+
+      <label>
+        Mensaje:
+        <textarea name="mensaje" rows={5} required></textarea>
+      </label>
+
+      <button type="submit">Enviar</button>
+    </form>
+
+    {/* Información de la empresa */}
+    <div className="contact-info">
+      <h3>Información de Contacto</h3>
+      <p><strong>Empresa:</strong> CVR Asesoría Contable Financiera S. A.</p>
+      <p><strong>Correo:</strong> contacto@cvrasesoria.com</p>
+      <p><strong>Teléfono:</strong> +502 1234 5678</p>
+      <p><strong>Dirección:</strong> Ciudad de Guatemala, Guatemala</p>
+    </div>
+
+  </div>
+</section>
+
     </>
   )
 }

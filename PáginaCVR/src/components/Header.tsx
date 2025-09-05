@@ -33,7 +33,7 @@ export const Header = () => {
         <div className="cvr-logo-container">
           <img src={cvrLogo} alt="CVR Logo" className="cvr-logo" />
         </div>
-        <span className="experience-text">25 años de experiencia</span>
+        <span className="cvr-text">25 años de experiencia</span>
       </div>
 
       <div className={`menu-toggle ${isMenuOpen ? 'active' : ''}`} onClick={toggleMenu}>

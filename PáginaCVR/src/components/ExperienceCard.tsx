@@ -13,18 +13,21 @@ interface ExperienceCardProps {
 const ExperienceCard: React.FC<ExperienceCardProps> = ({ image, imageAlt, title, subtitle, text }) => {
      console.log("Texto recibido en ExperienceCard:", text)
   return (
-    <div className="experience-card">
-      <div className="experience-image-container">
-        <img src={image} alt={imageAlt} className="experience-image" />
-      </div>
-      <div className="experience-content">
-        <h3 className="experience-title">{title}</h3>
-        <h4 className="experience-subtitle">{subtitle}</h4>
-        <p className="experience-text">{text}</p>
+   <div className="experience-card">
+  <div className="experience-image-container">
+    <img src={image} alt={imageAlt} className="experience-image" />
+  </div>
+  <div className="experience-content">
+    <h3 className="experience-title">{title}</h3>
+    <h4 className="experience-subtitle">{subtitle}</h4>
 
-
-      </div>
+    {/* Tooltip/burbuja */}
+    <div className="experience-tooltip">
+      {text}
     </div>
+  </div>
+</div>
+
   )
 }
 

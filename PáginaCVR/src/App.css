@@ -168,10 +168,22 @@ html, body {
   background-color: #F2B632;
 }
 
+.contact-section {
+  padding: 60px 20px;
+  background-color: #A35D2D;
+}
+
 .section-title {
   text-align: center;
   font-size: 2.5rem;
   color: #333;
+  margin-bottom: 40px;
+}
+
+.white-title {
+  text-align: center;
+  font-size: 2.5rem;
+  color: white;
   margin-bottom: 40px;
 }
 
@@ -195,3 +207,60 @@ html, body {
     font-size: 2rem;
   }
 }
+
+.contact-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.contact-form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  color: white;
+}
+
+.contact-form input,
+.contact-form textarea {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  background-color: white; 
+  color: #000;               
+}
+
+
+.contact-form button {
+  background-color: white; 
+  color: black;
+  padding: 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.contact-form button:hover {
+  background-color: #F2B632; /* Mostaza */
+  color: white;
+}
+
+.contact-info {
+  background: #F2B632;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
