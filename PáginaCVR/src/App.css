@@ -264,3 +264,84 @@ html, body {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
+.contact-info {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.contact-info h3 {
+  color: #122745; /* azul profundo */
+  margin-bottom: 2rem;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+/* Contenedor de tarjetas */
+.contact-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+/* Tarjeta individual con gradiente */
+.contact-card {
+  background: linear-gradient(135deg,  #A35D2D);
+  color: white;
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: 280px;
+  max-width: 320px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.contact-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+}
+
+/* Círculo para el ícono */
+.icon-circle {
+  background: #A35D2D;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.contact-icon {
+  color: #F2B632;
+  font-size: 1.5rem;
+}
+
+/* Texto dentro de la tarjeta */
+.contact-card span {
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+  .contact-card {
+    min-width: 220px;
+    padding: 1rem 1.5rem;
+  }
+
+  .icon-circle {
+    width: 45px;
+    height: 45px;
+  }
+
+  .contact-icon {
+    font-size: 1.3rem;
+  }
+}
+
+

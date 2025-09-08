@@ -7,7 +7,11 @@ import loginIcon from '../assets/login-icon.svg'
 import cvrLogo from '../assets/cvr-logo-blanco.svg'
 import './Header.css'
 
-export const Header = () => {
+interface HeaderProps {
+  onLoginClick: () => void; // Prop para abrir modal
+}
+
+export const Header = ({ onLoginClick }: HeaderProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isClosing, setIsClosing] = useState(false)
 
@@ -17,7 +21,7 @@ export const Header = () => {
       setTimeout(() => {
         setIsMenuOpen(false)
         setIsClosing(false)
-      }, 600) // Tiempo total de la animación de cierre
+      }, 600) // tiempo de animación de cierre
     } else {
       setIsMenuOpen(true)
     }
@@ -59,9 +63,17 @@ export const Header = () => {
           <img src={contactIcon} alt="" className="nav-icon" />
           Contáctenos
         </a>
-        <button className="login-button" onClick={handleNavClick}>
+
+        {/* Botón de login usando la prop onLoginClick */}
+        <button
+          className="login-button"
+          onClick={() => {
+            handleNavClick() // cierra el menú si estaba abierto
+            onLoginClick()   // abre el modal de login
+          }}
+        >
           <img src={loginIcon} alt="" className="login-icon" />
-          <span className="login-text">Iniciar Sesión</span>
+          <span className="login-text-original">Iniciar Sesión</span>
         </button>
       </nav>
     </header>

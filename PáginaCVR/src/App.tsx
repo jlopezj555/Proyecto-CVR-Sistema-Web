@@ -1,4 +1,5 @@
 import { Header } from './components/Header'
+import { useState } from "react";
 import './App.css'
 import heroImage from './assets/hero-image.jpg'
 import aboutUsHome from './assets/about-us-home.png'
@@ -11,12 +12,30 @@ import ContaHome from './assets/conta-home.png'
 import ExperienciaHome from './assets/experiencia-home.png'
 import Card from './components/Card'
 import ExperienceCard from "./components/ExperienceCard"
+import LoginModal from "./components/LoginModal";
+import RegisterModal from "./components/RegisterModal";
+import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaBuilding } from "react-icons/fa";
 
 
 function App() {
+  const [isLoginOpen, setIsLoginOpen] = useState(false); 
+  const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+{
   return (
     <>
-      <Header />
+      {/* Pasamos la función al Header */}
+      <Header onLoginClick={() => setIsLoginOpen(true)} />
+
+      {/* Modal */}
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onRegisterClick={() => setIsRegisterOpen(true)} // 
+      />
+
+
+      <RegisterModal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
+
       
       <div className="hero-image-container">
         <img src={heroImage} alt="Hero" className="hero-image" />
@@ -166,19 +185,46 @@ function App() {
     </form>
 
     {/* Información de la empresa */}
-    <div className="contact-info">
-      <h3>Información de Contacto</h3>
-      <p><strong>Empresa:</strong> CVR Asesoría Contable Financiera S. A.</p>
-      <p><strong>Correo:</strong> contacto@cvrasesoria.com</p>
-      <p><strong>Teléfono:</strong> +502 1234 5678</p>
-      <p><strong>Dirección:</strong> Ciudad de Guatemala, Guatemala</p>
+<div className="contact-info">
+  <h3>Información de Contacto</h3>
+
+  <div className="contact-cards">
+    <div className="contact-card">
+      <div className="icon-circle">
+        <FaBuilding className="contact-icon" />
+      </div>
+      <span>CVR Asesoría Contable Financiera S. A.</span>
     </div>
+
+    <div className="contact-card">
+      <div className="icon-circle">
+        <FaEnvelope className="contact-icon" />
+      </div>
+      <span>info@cvrasesoria.com</span>
+    </div>
+
+    <div className="contact-card">
+      <div className="icon-circle">
+        <FaPhoneAlt className="contact-icon" />
+      </div>
+      <span>PBX: 2335-1609</span>
+    </div>
+
+    <div className="contact-card">
+      <div className="icon-circle">
+        <FaMapMarkerAlt className="contact-icon" />
+      </div>
+      <span>6a. Av. 0-60 Zona 4, Torre Profesional II, Oficina 303 "A", Gran Centro Comercial Zona 4.</span>
+    </div>
+  </div>
+</div>
 
   </div>
 </section>
 
     </>
   )
+  }
 }
 
 export default App
