@@ -1,7 +1,6 @@
 import { Header } from './components/Header'
 import { useState } from "react";
 import './App.css'
-import heroImage from './assets/hero-image.jpg'
 import aboutUsHome from './assets/about-us-home.png'
 import VisionImagen from './assets/vision-imagen.avif'
 import MisionImagen from './assets/mision-imagen.webp'
@@ -14,12 +13,14 @@ import Card from './components/Card'
 import ExperienceCard from "./components/ExperienceCard"
 import LoginModal from "./components/LoginModal";
 import RegisterModal from "./components/RegisterModal";
-import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt, FaBuilding } from "react-icons/fa";
+import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
 
 
 function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false); 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+
 {
   return (
     <>
@@ -37,10 +38,11 @@ function App() {
       <RegisterModal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
 
       
-      <div className="hero-image-container">
-        <img src={heroImage} alt="Hero" className="hero-image" />
-        <h1 className="hero-text typing">Asesoría y Soluciones Óptimas para tus Finanzas</h1>
-      </div>
+<div className="hero-image-container">
+  <h1 className="hero-text typing">Asesoría y Soluciones Óptimas para tus Finanzas</h1>
+</div>
+
+
 
       <section id="about" className="about-section">
         <h2 className="section-title">Acerca de Nosotros</h2>
@@ -189,35 +191,72 @@ function App() {
   <h3>Información de Contacto</h3>
 
   <div className="contact-cards">
-    <div className="contact-card">
-      <div className="icon-circle">
-        <FaBuilding className="contact-icon" />
-      </div>
-      <span>CVR Asesoría Contable Financiera S. A.</span>
-    </div>
 
     <div className="contact-card">
       <div className="icon-circle">
         <FaEnvelope className="contact-icon" />
       </div>
-      <span>info@cvrasesoria.com</span>
+      {/* Botón que abre Gmail redactando */}
+      <div className="contact-tooltip-container">
+        <a 
+          href="https://mail.google.com/mail/?view=cm&fs=1&to=info@cvrasesoria.com" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="contact-button"
+        >
+info@cvrasesoria.com        </a>
+      </div>
     </div>
 
     <div className="contact-card">
       <div className="icon-circle">
         <FaPhoneAlt className="contact-icon" />
       </div>
-      <span>PBX: 2335-1609</span>
+      {/* Botón que abre llamada */}
+      <div className="contact-tooltip-container">
+        <a 
+          href="tel:+50223351609" 
+          className="contact-button"
+        >
+          PBX: 2335-1609
+        </a>
+      </div>
     </div>
 
-    <div className="contact-card">
-      <div className="icon-circle">
-        <FaMapMarkerAlt className="contact-icon" />
-      </div>
-      <span>6a. Av. 0-60 Zona 4, Torre Profesional II, Oficina 303 "A", Gran Centro Comercial Zona 4.</span>
-    </div>
+<div className="contact-card">
+  <div className="icon-circle">
+    <FaMapMarkerAlt className="contact-icon" />
+  </div>
+  <div className="contact-tooltip-container">
+    <span 
+      className="address-link"
+      onClick={() => setShowMap(true)}
+    >
+      6a. Av. 0-60 Zona 4, Torre Profesional II, Oficina 303 "A", Gran Centro Comercial Zona 4.
+    </span>
   </div>
 </div>
+
+
+
+  </div>
+</div>
+
+{/* Modal de Google Maps */}
+{showMap && (
+  <div className="modal-overlay" onClick={() => setShowMap(false)}>
+    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+      <button className="close-button" onClick={() => setShowMap(false)}>X</button>
+<iframe
+  src="https://www.google.com/maps?q=6a.+Av.+0-60+Zona+4,+Torre+Profesional+II,+Oficina+303+A,+Gran+Centro+Comercial+Zona+4,+Guatemala&output=embed"
+  allowFullScreen
+  loading="lazy"
+></iframe>
+    </div>
+  </div>
+)}
+
+
 
   </div>
 </section>

@@ -11,7 +11,6 @@ interface ExperienceCardProps {
 
 
 const ExperienceCard: React.FC<ExperienceCardProps> = ({ image, imageAlt, title, subtitle, text }) => {
-     console.log("Texto recibido en ExperienceCard:", text)
   return (
    <div className="experience-card">
   <div className="experience-image-container">
