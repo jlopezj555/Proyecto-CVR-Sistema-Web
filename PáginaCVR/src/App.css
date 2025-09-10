@@ -221,12 +221,7 @@ html, body, #root {
   margin: 0 auto;
 }
 
-.modal-content iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  border-radius: 8px;
-}
+
 
 
 /* Responsive design */
@@ -313,33 +308,35 @@ html, body, #root {
 .contact-cards {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 1.5rem;
+  justify-content: flex-start;
+  gap: 1rem;
 }
 
 /* Tarjeta individual con gradiente */
 .contact-card {
-  background:  #A35D2D;
-  color: blue;
+  background:  white;
+  color: #4B2E2E;
   border-radius: 16px;
   padding: 1.5rem 2rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  min-width: 280px;
-  max-width: 320px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  width: 300px;
+  height: 80px;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .contact-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.25);
 }
 
 /* Círculo para el ícono */
 .icon-circle {
-  background: #A35D2D;
+  background: #F2F2F2; /* Fondo blanco/gris claro */
   border-radius: 50%;
   width: 50px;
   height: 50px;
@@ -348,8 +345,9 @@ html, body, #root {
   align-items: center;
 }
 
+/* Icono café */
 .contact-icon {
-  color: #F2B632;
+  color: #4B2E2E; /* Café */
   font-size: 1.5rem;
 }
 
@@ -358,6 +356,8 @@ html, body, #root {
   font-size: 1rem;
   font-weight: 600;
   text-align: left;
+  color: #4B2E2E; /* Café */
+  flex: 1;
 }
 
 .contact-tooltip-container {
@@ -406,19 +406,42 @@ html, body, #root {
   transition: all 0.3s ease;
 }
 
-/* Fondo del modal */
+/* Solo para el modal del mapa */
+.map-modal-content {
+  background: #fff;
+  padding: 15px;
+  border-radius: 12px;
+  position: relative;
+  width: 80vw;
+  max-width: 900px;
+  height: 80vh; 
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.map-modal-content iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 8px;
+}
+
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0,0,0,0.6); /* fondo oscuro */
   display: flex;
   justify-content: center;
-  align-items: center;
-  z-index: 999;
+  align-items: center; /* centra vertical y horizontal */
+  padding-top: 40px; /* opcional: lo baja un poco más */
+  z-index: 1000;
 }
+
 
 /* Contenido del modal centrado */
 .modal-content {
@@ -429,21 +452,28 @@ html, body, #root {
   width: 80vw;   /* Siempre 80% del ancho de la pantalla */
   height: 80vh;  /* Siempre 80% de la altura de la pantalla */
   display: flex;
-  /*flex-direction: column;*/
+  flex-direction: column;
   align-items: center;
 }
 
 
-/* Botón de cierre */
+
 .close-button {
   position: absolute;
   top: 8px;
   right: 10px;
   border: none;
   background: transparent;
-  font-size: 20px;
+  font-size: 22px;
   cursor: pointer;
+  color: black;
+  transition: color 0.3s ease;
 }
+
+.close-button:hover {
+  color: #333; /* un poco más oscuro al pasar el mouse */
+}
+
 
 .address-link {
   color: #007bff;

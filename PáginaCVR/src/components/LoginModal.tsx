@@ -28,7 +28,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onRegisterClic
 
   return (
     <div className={`modal-overlay ${isClosing ? "closing" : ""}`}>
-      <div className={`modal-content ${isClosing ? "closing" : ""}`}>
+      <div className={`login-modal ${isClosing ? "closing" : ""}`}>
         <h2>Iniciar Sesión</h2>
         <form className="login-form">
           <label>

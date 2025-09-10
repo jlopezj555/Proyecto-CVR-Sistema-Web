@@ -33,6 +33,9 @@
   opacity: 0;
   animation: popIn 0.4s forwards;
   transform-origin: top right;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .register-content.closing {

@@ -191,61 +191,51 @@ function App() {
   <h3>Información de Contacto</h3>
 
   <div className="contact-cards">
-
-    <div className="contact-card">
+    {/* Email */}
+    <a 
+      href="https://mail.google.com/mail/?view=cm&fs=1&to=info@cvrasesoria.com" 
+      target="_blank" 
+      rel="noopener noreferrer"
+      className="contact-card"
+    >
       <div className="icon-circle">
         <FaEnvelope className="contact-icon" />
       </div>
-      {/* Botón que abre Gmail redactando */}
-      <div className="contact-tooltip-container">
-        <a 
-          href="https://mail.google.com/mail/?view=cm&fs=1&to=info@cvrasesoria.com" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="contact-button"
-        >
-info@cvrasesoria.com        </a>
-      </div>
-    </div>
+      <span>info@cvrasesoria.com</span>
+    </a>
 
-    <div className="contact-card">
+    {/* Teléfono */}
+    <a 
+      href="tel:+50223351609" 
+      className="contact-card"
+    >
       <div className="icon-circle">
         <FaPhoneAlt className="contact-icon" />
       </div>
-      {/* Botón que abre llamada */}
-      <div className="contact-tooltip-container">
-        <a 
-          href="tel:+50223351609" 
-          className="contact-button"
-        >
-          PBX: 2335-1609
-        </a>
-      </div>
-    </div>
+      <span>PBX: 2335-1609</span>
+    </a>
 
-<div className="contact-card">
-  <div className="icon-circle">
-    <FaMapMarkerAlt className="contact-icon" />
-  </div>
-  <div className="contact-tooltip-container">
-    <span 
-      className="address-link"
+    {/* Dirección con modal */}
+    <div 
+      className="contact-card" 
       onClick={() => setShowMap(true)}
+      style={{ cursor: "pointer" }}
     >
-      6a. Av. 0-60 Zona 4, Torre Profesional II, Oficina 303 "A", Gran Centro Comercial Zona 4.
-    </span>
+      <div className="icon-circle">
+        <FaMapMarkerAlt className="contact-icon" />
+      </div>
+      <span>
+        6a. Av. 0-60 Zona 4, Torre Profesional II, Oficina 303 "A", Gran Centro Comercial Zona 4.
+      </span>
+    </div>
   </div>
 </div>
 
-
-
-  </div>
-</div>
 
 {/* Modal de Google Maps */}
 {showMap && (
   <div className="modal-overlay" onClick={() => setShowMap(false)}>
-    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div className="map-modal-content" onClick={(e) => e.stopPropagation()}>
       <button className="close-button" onClick={() => setShowMap(false)}>X</button>
 <iframe
   src="https://www.google.com/maps?q=6a.+Av.+0-60+Zona+4,+Torre+Profesional+II,+Oficina+303+A,+Gran+Centro+Comercial+Zona+4,+Guatemala&output=embed"

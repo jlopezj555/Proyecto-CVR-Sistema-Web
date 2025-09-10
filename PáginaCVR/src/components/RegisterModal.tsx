@@ -20,8 +20,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className={`modal-overlay ${isClosing ? "closing" : ""}`}>
-      <div className={`modal-content ${isClosing ? "closing" : ""}`}>
+    <div className={`register-overlay ${isClosing ? "closing" : ""}`}>
+      <div className={`register-content ${isClosing ? "closing" : ""}`}>
         <h2>Crear Cuenta</h2>
         <form className="register-form">
           <label>
