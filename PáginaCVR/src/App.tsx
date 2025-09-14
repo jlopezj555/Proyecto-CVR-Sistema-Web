@@ -1,5 +1,5 @@
 import { Header } from './components/Header'
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import './App.css'
 import aboutUsHome from './assets/about-us-home.png'
 import VisionImagen from './assets/vision-imagen.avif'
@@ -14,36 +14,223 @@ import ExperienceCard from "./components/ExperienceCard"
 import LoginModal from "./components/LoginModal";
 import RegisterModal from "./components/RegisterModal";
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
+import AdminView from './components/AdminView';
+import UserView from './components/UserView';
+import axios from 'axios';
 
 
 function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false); 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(localStorage.getItem('rol'));
+  const [userName, setUserName] = useState<string | null>(localStorage.getItem('nombre'));
+  const [userType, setUserType] = useState<string | null>(localStorage.getItem('tipo'));
+  const [userFoto, setUserFoto] = useState<string | null>(localStorage.getItem('foto'));
+  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+
+  useEffect(() => {
+    const storageListener = () => {
+      setUserRole(localStorage.getItem('rol'))
+      setUserName(localStorage.getItem('nombre'))
+      setUserType(localStorage.getItem('tipo'))
+      setUserFoto(localStorage.getItem('foto'))
+    }
+    window.addEventListener('storage', storageListener)
+    return () => window.removeEventListener('storage', storageListener)
+  }, [])
+
+  // Mostrar mensaje de bienvenida para clientes
+  useEffect(() => {
+    if (userType === 'cliente' && userRole === 'Cliente') {
+      setShowWelcomeMessage(true);
+      // Ocultar mensaje después de 5 segundos
+      const timer = setTimeout(() => {
+        setShowWelcomeMessage(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [userType, userRole]);
+
+  const showLoadingDialog = (message: string) => {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.innerHTML = `
+      <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
+        <div class="spinner" style="width: 40px; height: 40px; border: 4px solid #ccc; border-top: 4px solid #2563eb; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p style="margin-top: 10px; font-size: 1.2rem; color: #2563eb;">${message}</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    return overlay;
+  };
+
+  const showErrorDialog = (message: string) => {
+    const overlay = document.createElement('div');
+    overlay.style.position = 'fixed';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.height = '100%';
+    overlay.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+    overlay.style.zIndex = '9999';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.innerHTML = `
+      <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; border: 2px solid red;">
+        <div style="color: red; font-size: 2rem; margin-bottom: 10px;">⚠️</div>
+        <p style="margin-top: 10px; font-size: 1.2rem; color: red;">${message}</p>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    setTimeout(() => document.body.removeChild(overlay), 2500);
+  };
+
+  const handleLogin = async (email: string, password: string): Promise<void> => {
+    const overlay = showLoadingDialog('Iniciando sesión...');
+
+    try {
+      const response = await axios.post('http://localhost:4000/api/login', {
+        correo: email,
+        contrasena: password,
+      });
+
+      if (response.data.success) {
+        const { nombre, rol, token, tipo, foto } = response.data;
+
+        // Store token and user data
+        localStorage.setItem('token', token);
+        localStorage.setItem('rol', rol);
+        localStorage.setItem('nombre', nombre);
+        localStorage.setItem('tipo', tipo);
+        localStorage.setItem('foto', foto || '');
+
+        setUserRole(rol);
+        setUserName(nombre);
+        setUserType(tipo);
+        setUserFoto(foto || '');
+        setIsLoginOpen(false);
+      } else {
+        showErrorDialog(response.data.message || 'Credenciales incorrectas');
+      }
+    } catch (error: any) {
+      console.error('Error al iniciar sesión:', error);
+      const errorMessage = error.response?.data?.message || 'Usuario o contraseña inválidos';
+      showErrorDialog(errorMessage);
+    } finally {
+      setTimeout(() => document.body.removeChild(overlay), 2500);
+    }
+  };
+
+  const handleRegisterSuccess = (userData: any) => {
+    setUserRole(userData.rol);
+    setUserName(userData.nombre);
+    setUserType(userData.tipo);
+    setUserFoto(userData.foto || '');
+  };
+
+  const handleLogout = () => {
+    const overlay = showLoadingDialog('Cerrando sesión...');
+    localStorage.removeItem('token');
+    localStorage.removeItem('rol');
+    localStorage.removeItem('nombre');
+    localStorage.removeItem('tipo');
+    localStorage.removeItem('foto');
+    setUserRole(null);
+    setUserName(null);
+    setUserType(null);
+    setUserFoto(null);
+    setActiveTab(null);
+    setShowWelcomeMessage(false);
+
+    setTimeout(() => {
+      document.body.removeChild(overlay);
+      window.location.reload();
+    }, 2500);
+  };
+
+  const handleContactSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const formData = new FormData(event.target as HTMLFormElement);
+    const subject = formData.get('subject') as string;
+    const message = formData.get('message') as string;
+
+    const updatedSubject = userType === 'cliente' ? `Cliente Registrado - ${subject}` : subject;
+
+    // Simulate sending the email
+    console.log('Enviando correo con asunto:', updatedSubject);
+    console.log('Mensaje:', message);
+
+    alert('Correo enviado exitosamente.');
+  };
 
 {
   return (
     <>
-      {/* Pasamos la función al Header */}
-      <Header onLoginClick={() => setIsLoginOpen(true)} />
+      {/* Header con estado de autenticación */}
+      <Header
+        onLoginClick={() => setIsLoginOpen(true)}
+        onLogoutClick={handleLogout}
+        isAuthenticated={!!userRole}
+        userName={userName}
+        userRole={userRole}
+        userType={userType}
+        userFoto={userFoto}
+        activeTab={activeTab}
+        onNavSelect={(tab) => setActiveTab(tab)}
+      />
 
       {/* Modal */}
       <LoginModal
         isOpen={isLoginOpen}
         onClose={() => setIsLoginOpen(false)}
-        onRegisterClick={() => setIsRegisterOpen(true)} // 
+        onRegisterClick={() => setIsRegisterOpen(true)}
+        onLogin={handleLogin}
       />
 
 
-      <RegisterModal isOpen={isRegisterOpen} onClose={() => setIsRegisterOpen(false)} />
+      <RegisterModal 
+        isOpen={isRegisterOpen} 
+        onClose={() => setIsRegisterOpen(false)} 
+        onLoginSuccess={handleRegisterSuccess}
+      />
 
       
 <div className="hero-image-container">
   <h1 className="hero-text typing">Asesoría y Soluciones Óptimas para tus Finanzas</h1>
 </div>
 
+{/* Mensaje de bienvenida para clientes */}
+{showWelcomeMessage && (
+  <div className="welcome-message">
+    <div className="welcome-content">
+      <span className="welcome-icon">👋</span>
+      <span className="welcome-text">¡Bienvenido, {userName}! Has iniciado sesión como cliente.</span>
+      <button 
+        className="welcome-close" 
+        onClick={() => setShowWelcomeMessage(false)}
+      >
+        ✕
+      </button>
+    </div>
+  </div>
+)}
 
 
+
+      {(!userRole || userType === 'cliente') && (
       <section id="about" className="about-section">
         <h2 className="section-title">Acerca de Nosotros</h2>
         <div className="cards-container">
@@ -77,7 +264,9 @@ function App() {
           />
         </div>
       </section>
+      )}
 
+      {(!userRole || userType === 'cliente') && (
       <section id="services" className="about-section">
         <h2 className="section-title">Servicios</h2>
         <div className="cards-container">
@@ -137,7 +326,9 @@ function App() {
           {/* Puedes agregar más tarjetas de servicios aquí */}
         </div>
       </section>
+      )}
 
+      {(!userRole || userType === 'cliente') && (
       <section id="experience" className="experience-section">
         <h2 className="white-title">Experiencia</h2>
         <div className="cards-container">
@@ -151,13 +342,15 @@ function App() {
           />
           </div>
         </section>
+      )}
 
+      {(!userRole || userType === 'cliente') && (
         <section id="contact" className="contact-section">
   <h2 className="white-title">Contáctanos</h2>
   <div className="cards-container contact-container">
     
     {/* Formulario de contacto */}
-    <form className="contact-form">
+    <form className="contact-form" onSubmit={handleContactSubmit}>
       <label>
         Nombre:
         <input type="text" name="nombre" required />
@@ -249,7 +442,29 @@ function App() {
 
 
   </div>
-</section>
+      </section>
+      )}
+
+      {/* Vistas por rol - Solo para empleados y administradores */}
+      {userRole && userType !== 'cliente' && (
+        <div style={{ marginTop: '20px' }}>
+          <h2 className="white-title">Bienvenido {userName}</h2>
+          {userRole === 'Administrador' ? (
+            <>
+              {activeTab === 'Cuentas' && <AdminView nombre={userName || ''} />}
+              {activeTab === 'Empresas' && <AdminView nombre={userName || ''} />}
+              {activeTab === 'Empleados' && <AdminView nombre={userName || ''} />}
+              {!activeTab && <AdminView nombre={userName || ''} />}
+            </>
+          ) : (
+            <>
+              {activeTab === 'Cuentas' && <UserView nombre={userName || ''} />}
+              {activeTab === 'Empresas' && <UserView nombre={userName || ''} />}
+              {!activeTab && <UserView nombre={userName || ''} />}
+            </>
+          )}
+        </div>
+      )}
 
     </>
   )

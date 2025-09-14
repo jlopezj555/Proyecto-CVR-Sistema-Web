@@ -41,7 +41,7 @@
 
 .card-image {
   width: 100%;
-  height: 250px; /* Aumentamos la altura de 200px a 250px */
+  height: 200px; /* Set a fixed height to make the image square */
   object-fit: cover;
   border-radius: 8px 8px 0 0;
   transition: transform 0.3s ease;

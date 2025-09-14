@@ -51,6 +51,10 @@
   transform: translateY(-2px);
 }
 
+.nav-menu a.active {
+  background-color: #A35D2D;
+}
+
 .nav-icon {
   width: 24px;
   height: 24px;
@@ -105,7 +109,16 @@
   transition: all 0.3s ease;
 }
 
-.login-button:hover .login-icon {
+.profile-photo {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  transition: all 0.3s ease;
+}
+
+.login-button:hover .login-icon,
+.login-button:hover .profile-photo {
   opacity: 0;
   width: 0;
   position: absolute;
@@ -119,6 +132,14 @@
 .login-button:hover span {
   display: inline;
   margin-left: 0;
+}
+
+/* Estado de cierre de sesión en rojo */
+.login-button.logout {
+  background-color: #dc2626;
+}
+.login-button.logout:hover {
+  background-color: #b91c1c;
 }
 
 .cvr-text {
@@ -315,4 +336,26 @@
     width: 40px;
     height: 40px;
   }
+}
+
+.profile-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+  z-index: 1001;
+}
+
+.profile-message.visible {
+  opacity: 1;
+  visibility: visible;
 }

@@ -5,10 +5,14 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRegisterClick: () => void;
+  onLogin: (email: string, password: string) => void;
 }
 
-const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onRegisterClick }) => {
+const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onRegisterClick, onLogin }) => {
   const [isClosing, setIsClosing] = useState(false);
+  const [correo, SetCorreo] = useState('');
+  const [contrasena, SetContrasena] = useState('');
+  const [loading, setLoading] = useState(false);  
 
   if (!isOpen && !isClosing) return null;
 
@@ -26,21 +30,44 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onRegisterClic
     setTimeout(() => onRegisterClick(), 300);
   };
 
-  return (
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true); // Inicia el estado de carga
+
+    try {
+      await onLogin(correo, contrasena);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+return (
     <div className={`modal-overlay ${isClosing ? "closing" : ""}`}>
       <div className={`login-modal ${isClosing ? "closing" : ""}`}>
         <h2>Iniciar Sesión</h2>
-        <form className="login-form">
+        <form className="login-form" onSubmit={handleSubmit}>
           <label>
-            Usuario:
-            <input type="text" name="usuario" required />
+            Correo:
+            <input
+              type="email"
+              name="correo"
+              value={correo}
+              onChange={(e) => SetCorreo(e.target.value)}
+              required
+            />
           </label>
           <label>
             Contraseña:
-            <input type="password" name="password" required />
+            <input
+              type="password"
+              name="password"
+              value={contrasena}
+              onChange={(e) => SetContrasena(e.target.value)}
+              required
+            />
           </label>
-          <button type="submit" className="login-btn">
-            Ingresar
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
         <p className="register-text">

@@ -1,15 +1,15 @@
--- DROP DATABASE CVR_LDD;
-CREATE DATABASE CVR_LDD;
+ -- DROP DATABASE CVR_LDD;
+ CREATE DATABASE CVR_LDD;
 USE  CVR_LDD;
 
--- Tabla de empleados
+ -- Tabla de empleados
 CREATE TABLE Empleado (
     id_empleado INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-    apellido VARCHAR(100)NOT NULL,
+   apellido VARCHAR(100)NOT NULL,
     correo VARCHAR(120) UNIQUE NOT NULL,
-    contraseña VARCHAR(120) NOT NULL
-);
+    contrasena VARCHAR(255) NOT NULL -- hash bcrypt
+ );
 
 -- Tabla de roles
 CREATE TABLE Rol (
@@ -82,5 +82,57 @@ CREATE TABLE EtapaCuenta (
     FOREIGN KEY (id_etapa) REFERENCES EtapaCatalogo(id_etapa)
         ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (etapa_origen_error) REFERENCES EtapaCatalogo(id_etapa)
+);
+
+CREATE TABLE Cliente (
+    id_cliente INT AUTO_INCREMENT PRIMARY KEY,
+    nombre_completo VARCHAR(150) NOT NULL,
+    usuario VARCHAR(100) UNIQUE NOT NULL,
+    correo VARCHAR(120) UNIQUE NOT NULL,
+    contrasena VARCHAR(255) NOT NULL, -- hash bcrypt recomendado
+    id_empresa INT NOT NULL DEFAULT 1,
+    FOREIGN KEY (id_empresa) REFERENCES Empresa(id_empresa)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+-- ============================================
+-- TABLA UNIFICADA DE USUARIOS
+-- ============================================
+CREATE TABLE Usuario (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    nombre_completo VARCHAR(150) NOT NULL,
+    correo VARCHAR(120) UNIQUE NOT NULL,
+    contrasena VARCHAR(255) NOT NULL, -- hash bcrypt
+    tipo_usuario ENUM('administrador', 'empleado', 'cliente') NOT NULL,
+    id_empleado INT NULL, -- Referencia a tabla Empleado si es empleado
+    id_cliente INT NULL,  -- Referencia a tabla Cliente si es cliente
+    foto_perfil VARCHAR(255) NULL, -- URL de la foto de perfil
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- ============================================
+-- TABLA DE CLIENTES (MANTENER PARA REFERENCIAS)
+-- ============================================
+
+
+-- ============================================
+-- TABLA DE PAPELERIA (documentación contable)
+-- ============================================
+CREATE TABLE Papeleria (
+    id_papeleria INT AUTO_INCREMENT PRIMARY KEY,
+    id_cliente INT NOT NULL,
+    id_cuenta INT NOT NULL,
+    descripcion VARCHAR(200) NOT NULL,
+    fecha_recepcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_entrega TIMESTAMP NULL,
+    estado ENUM('Recibida','En proceso','Entregada') DEFAULT 'Recibida',
+    FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (id_cuenta) REFERENCES Cuenta(id_cuenta)
+        ON DELETE CASCADE ON UPDATE CASCADE
 );
 
