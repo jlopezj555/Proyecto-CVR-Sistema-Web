@@ -204,16 +204,7 @@
 }
 
 /* Media queries para responsive */
-@media screen and (max-width: 768px) {
-  .header {
-    padding: 0 1rem;
-    justify-content: space-between;
-  }
-
-  .menu-toggle {
-    display: flex;
-  }
-
+@media screen and (max-width: 1200px) {
   .nav-menu {
     display: none;
     position: absolute;
@@ -229,6 +220,17 @@
 
   .nav-menu.active {
     display: flex;
+  }
+
+  .menu-toggle {
+    display: flex;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .header {
+    padding: 0 1rem;
+    justify-content: space-between;
   }
 
   .nav-menu a,

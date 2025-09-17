@@ -6,6 +6,7 @@ import contactIcon from '../assets/contact-icon.svg'
 import loginIcon from '../assets/login-icon.svg'
 import cvrLogo from '../assets/cvr-logo-blanco.svg'
 import './Header.css'
+import AdminNavButtons from './AdminNavButtons'
 
 interface HeaderProps {
   onLoginClick: () => void;
@@ -92,17 +93,33 @@ export const Header = ({ onLoginClick, onLogoutClick, isAuthenticated, userName,
 
         {isAuthenticated && userRole === 'Administrador' && (
           <>
-            <a href="#" onClick={() => { onNavSelect && onNavSelect('Cuentas'); handleNavClick() }} className={activeTab === 'Cuentas' ? 'active' : ''}>
-              <img src={aboutIcon} alt="Cuentas" className="nav-icon" />
-              Cuentas
+            <a href="#" onClick={() => { onNavSelect && onNavSelect('empleados'); handleNavClick() }} className={activeTab === 'empleados' ? 'active' : ''}>
+              <img src={experienceIcon} alt="Empleados" className="nav-icon" />
+              Empleados
             </a>
-            <a href="#" onClick={() => { onNavSelect && onNavSelect('Empresas'); handleNavClick() }} className={activeTab === 'Empresas' ? 'active' : ''}>
+            <a href="#" onClick={() => { onNavSelect && onNavSelect('empresas'); handleNavClick() }} className={activeTab === 'empresas' ? 'active' : ''}>
               <img src={servicesIcon} alt="Empresas" className="nav-icon" />
               Empresas
             </a>
-            <a href="#" onClick={() => { onNavSelect && onNavSelect('Empleados'); handleNavClick() }} className={activeTab === 'Empleados' ? 'active' : ''}>
-              <img src={experienceIcon} alt="Empleados" className="nav-icon" />
-              Empleados
+            <a href="#" onClick={() => { onNavSelect && onNavSelect('roles'); handleNavClick() }} className={activeTab === 'roles' ? 'active' : ''}>
+              <img src={aboutIcon} alt="Roles" className="nav-icon" />
+              Roles
+            </a>
+            <a href="#" onClick={() => { onNavSelect && onNavSelect('cuentas'); handleNavClick() }} className={activeTab === 'cuentas' ? 'active' : ''}>
+              <img src={contactIcon} alt="Cuentas" className="nav-icon" />
+              Cuentas
+            </a>
+            <a href="#" onClick={() => { onNavSelect && onNavSelect('papeleria'); handleNavClick() }} className={activeTab === 'papeleria' ? 'active' : ''}>
+              <img src={aboutIcon} alt="Papelería" className="nav-icon" />
+              Papelería
+            </a>
+            <a href="#" onClick={() => { onNavSelect && onNavSelect('etapas-catalogo'); handleNavClick() }} className={activeTab === 'etapas-catalogo' ? 'active' : ''}>
+              <img src={servicesIcon} alt="Etapas Catálogo" className="nav-icon" />
+              Etapas Catálogo
+            </a>
+            <a href="#" onClick={() => { onNavSelect && onNavSelect('etapas-cuenta'); handleNavClick() }} className={activeTab === 'etapas-cuenta' ? 'active' : ''}>
+              <img src={experienceIcon} alt="Etapas Cuenta" className="nav-icon" />
+              Etapas Cuenta
             </a>
           </>
         )}
@@ -139,6 +156,10 @@ export const Header = ({ onLoginClick, onLogoutClick, isAuthenticated, userName,
               Contáctenos
             </a>
           </>
+        )}
+
+        {false && isAuthenticated && userRole === 'Administrador' && onNavSelect && (
+          <AdminNavButtons onNavSelect={onNavSelect} />
         )}
 
         {isAuthenticated ? (

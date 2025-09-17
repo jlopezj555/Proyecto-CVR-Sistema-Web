@@ -1,0 +1,246 @@
+/* Estilos para la vista de etapas de cuentas */
+.etapas-cuenta-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  margin: 20px 0;
+  overflow: hidden;
+}
+
+.etapas-cuenta-header {
+  background: linear-gradient(135deg, #122745 0%, #1e3a5f 100%);
+  color: white;
+  padding: 24px;
+  text-align: center;
+}
+
+.etapas-cuenta-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.etapas-cuenta-header p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 1rem;
+}
+
+.etapas-cuenta-controls {
+  padding: 24px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.cuenta-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 500px;
+}
+
+.cuenta-selector label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.cuenta-selector select {
+  padding: 12px 16px;
+  border: 2px solid #e9ecef;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.cuenta-selector select:focus {
+  outline: none;
+  border-color: #A35D2D;
+  box-shadow: 0 0 0 3px rgba(163, 93, 45, 0.1);
+}
+
+.etapas-cuenta-content {
+  padding: 24px;
+}
+
+.etapas-loading,
+.etapas-empty {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
+  font-size: 1.1rem;
+}
+
+.etapas-timeline {
+  position: relative;
+}
+
+.etapas-timeline h3 {
+  margin: 0 0 24px 0;
+  color: #2c3e50;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.etapa-item {
+  display: flex;
+  margin-bottom: 32px;
+  position: relative;
+}
+
+.etapa-timeline-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-right: 20px;
+  position: relative;
+}
+
+.etapa-status-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 0 0 3px #e9ecef;
+  z-index: 2;
+  position: relative;
+}
+
+.etapa-timeline-line {
+  width: 2px;
+  height: 40px;
+  background: #e9ecef;
+  margin-top: 8px;
+}
+
+.etapa-content {
+  flex: 1;
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 4px solid #A35D2D;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.etapa-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.etapa-header h4 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.etapa-estado {
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid currentColor;
+}
+
+.etapa-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.etapa-info p {
+  margin: 0 0 8px 0;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.etapa-info p:last-child {
+  margin-bottom: 0;
+}
+
+.etapa-rechazo {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-top: 12px;
+}
+
+.etapa-rechazo p {
+  margin: 0 0 8px 0;
+  color: #721c24;
+  font-size: 0.9rem;
+}
+
+.etapa-rechazo p:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .etapas-cuenta-header {
+    padding: 20px 16px;
+  }
+  
+  .etapas-cuenta-header h2 {
+    font-size: 1.5rem;
+  }
+  
+  .etapas-cuenta-controls,
+  .etapas-cuenta-content {
+    padding: 20px 16px;
+  }
+  
+  .etapa-item {
+    flex-direction: column;
+    margin-bottom: 24px;
+  }
+  
+  .etapa-timeline-marker {
+    flex-direction: row;
+    margin-right: 0;
+    margin-bottom: 12px;
+  }
+  
+  .etapa-timeline-line {
+    width: 40px;
+    height: 2px;
+    margin-top: 0;
+    margin-left: 8px;
+  }
+  
+  .etapa-content {
+    border-left: none;
+    border-top: 4px solid #A35D2D;
+  }
+  
+  .etapa-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .etapa-estado {
+    align-self: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .etapas-cuenta-header h2 {
+    font-size: 1.3rem;
+  }
+  
+  .etapa-content {
+    padding: 16px;
+  }
+  
+  .etapa-header h4 {
+    font-size: 1.1rem;
+  }
+}

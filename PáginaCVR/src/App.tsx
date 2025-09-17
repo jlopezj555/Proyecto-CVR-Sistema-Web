@@ -447,21 +447,33 @@ function App() {
 
       {/* Vistas por rol - Solo para empleados y administradores */}
       {userRole && userType !== 'cliente' && (
-        <div style={{ marginTop: '20px' }}>
-          <h2 className="white-title">Bienvenido {userName}</h2>
-          {userRole === 'Administrador' ? (
-            <>
-              {activeTab === 'Cuentas' && <AdminView nombre={userName || ''} />}
-              {activeTab === 'Empresas' && <AdminView nombre={userName || ''} />}
-              {activeTab === 'Empleados' && <AdminView nombre={userName || ''} />}
-              {!activeTab && <AdminView nombre={userName || ''} />}
-            </>
+        <div>
+          {userRole === 'administrador' || userRole === 'Administrador' ? (
+            <AdminView 
+              nombre={userName || ''} 
+              externalSection={
+                activeTab === 'empleados' ? 'empleados' :
+                activeTab === 'empresas' ? 'empresas' :
+                activeTab === 'roles' ? 'roles' :
+                activeTab === 'cuentas' ? 'cuentas' :
+                activeTab === 'papeleria' ? 'papeleria' :
+                activeTab === 'etapas-catalogo' ? 'etapas-catalogo' :
+                activeTab === 'etapas-cuenta' ? 'etapas-cuenta' :
+                null
+              }
+              onSectionChange={(section) => {
+                if (!section) {
+                  setActiveTab(null)
+                }
+              }}
+            />
           ) : (
-            <>
+            <div style={{ marginTop: '20px' }}>
+              <h2 className="white-title">Bienvenido {userName}</h2>
               {activeTab === 'Cuentas' && <UserView nombre={userName || ''} />}
               {activeTab === 'Empresas' && <UserView nombre={userName || ''} />}
               {!activeTab && <UserView nombre={userName || ''} />}
-            </>
+            </div>
           )}
         </div>
       )}

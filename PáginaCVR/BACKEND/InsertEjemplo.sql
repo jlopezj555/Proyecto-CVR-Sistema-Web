@@ -29,6 +29,10 @@ INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_emple
 ('Cristabel Velásquez Rodríguez', 'cristabel@cvrasesoria.com', '$2b$10$rQZ8kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z', 'administrador', 1),
 ('María González', 'maria@cvrasesoria.com', '$2b$10$sRZ9kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z', 'empleado', 2);
 
+INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_empleado)
+VALUES ('Admin CVR', 'admin@cvrasesoria.com', 'admin123', 'administrador', NULL);
+
+
 -- Insertar etapas del catálogo
 INSERT INTO EtapaCatalogo (nombre_etapa, descripcion, es_revision) VALUES 
 ('Recepción de Documentos', 'Documentos recibidos del cliente', FALSE),
