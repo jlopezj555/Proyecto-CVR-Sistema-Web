@@ -5,6 +5,7 @@ import RolesCRUD from './RolesCRUD'
 import CuentasCRUD from './CuentasCRUD'
 import PapeleriaCRUD from './PapeleriaCRUD'
 import EtapasCatalogoCRUD from './EtapasCatalogoCRUD'
+import UsuariosCRUD from './UsuariosCRUD'
 import EtapasCuentaView from './EtapasCuentaView'
 import './AdminView.css'
 
@@ -16,6 +17,7 @@ interface AdminViewProps {
 
 type AdminSection = 
   | 'dashboard' 
+  | 'usuarios'
   | 'empleados' 
   | 'empresas' 
   | 'roles' 
@@ -25,7 +27,7 @@ type AdminSection =
   | 'etapas-cuenta'
 
 const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, onSectionChange }) => {
-  const [activeSection, setActiveSection] = useState<AdminSection>('dashboard')
+  const [activeSection, setActiveSection] = useState<AdminSection>('empleados')
 
   // Sincronizar con el header si se provee externalSection
   useEffect(() => {
@@ -36,6 +38,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
 
   const menuItems = [
     { id: 'dashboard' as AdminSection, label: 'Dashboard', icon: '🏠' },
+    { id: 'usuarios' as AdminSection, label: 'Usuarios', icon: '👤' },
     { id: 'empleados' as AdminSection, label: 'Empleados', icon: '👥' },
     { id: 'empresas' as AdminSection, label: 'Empresas', icon: '🏢' },
     { id: 'roles' as AdminSection, label: 'Roles', icon: '🎭' },
@@ -49,6 +52,8 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
     switch (activeSection) {
       case 'empleados':
         return <EmpleadosCRUD />
+      case 'usuarios':
+        return <UsuariosCRUD />
       case 'empresas':
         return <EmpresasCRUD />
       case 'roles':
@@ -76,91 +81,8 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
               </div>
               <div className="welcome-content">
                 <p className="welcome-description">
-                  Tienes acceso completo al sistema. Desde aquí puedes gestionar usuarios, 
-                  empresas, cuentas y toda la información administrativa de la plataforma.
+                  Usa el menú de la izquierda para abrir los módulos de administración.
                 </p>
-              </div>
-            </div>
-            
-            <div className="admin-actions-menu">
-              <h3>Acciones Disponibles</h3>
-              <div className="actions-grid">
-                <button 
-                  className="action-card"
-                  onClick={() => setActiveSection('empleados')}
-                >
-                  <div className="action-icon">👥</div>
-                  <div className="action-content">
-                    <h4>Empleados</h4>
-                    <p>Gestionar empleados del sistema</p>
-                  </div>
-                </button>
-                
-                <button 
-                  className="action-card"
-                  onClick={() => setActiveSection('empresas')}
-                >
-                  <div className="action-icon">🏢</div>
-                  <div className="action-content">
-                    <h4>Empresas</h4>
-                    <p>Administrar empresas clientes</p>
-                  </div>
-                </button>
-                
-                <button 
-                  className="action-card"
-                  onClick={() => setActiveSection('roles')}
-                >
-                  <div className="action-icon">🎭</div>
-                  <div className="action-content">
-                    <h4>Roles</h4>
-                    <p>Configurar roles del sistema</p>
-                  </div>
-                </button>
-                
-                <button 
-                  className="action-card"
-                  onClick={() => setActiveSection('cuentas')}
-                >
-                  <div className="action-icon">📋</div>
-                  <div className="action-content">
-                    <h4>Cuentas</h4>
-                    <p>Gestionar cuentas contables</p>
-                  </div>
-                </button>
-                
-                <button 
-                  className="action-card"
-                  onClick={() => setActiveSection('papeleria')}
-                >
-                  <div className="action-icon">📄</div>
-                  <div className="action-content">
-                    <h4>Papelería</h4>
-                    <p>Control de documentación</p>
-                  </div>
-                </button>
-                
-                <button 
-                  className="action-card"
-                  onClick={() => setActiveSection('etapas-catalogo')}
-                >
-                  <div className="action-icon">📝</div>
-                  <div className="action-content">
-                    <h4>Etapas Catálogo</h4>
-                    <p>Configurar etapas del proceso</p>
-                  </div>
-                </button>
-                
-                <button 
-                  className="action-card"
-                  onClick={() => setActiveSection('etapas-cuenta')}
-                >
-                  <div className="action-icon">📊</div>
-                  <div className="action-content">
-                    <h4>Etapas Cuenta</h4>
-                    <p>Ver progreso de cuentas</p>
-                  </div>
-                </button>
               </div>
             </div>
           </div>
@@ -170,7 +92,6 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
 
   return (
     <div className="admin-view-container">
-      {!externalSection && (
         <div className="admin-sidebar">
           <div className="admin-sidebar-header">
             <h3>Panel Admin</h3>
@@ -190,7 +111,6 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
             ))}
           </nav>
         </div>
-      )}
 
       <div className="admin-main-content">
         <div className="admin-content-header">

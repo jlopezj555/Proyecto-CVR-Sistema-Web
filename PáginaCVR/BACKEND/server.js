@@ -298,6 +298,8 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// (Se movieron endpoints de USUARIOS más abajo, después de definir middlewares)
+
 // Middleware para verificar token JWT
 const verificarToken = (req, res, next) => {
   const token = req.headers['authorization']?.split(' ')[1];
@@ -362,6 +364,121 @@ const verificarPasswordAdmin = async (req, res, next) => {
 };
 
 // ============================================
+// ENDPOINTS CRUD PARA USUARIOS
+// ============================================
+
+// Obtener todos los usuarios
+app.get('/api/usuarios', verificarToken, verificarAdmin, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT id_usuario, nombre_completo, correo, tipo_usuario, foto_perfil, activo
+      FROM Usuario
+      ORDER BY nombre_completo
+    `);
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error obteniendo usuarios:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Crear usuario (hash de contraseña; si es empleado, crear Empleado enlazado)
+app.post('/api/usuarios', verificarToken, verificarAdmin, async (req, res) => {
+  const { nombre_completo, correo, contrasena, tipo_usuario = 'cliente', activo = true } = req.body;
+
+  try {
+    // Verificar correo duplicado
+    const [existing] = await pool.query('SELECT id_usuario FROM Usuario WHERE correo = ?', [correo]);
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'El correo ya está registrado' });
+    }
+
+    const hashedPassword = await bcrypt.hash(contrasena, 10);
+    let id_empleado = null;
+    let id_cliente = null;
+
+    if (tipo_usuario === 'empleado') {
+      // Crear empleado básico
+      const partes = nombre_completo.split(' ');
+      const nombre = partes.slice(0, -1).join(' ') || nombre_completo;
+      const apellido = partes.slice(-1).join(' ');
+      const [empResult] = await pool.query(
+        'INSERT INTO Empleado (nombre, apellido, correo, contrasena) VALUES (?, ?, ?, ?)',
+        [nombre, apellido, correo, hashedPassword]
+      );
+      id_empleado = empResult.insertId;
+    } else if (tipo_usuario === 'cliente') {
+      // Crear cliente básico
+      const [cliResult] = await pool.query(
+        'INSERT INTO Cliente (nombre_completo, usuario, correo, contrasena, id_empresa) VALUES (?, ?, ?, ?, 1)',
+        [nombre_completo, correo, correo, hashedPassword]
+      );
+      id_cliente = cliResult.insertId;
+    }
+
+    const [result] = await pool.query(
+      'INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_empleado, id_cliente, activo) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [nombre_completo, correo, hashedPassword, tipo_usuario, id_empleado, id_cliente, !!activo]
+    );
+
+    res.status(201).json({ success: true, message: 'Usuario creado exitosamente', data: { id: result.insertId } });
+  } catch (error) {
+    console.error('Error creando usuario:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Actualizar usuario (sin permitir cambio de contraseña ni tipo_usuario por admin)
+app.put('/api/usuarios/:id', verificarToken, verificarAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { nombre_completo, correo, /* tipo_usuario, contrasena, */ activo } = req.body;
+
+  try {
+    const [existing] = await pool.query('SELECT * FROM Usuario WHERE id_usuario = ?', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    await pool.query(
+      'UPDATE Usuario SET nombre_completo = ?, correo = ?, activo = ? WHERE id_usuario = ?',
+      [nombre_completo, correo, activo !== undefined ? !!activo : existing[0].activo, id]
+    );
+
+    // Si está enlazado a empleado o cliente, actualizar nombre/correo espejo
+    if (existing[0].id_empleado) {
+      const partes = nombre_completo.split(' ');
+      const nombre = partes.slice(0, -1).join(' ') || nombre_completo;
+      const apellido = partes.slice(-1).join(' ');
+      await pool.query('UPDATE Empleado SET nombre = ?, apellido = ?, correo = ? WHERE id_empleado = ?', [nombre, apellido, correo, existing[0].id_empleado]);
+    } else if (existing[0].id_cliente) {
+      await pool.query('UPDATE Cliente SET nombre_completo = ?, correo = ? WHERE id_cliente = ?', [nombre_completo, correo, existing[0].id_cliente]);
+    }
+
+    res.json({ success: true, message: 'Usuario actualizado exitosamente' });
+  } catch (error) {
+    console.error('Error actualizando usuario:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Eliminar usuario (requiere contraseña de admin)
+app.delete('/api/usuarios/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [existing] = await pool.query('SELECT * FROM Usuario WHERE id_usuario = ?', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    await pool.query('DELETE FROM Usuario WHERE id_usuario = ?', [id]);
+    res.json({ success: true, message: 'Usuario eliminado exitosamente' });
+  } catch (error) {
+    console.error('Error eliminando usuario:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// ============================================
 // ENDPOINTS CRUD PARA EMPLEADOS
 // ============================================
 
@@ -382,7 +499,7 @@ app.get('/api/empleados', verificarToken, verificarAdmin, async (req, res) => {
 });
 
 // Crear empleado
-app.post('/api/empleados', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+app.post('/api/empleados', verificarToken, verificarAdmin, async (req, res) => {
   const { nombre, apellido, correo, contrasena } = req.body;
 
   try {
@@ -418,10 +535,10 @@ app.post('/api/empleados', verificarToken, verificarAdmin, verificarPasswordAdmi
   }
 });
 
-// Actualizar empleado
-app.put('/api/empleados/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+// Actualizar empleado (sin cambio de contraseña por admin)
+app.put('/api/empleados/:id', verificarToken, verificarAdmin, async (req, res) => {
   const { id } = req.params;
-  const { nombre, apellido, correo, contrasena, activo } = req.body;
+  const { nombre, apellido, correo, /* contrasena */ activo } = req.body;
 
   try {
     // Verificar si el empleado existe
@@ -433,12 +550,7 @@ app.put('/api/empleados/:id', verificarToken, verificarAdmin, verificarPasswordA
     let updateQuery = 'UPDATE Empleado SET nombre = ?, apellido = ?, correo = ?';
     let updateParams = [nombre, apellido, correo];
 
-    // Si se proporciona nueva contraseña
-    if (contrasena) {
-      const hashedPassword = await bcrypt.hash(contrasena, 10);
-      updateQuery += ', contrasena = ?';
-      updateParams.push(hashedPassword);
-    }
+    // No permitir cambio de contraseña desde edición por administrador
 
     updateQuery += ' WHERE id_empleado = ?';
     updateParams.push(id);
@@ -449,11 +561,7 @@ app.put('/api/empleados/:id', verificarToken, verificarAdmin, verificarPasswordA
     let usuarioUpdateQuery = 'UPDATE Usuario SET nombre_completo = ?, correo = ?';
     let usuarioUpdateParams = [`${nombre} ${apellido}`, correo];
 
-    if (contrasena) {
-      const hashedPassword = await bcrypt.hash(contrasena, 10);
-      usuarioUpdateQuery += ', contrasena = ?';
-      usuarioUpdateParams.push(hashedPassword);
-    }
+    // No permitir cambio de contraseña desde edición por administrador
 
     if (activo !== undefined) {
       usuarioUpdateQuery += ', activo = ?';

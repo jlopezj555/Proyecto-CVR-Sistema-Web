@@ -29,6 +29,7 @@ function App() {
   const [userFoto, setUserFoto] = useState<string | null>(localStorage.getItem('foto'));
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+  const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutos
 
   useEffect(() => {
     const storageListener = () => {
@@ -40,6 +41,57 @@ function App() {
     window.addEventListener('storage', storageListener)
     return () => window.removeEventListener('storage', storageListener)
   }, [])
+
+  // Inactividad: cerrar sesión automáticamente después de 10 minutos (persistente entre pestañas/cierres)
+  useEffect(() => {
+    // Si hay sesión, inicializar marca de actividad
+    if (userRole) {
+      if (!localStorage.getItem('lastActivity')) {
+        localStorage.setItem('lastActivity', Date.now().toString())
+      }
+    } else {
+      localStorage.removeItem('lastActivity')
+    }
+
+    const updateActivity = () => {
+      if (userRole) {
+        localStorage.setItem('lastActivity', Date.now().toString())
+      }
+    }
+
+    const checkIdleAndLogout = () => {
+      if (!userRole) return;
+      const last = parseInt(localStorage.getItem('lastActivity') || '0', 10)
+      const now = Date.now()
+      if (last && now - last >= IDLE_LIMIT_MS) {
+        handleLogout()
+      }
+    }
+
+    // Eventos de actividad del usuario
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'] as const
+    activityEvents.forEach(evt => window.addEventListener(evt, updateActivity, { passive: true }))
+
+    // Revisión periódica (cada 30s)
+    const intervalId = window.setInterval(checkIdleAndLogout, 30 * 1000)
+
+    // Al cambiar visibilidad, revisar inmediatamente
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        checkIdleAndLogout()
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+
+    // Al montar (o cuando cambie userRole), validar inactividad de inmediato
+    checkIdleAndLogout()
+
+    return () => {
+      activityEvents.forEach(evt => window.removeEventListener(evt, updateActivity))
+      window.clearInterval(intervalId)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [userRole])
 
   // Mostrar mensaje de bienvenida para clientes
   useEffect(() => {
@@ -121,6 +173,8 @@ function App() {
         setUserType(tipo);
         setUserFoto(foto || '');
         setIsLoginOpen(false);
+        // Registrar actividad inicial al iniciar sesión
+        localStorage.setItem('lastActivity', Date.now().toString());
       } else {
         showErrorDialog(response.data.message || 'Credenciales incorrectas');
       }

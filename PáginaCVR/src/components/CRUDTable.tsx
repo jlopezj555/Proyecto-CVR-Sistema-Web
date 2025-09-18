@@ -83,22 +83,13 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     }
   };
 
-  const handlePasswordVerify = async (password: string): Promise<boolean> => {
+  // Crear: ya no requiere contraseña de admin; backend debe hashear contraseñas
+  const handlePasswordVerify = async (_password: string): Promise<boolean> => {
     try {
-      const action = selectedItem ? 'delete' : 'create';
-      const url = selectedItem 
-        ? `http://localhost:4000/api/${endpoint}/${selectedItem[`id_${endpoint.slice(0, -1)}`]}`
-        : `http://localhost:4000/api/${endpoint}`;
-      
-      const method = selectedItem ? 'DELETE' : 'POST';
-      const payload = selectedItem ? { contrasena: password } : { ...formData, contrasena: password };
-
-      await axios({
-        method,
-        url,
-        data: payload,
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.post(`http://localhost:4000/api/${endpoint}`,
+        { ...formData },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       setSuccess(selectedItem ? 'Registro eliminado exitosamente' : 'Registro creado exitosamente');
       setShowPasswordModal(false);
@@ -117,31 +108,44 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
 
   const handleUpdate = async () => {
     if (!selectedItem) return;
-    
-    setShowPasswordModal(true);
-  };
-
-  const handleUpdatePasswordVerify = async (password: string): Promise<boolean> => {
     try {
       const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
       await axios.put(`http://localhost:4000/api/${endpoint}/${id}`, {
-        ...formData,
-        contrasena: password
+        ...formData
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       setSuccess('Registro actualizado exitosamente');
-      setShowPasswordModal(false);
       setShowEditModal(false);
       setSelectedItem(null);
       fetchData();
       onDataChange?.();
-      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      setError(error.response?.data?.message || 'Error al actualizar');
+    }
+  };
+
+  // Eliminar: solo aquí pedir verificación
+  const handleUpdatePasswordVerify = async (password: string): Promise<boolean> => {
+    try {
+      if (!selectedItem) return false;
+      const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
+      await axios.delete(`http://localhost:4000/api/${endpoint}/${id}`, {
+        data: { contrasena: password },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setSuccess('Registro eliminado exitosamente');
+      setShowPasswordModal(false);
+      setSelectedItem(null);
+      fetchData();
+      onDataChange?.();
       setTimeout(() => setSuccess(''), 3000);
       return true;
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Error al actualizar');
+      setError(error.response?.data?.message || 'Error al eliminar');
       return false;
     }
   };
@@ -192,7 +196,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       default:
         return (
           <input
-            type={field.type || 'text'}
+            type={(field.key.toLowerCase().includes('contrasena') ? 'password' : (field.type || 'text'))}
             value={value}
             onChange={(e) => handleInputChange(field.key, e.target.value)}
             required={field.required}
@@ -245,7 +249,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                 </button>
                 <button 
                   type="button" 
-                  onClick={isEdit ? handleUpdate : () => setShowPasswordModal(true)}
+                  onClick={isEdit ? handleUpdate : () => handlePasswordVerify('')}
                   className="crud-btn-save"
                 >
                   {isEdit ? 'Actualizar' : 'Crear'}
@@ -288,9 +292,11 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                 <tr key={index}>
                   {columns.map(column => (
                     <td key={column.key}>
-                      {column.type === 'boolean' 
+                      {column.type === 'boolean'
                         ? (item[column.key] ? 'Sí' : 'No')
-                        : item[column.key] || '-'
+                        : (column.key.toLowerCase().includes('contrasena')
+                            ? '••••••'
+                            : (item[column.key] || '-'))
                       }
                     </td>
                   ))}
@@ -325,9 +331,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       <PasswordVerificationModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
-        onVerify={selectedItem ? handleUpdatePasswordVerify : handlePasswordVerify}
+        onVerify={handleUpdatePasswordVerify}
         title="Verificación de Administrador"
-        message="Ingresa tu contraseña para continuar con esta acción"
+        message="Ingresa tu contraseña para eliminar este registro"
       />
     </div>
   );

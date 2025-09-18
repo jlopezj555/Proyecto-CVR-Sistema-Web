@@ -234,13 +234,8 @@
 }
 
 /* Admin Actions Menu */
-.admin-actions-menu {
-  background: white;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
-}
+/* Eliminado menú de acciones rápidas para MDI */
+.admin-actions-menu { display: none; }
 
 .admin-actions-menu h3 {
   margin: 0 0 2rem 0;
@@ -336,6 +331,58 @@
   }
 }
 
+/* Siempre mostrar MDI horizontal en pantallas grandes */
+@media (min-width: 769px) {
+  .admin-view-container {
+    flex-direction: column;
+  }
+  
+  .admin-sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    flex-direction: row;
+    overflow-x: auto;
+    background: linear-gradient(180deg, #122745 0%, #1e3a5f 100%);
+  }
+  
+  .admin-sidebar-header { 
+    min-width: 200px;
+    border-bottom: none;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .admin-nav {
+    display: flex;
+    padding: 0;
+    overflow-x: auto;
+  }
+  
+  .admin-nav-item {
+    min-width: 120px;
+    padding: 16px 20px;
+    border-left: none;
+    border-bottom: 4px solid transparent;
+    text-align: center;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .admin-nav-item:hover,
+  .admin-nav-item.active {
+    border-left: none;
+    border-bottom-color: #A35D2D;
+  }
+  
+  .nav-label {
+    font-size: 0.8rem;
+  }
+  
+  .admin-main-content {
+    margin-left: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .admin-view-container {
     flex-direction: column;
@@ -349,11 +396,8 @@
     overflow-x: auto;
   }
   
-  .admin-sidebar-header {
-    min-width: 200px;
-    border-bottom: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
-  }
+  /* Ocultar cabecera/Panel Admin en móviles, solo dejar navegación tipo tabs horizontales */
+  .admin-sidebar-header { display: none; }
   
   .admin-nav {
     display: flex;
