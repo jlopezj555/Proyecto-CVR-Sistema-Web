@@ -3,7 +3,7 @@ import CRUDTable from './CRUDTable';
 
 const PapeleriaCRUD: React.FC = () => {
   const [clientes, setClientes] = useState<any[]>([]);
-  const [cuentas, setCuentas] = useState<any[]>([]);
+  const [empresas, setEmpresas] = useState<any[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -16,22 +16,23 @@ const PapeleriaCRUD: React.FC = () => {
       .then(data => setClientes(data.data || []))
       .catch(console.error);
 
-    // Cargar cuentas
-    fetch('http://localhost:4000/api/cuentas', {
+    // Cargar empresas
+    fetch('http://localhost:4000/api/empresas', {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(data => setCuentas(data.data || []))
+      .then(data => setEmpresas(data.data || []))
       .catch(console.error);
   }, []);
 
   const columns = [
     { key: 'id_papeleria', label: 'ID' },
     { key: 'cliente_nombre', label: 'Cliente' },
-    { key: 'nombre_cuenta', label: 'Cuenta' },
     { key: 'nombre_empresa', label: 'Empresa' },
+    { key: 'tipo_papeleria', label: 'Tipo' },
     { key: 'descripcion', label: 'Descripción' },
     { key: 'estado', label: 'Estado' },
+    { key: 'nombre_proceso', label: 'Proceso' },
     { key: 'fecha_recepcion', label: 'Fecha Recepción' },
     { key: 'fecha_entrega', label: 'Fecha Entrega' }
   ];
@@ -48,20 +49,40 @@ const PapeleriaCRUD: React.FC = () => {
       }))
     },
     { 
-      key: 'id_cuenta', 
-      label: 'Cuenta', 
+      key: 'id_empresa', 
+      label: 'Empresa', 
       type: 'select' as const, 
       required: true,
-      options: cuentas.map(cuenta => ({
-        value: cuenta.id_cuenta,
-        label: cuenta.nombre_cuenta
+      options: empresas.map(empresa => ({
+        value: empresa.id_empresa,
+        label: empresa.nombre_empresa
       }))
+    },
+    { 
+      key: 'tipo_papeleria', 
+      label: 'Tipo de Papelería', 
+      type: 'select' as const, 
+      required: true,
+      options: [
+        { value: 'Venta', label: 'Venta' },
+        { value: 'Compra', label: 'Compra' }
+      ]
     },
     { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
   ];
 
   const editFields = [
     { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true },
+    { 
+      key: 'tipo_papeleria', 
+      label: 'Tipo de Papelería', 
+      type: 'select' as const, 
+      required: true,
+      options: [
+        { value: 'Venta', label: 'Venta' },
+        { value: 'Compra', label: 'Compra' }
+      ]
+    },
     { 
       key: 'estado', 
       label: 'Estado', 

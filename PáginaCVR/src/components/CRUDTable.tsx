@@ -6,7 +6,7 @@ import PasswordVerificationModal from './PasswordVerificationModal';
 interface Column {
   key: string;
   label: string;
-  type?: 'text' | 'email' | 'select' | 'date' | 'boolean';
+  type?: 'text' | 'email' | 'select' | 'date' | 'boolean' | 'multiselect';
   options?: { value: any; label: string }[];
   required?: boolean;
   readonly?: boolean;
@@ -19,6 +19,7 @@ interface CRUDTableProps {
   createFields: Column[];
   editFields: Column[];
   onDataChange?: () => void;
+  afterCreate?: (createdItem: any, submittedData: any) => Promise<void> | void;
 }
 
 interface TableData {
@@ -31,13 +32,15 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   columns,
   createFields,
   editFields,
-  onDataChange
+  onDataChange,
+  afterCreate
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'create' | 'update' | 'delete' | null>(null);
   const [selectedItem, setSelectedItem] = useState<TableData | null>(null);
   const [formData, setFormData] = useState<TableData>({});
   const [error, setError] = useState('');
@@ -79,73 +82,62 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   const handleDelete = (item: TableData) => {
     if (window.confirm('¿Estás seguro de que deseas eliminar este registro?')) {
       setSelectedItem(item);
+      setPendingAction('delete');
       setShowPasswordModal(true);
     }
   };
 
-  // Crear: ya no requiere contraseña de admin; backend debe hashear contraseñas
-  const handlePasswordVerify = async (_password: string): Promise<boolean> => {
+  // Verificación y ejecución de acción protegida por contraseña
+  const handleAdminVerify = async (password: string): Promise<boolean> => {
     try {
-      await axios.post(`http://localhost:4000/api/${endpoint}`,
-        { ...formData },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      if (pendingAction === 'create') {
+        const payload = { ...formData };
+        // Enviar contraseña de admin separada para no pisar contraseñas de recursos
+        (payload as any).adminContrasena = password;
+        const resp = await axios.post(`http://localhost:4000/api/${endpoint}`,
+          payload,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
 
-      setSuccess(selectedItem ? 'Registro eliminado exitosamente' : 'Registro creado exitosamente');
+        setSuccess('Registro creado exitosamente');
+        setShowCreateModal(false);
+        setFormData({});
+        try {
+          await afterCreate?.(resp?.data?.data ?? null, formData);
+        } catch (_) {}
+      } else if (pendingAction === 'update') {
+        if (!selectedItem) return false;
+        const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
+        const payload = { ...formData } as any;
+        (payload as any).adminContrasena = password;
+        await axios.put(`http://localhost:4000/api/${endpoint}/${id}`,
+          payload,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        setSuccess('Registro actualizado exitosamente');
+        setShowEditModal(false);
+        setSelectedItem(null);
+      } else if (pendingAction === 'delete') {
+        if (!selectedItem) return false;
+        const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
+        await axios.delete(`http://localhost:4000/api/${endpoint}/${id}`, {
+          data: { adminContrasena: password },
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        setSuccess('Registro eliminado exitosamente');
+        setSelectedItem(null);
+      }
+
       setShowPasswordModal(false);
-      setShowCreateModal(false);
-      setSelectedItem(null);
-      fetchData();
-      onDataChange?.();
-      
-      setTimeout(() => setSuccess(''), 3000);
-      return true;
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Error en la operación');
-      return false;
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!selectedItem) return;
-    try {
-      const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
-      await axios.put(`http://localhost:4000/api/${endpoint}/${id}`, {
-        ...formData
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      setSuccess('Registro actualizado exitosamente');
-      setShowEditModal(false);
-      setSelectedItem(null);
-      fetchData();
-      onDataChange?.();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (error: any) {
-      setError(error.response?.data?.message || 'Error al actualizar');
-    }
-  };
-
-  // Eliminar: solo aquí pedir verificación
-  const handleUpdatePasswordVerify = async (password: string): Promise<boolean> => {
-    try {
-      if (!selectedItem) return false;
-      const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
-      await axios.delete(`http://localhost:4000/api/${endpoint}/${id}`, {
-        data: { contrasena: password },
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      setSuccess('Registro eliminado exitosamente');
-      setShowPasswordModal(false);
-      setSelectedItem(null);
+      setPendingAction(null);
       fetchData();
       onDataChange?.();
       setTimeout(() => setSuccess(''), 3000);
       return true;
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Error al eliminar');
+      setError(error.response?.data?.message || 'Error en la operación');
       return false;
     }
   };
@@ -183,6 +175,25 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
             disabled={field.readonly}
           />
         );
+      case 'multiselect':
+        return (
+          <select
+            multiple
+            value={Array.isArray(value) ? value : []}
+            onChange={(e) => {
+              const options = Array.from(e.target.selectedOptions).map(o => o.value);
+              handleInputChange(field.key, options);
+            }}
+            required={field.required}
+            disabled={field.readonly}
+          >
+            {field.options?.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        );
       case 'date':
         return (
           <input
@@ -207,8 +218,23 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     }
   };
 
+  const isFormValid = (fields: Column[]) => {
+    return fields.every(field => {
+      if (!field.required) return true;
+      const val = formData[field.key];
+      if (field.type === 'multiselect') {
+        return Array.isArray(val) && val.length > 0;
+      }
+      if (field.type === 'boolean') {
+        return typeof val === 'boolean';
+      }
+      return val !== undefined && val !== null && String(val).trim() !== '';
+    });
+  };
+
   const renderModal = (isEdit: boolean) => {
     const fields = isEdit ? editFields : createFields;
+    const valid = isFormValid(fields);
     const isOpen = isEdit ? showEditModal : showCreateModal;
     const onClose = () => {
       if (isEdit) {
@@ -249,8 +275,12 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                 </button>
                 <button 
                   type="button" 
-                  onClick={isEdit ? handleUpdate : () => handlePasswordVerify('')}
+                  onClick={() => {
+                    setPendingAction(isEdit ? 'update' : 'create');
+                    setShowPasswordModal(true);
+                  }}
                   className="crud-btn-save"
+                  disabled={!valid}
                 >
                   {isEdit ? 'Actualizar' : 'Crear'}
                 </button>
@@ -331,9 +361,15 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       <PasswordVerificationModal
         isOpen={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
-        onVerify={handleUpdatePasswordVerify}
+        onVerify={handleAdminVerify}
         title="Verificación de Administrador"
-        message="Ingresa tu contraseña para eliminar este registro"
+        message={
+          pendingAction === 'delete'
+            ? 'Ingresa tu contraseña para eliminar este registro'
+            : pendingAction === 'update'
+              ? 'Ingresa tu contraseña para actualizar este registro'
+              : 'Ingresa tu contraseña para crear este registro'
+        }
       />
     </div>
   );

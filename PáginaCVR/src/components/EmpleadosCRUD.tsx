@@ -31,8 +31,6 @@ const EmpleadosCRUD: React.FC = () => {
     { key: 'nombre', label: 'Nombre' },
     { key: 'apellido', label: 'Apellido' },
     { key: 'correo', label: 'Correo' },
-    { key: 'tipo', label: 'Tipo' },
-    { key: 'rol', label: 'Rol' },
     { key: 'activo', label: 'Activo', type: 'boolean' as const }
   ];
 
@@ -41,22 +39,13 @@ const EmpleadosCRUD: React.FC = () => {
     { key: 'apellido', label: 'Apellido', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
     { key: 'contrasena', label: 'Contraseña', type: 'text' as const, required: true },
-    { key: 'tipo', label: 'Tipo de usuario', type: 'select' as const, required: true, options: [
-      { value: 'cliente', label: 'Cliente' },
-      { value: 'empleado', label: 'Empleado' }
-    ] },
-    { key: 'rol', label: 'Rol', type: 'select' as const, required: false, options: roles.map(r => ({ value: r.nombre || r.rol || r.id_rol, label: r.nombre || r.rol })) }
+    { key: 'activo', label: 'Activo', type: 'boolean' as const }
   ];
 
   const editFields = [
     { key: 'nombre', label: 'Nombre', type: 'text' as const, required: true },
     { key: 'apellido', label: 'Apellido', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
-    { key: 'tipo', label: 'Tipo de usuario', type: 'select' as const, required: true, options: [
-      { value: 'cliente', label: 'Cliente' },
-      { value: 'empleado', label: 'Empleado' }
-    ] },
-    { key: 'rol', label: 'Rol', type: 'select' as const, required: false, options: roles.map(r => ({ value: r.nombre || r.rol || r.id_rol, label: r.nombre || r.rol })) },
     { key: 'activo', label: 'Activo', type: 'boolean' as const }
   ];
 

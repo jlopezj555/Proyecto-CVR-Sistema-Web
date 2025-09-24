@@ -6,10 +6,11 @@ const AdminNavButtons: React.FC<{ onNavSelect: (tab: string) => void }> = ({ onN
     { id: 'empleados', label: 'Empleados' },
     { id: 'empresas', label: 'Empresas' },
     { id: 'roles', label: 'Roles' },
-    { id: 'cuentas', label: 'Cuentas' },
+    { id: 'procesos', label: 'Procesos' },
     { id: 'papeleria', label: 'Papelería' },
     { id: 'etapas-catalogo', label: 'Etapas Catálogo' },
-    { id: 'etapas-cuenta', label: 'Etapas Cuenta' },
+    { id: 'etapas-proceso', label: 'Etapas Proceso' },
+    { id: 'asignaciones', label: 'Asignaciones' },
   ];
 
   return (

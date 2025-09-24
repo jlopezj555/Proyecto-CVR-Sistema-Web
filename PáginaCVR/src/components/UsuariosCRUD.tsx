@@ -1,4 +1,5 @@
 import React from 'react';
+import axios from 'axios';
 import CRUDTable from './CRUDTable';
 
 const UsuariosCRUD: React.FC = () => {
@@ -16,8 +17,7 @@ const UsuariosCRUD: React.FC = () => {
     { key: 'contrasena', label: 'Contraseña', type: 'text' as const, required: true },
     { key: 'tipo_usuario', label: 'Tipo de usuario', type: 'select' as const, required: true, options: [
       { value: 'cliente', label: 'Cliente' },
-      { value: 'empleado', label: 'Empleado' },
-      { value: 'administrador', label: 'Administrador' },
+      { value: 'empleado', label: 'Empleado' }
     ] },
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
@@ -29,8 +29,7 @@ const UsuariosCRUD: React.FC = () => {
     // Mostrar tipo de usuario solo lectura (no modificable)
     { key: 'tipo_usuario', label: 'Tipo de usuario', type: 'select' as const, required: true, readonly: true, options: [
       { value: 'cliente', label: 'Cliente' },
-      { value: 'empleado', label: 'Empleado' },
-      { value: 'administrador', label: 'Administrador' },
+      { value: 'empleado', label: 'Empleado' }
     ] },
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
@@ -42,6 +41,26 @@ const UsuariosCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
+      afterCreate={async (created, submitted) => {
+        try {
+          if ((submitted?.tipo_usuario === 'empleado') && submitted?.nombre_completo && submitted?.correo && submitted?.contrasena) {
+            const token = localStorage.getItem('token');
+            const [nombre, ...rest] = String(submitted.nombre_completo).split(' ');
+            const apellido = rest.join(' ') || '';
+            await axios.post('http://localhost:4000/api/empleados', {
+              nombre,
+              apellido,
+              correo: submitted.correo,
+              contrasena: submitted.contrasena,
+              activo: true
+            }, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+          }
+        } catch (e) {
+          // Silencioso: el admin verá el empleado al refrescar si fue creado
+        }
+      }}
     />
   );
 };
