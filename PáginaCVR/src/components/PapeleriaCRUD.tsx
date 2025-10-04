@@ -2,19 +2,10 @@ import React, { useState, useEffect } from 'react';
 import CRUDTable from './CRUDTable';
 
 const PapeleriaCRUD: React.FC = () => {
-  const [clientes, setClientes] = useState<any[]>([]);
   const [empresas, setEmpresas] = useState<any[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    
-    // Cargar clientes
-    fetch('http://localhost:4000/api/clientes', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setClientes(data.data || []))
-      .catch(console.error);
 
     // Cargar empresas
     fetch('http://localhost:4000/api/empresas', {
@@ -27,7 +18,6 @@ const PapeleriaCRUD: React.FC = () => {
 
   const columns = [
     { key: 'id_papeleria', label: 'ID' },
-    { key: 'cliente_nombre', label: 'Cliente' },
     { key: 'nombre_empresa', label: 'Empresa' },
     { key: 'tipo_papeleria', label: 'Tipo' },
     { key: 'descripcion', label: 'Descripción' },
@@ -38,16 +28,6 @@ const PapeleriaCRUD: React.FC = () => {
   ];
 
   const createFields = [
-    { 
-      key: 'id_cliente', 
-      label: 'Cliente', 
-      type: 'select' as const, 
-      required: true,
-      options: clientes.map(cliente => ({
-        value: cliente.id_cliente,
-        label: cliente.nombre_completo
-      }))
-    },
     { 
       key: 'id_empresa', 
       label: 'Empresa', 

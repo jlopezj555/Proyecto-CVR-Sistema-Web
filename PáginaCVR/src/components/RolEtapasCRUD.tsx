@@ -28,7 +28,7 @@ const RolEtapasCRUD: React.FC = () => {
 
   const createFields = [
     { key: 'id_rol', label: 'Rol', type: 'select' as const, required: true, options: roles.map((r: any) => ({ value: r.id_rol, label: r.nombre_rol })) },
-    { key: 'id_etapas', label: 'Etapas', type: 'multiselect' as const, required: true, options: etapas.map((e: any) => ({ value: String(e.id_etapa), label: e.nombre_etapa })) },
+    { key: 'id_etapas', label: 'Etapas', type: 'checkboxes' as const, required: true, options: etapas.map((e: any) => ({ value: String(e.id_etapa), label: e.nombre_etapa })) },
     { key: 'orden', label: 'Orden', type: 'text' as const, required: true }
   ];
 
@@ -43,7 +43,7 @@ const RolEtapasCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
-      afterCreate={async () => { /* refresco por defecto */ }}
+      afterCreate={async () => {}}
     />
   );
 };

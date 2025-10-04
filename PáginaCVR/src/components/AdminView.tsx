@@ -3,7 +3,6 @@ import EmpleadosCRUD from './EmpleadosCRUD'
 import EmpresasCRUD from './EmpresasCRUD'
 import RolesCRUD from './RolesCRUD'
 import RolEtapasCRUD from './RolEtapasCRUD'
-import ClientesCRUD from './ClientesCRUD'
 import ProcesosCRUD from './ProcesosCRUD'
 import PapeleriaCRUD from './PapeleriaCRUD'
 import EtapasCatalogoCRUD from './EtapasCatalogoCRUD'
@@ -11,6 +10,17 @@ import UsuariosCRUD from './UsuariosCRUD'
 import EtapasProcesoView from './EtapasProcesoView'
 import AsignacionesCRUD from './AsignacionesCRUD'
 import './AdminView.css'
+import iconDashboard from '../assets/admin-dashboard-white.svg'
+import iconUsuarios from '../assets/admin-usuarios-white.svg'
+import iconEmpleados from '../assets/admin-empleados-white.svg'
+import iconEmpresas from '../assets/admin-empresas-white.svg'
+import iconRoles from '../assets/admin-roles-white.svg'
+import iconProcesos from '../assets/admin-procesos-white.svg'
+import iconPapeleria from '../assets/admin-papeleria-white.svg'
+import iconEtapasCatalogo from '../assets/admin-etapas-catalogo-white.svg'
+import iconEtapasProceso from '../assets/admin-etapas-proceso-white.svg'
+import iconAsignaciones from '../assets/admin-asignaciones-white.svg'
+import iconRolEtapas from '../assets/admin-rol-etapas-white.svg'
 
 interface AdminViewProps {
   nombre: string
@@ -30,7 +40,6 @@ type AdminSection =
   | 'etapas-proceso'
   | 'asignaciones'
   | 'rol-etapas'
-  | 'clientes'
 
 const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, onSectionChange }) => {
   const [activeSection, setActiveSection] = useState<AdminSection>('empleados')
@@ -43,18 +52,17 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
   }, [externalSection])
 
   const menuItems = [
-    { id: 'dashboard' as AdminSection, label: 'Dashboard', icon: '🏠' },
-    { id: 'usuarios' as AdminSection, label: 'Usuarios', icon: '👤' },
-    { id: 'clientes' as AdminSection, label: 'Clientes', icon: '🧑‍💼' },
-    { id: 'empleados' as AdminSection, label: 'Empleados', icon: '👥' },
-    { id: 'empresas' as AdminSection, label: 'Empresas', icon: '🏢' },
-    { id: 'roles' as AdminSection, label: 'Roles', icon: '🎭' },
-    { id: 'procesos' as AdminSection, label: 'Procesos', icon: '⚙️' },
-    { id: 'papeleria' as AdminSection, label: 'Papelería', icon: '📄' },
-    { id: 'etapas-catalogo' as AdminSection, label: 'Etapas Catálogo', icon: '📝' },
-    { id: 'etapas-proceso' as AdminSection, label: 'Etapas Proceso', icon: '📊' },
-    { id: 'asignaciones' as AdminSection, label: 'Asignaciones', icon: '🔗' },
-    { id: 'rol-etapas' as AdminSection, label: 'Etapas por Rol', icon: '🧩' }
+    { id: 'dashboard' as AdminSection, label: 'Dashboard', icon: iconDashboard },
+    { id: 'usuarios' as AdminSection, label: 'Usuarios', icon: iconUsuarios },
+    { id: 'empleados' as AdminSection, label: 'Empleados', icon: iconEmpleados },
+    { id: 'empresas' as AdminSection, label: 'Empresas', icon: iconEmpresas },
+    { id: 'roles' as AdminSection, label: 'Roles', icon: iconRoles },
+    { id: 'procesos' as AdminSection, label: 'Procesos', icon: iconProcesos },
+    { id: 'papeleria' as AdminSection, label: 'Papelería', icon: iconPapeleria },
+    { id: 'etapas-catalogo' as AdminSection, label: 'Etapas Catálogo', icon: iconEtapasCatalogo },
+    { id: 'etapas-proceso' as AdminSection, label: 'Etapas Proceso', icon: iconEtapasProceso },
+    { id: 'asignaciones' as AdminSection, label: 'Asignaciones', icon: iconAsignaciones },
+    { id: 'rol-etapas' as AdminSection, label: 'Etapas por Rol', icon: iconRolEtapas }
   ]
 
   const renderContent = () => {
@@ -67,9 +75,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
         return <EmpresasCRUD />
       case 'roles':
         return <RolesCRUD />
-      case 'clientes':
-        return <ClientesCRUD />
-      case 'procesos':
+            case 'procesos':
         return <ProcesosCRUD />
       case 'papeleria':
         return <PapeleriaCRUD />
@@ -87,7 +93,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
             <div className="admin-welcome-card">
               <div className="welcome-header">
                 <div className="welcome-icon-container admin-icon">
-                  <span className="welcome-icon">👑</span>
+                  <img src={iconDashboard} alt="Dashboard" className="welcome-icon-img" />
                 </div>
                 <div className="welcome-info">
                   <h3 className="welcome-title">Bienvenido, {nombre}</h3>
@@ -120,7 +126,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                 onClick={() => setActiveSection(item.id)}
                 className={`admin-nav-item ${activeSection === item.id ? 'active' : ''}`}
               >
-                <span className="nav-icon">{item.icon}</span>
+                <span className="nav-icon"><img src={item.icon} alt={item.label} className="nav-icon-img" /></span>
                 <span className="nav-label">{item.label}</span>
               </button>
             ))}
@@ -155,5 +161,6 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
 }
 
 export default AdminView
+
 
 

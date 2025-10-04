@@ -238,6 +238,26 @@
   color: #000;
 }
 
+/* Contenedor para inputs de contraseña con icono de ojo */
+.password-input-wrap {
+  position: relative;
+}
+.password-input-wrap .password-eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+.password-input-wrap .password-eye:hover {
+  opacity: 0.9;
+}
+
 .crud-form-group input:focus,
 .crud-form-group select:focus,
 .crud-form-group textarea:focus {
@@ -255,8 +275,16 @@
 }
 
 .crud-form-group input[type="checkbox"] {
-  width: auto;
-  margin-right: 8px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  align-self: flex-start;
+}
+
+/* Forzar alineación en línea de checkbox y etiqueta/control */
+.crud-form-group label + input[type="checkbox"],
+.crud-form-group label + div input[type="checkbox"] {
+  margin-top: 0;
 }
 
 .crud-modal-actions {
@@ -314,6 +342,22 @@
 
 .crud-btn-back:hover {
   background: #f1f3f5;
+}
+
+/* Botón de búsqueda colocado en la cabecera: fondo blanco y texto negro */
+.crud-btn-search {
+  background: #ffffff;
+  color: #000000;
+  border: 2px solid #e9ecef;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.crud-btn-search:hover {
+  background: #f8f9fa;
+  transform: translateY(-1px);
 }
 
 /* Responsive */

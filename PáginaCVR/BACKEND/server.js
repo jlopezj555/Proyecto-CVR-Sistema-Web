@@ -91,12 +91,10 @@ app.post('/api/login', async (req, res) => {
         );
         console.log(` Foto guardada en base de datos`);
       }
-      
-      // Enviar notificación de login para correos reales
-      await enviarNotificacionLogin(correo, usuario.nombre_completo, rol);
-    } else {
-      console.log(` Correo no considerado "real", no se enviará notificación`);
     }
+    
+    // Enviar notificación de login SIEMPRE
+    await enviarNotificacionLogin(correo, usuario.nombre_completo, rol);
 
     const token = jwt.sign(
       { 
@@ -155,11 +153,11 @@ const enviarCorreoBienvenida = async (correo, nombre) => {
           </div>
         </div>
       `,
-      // attachments: [{
-      //   filename: 'cvr-logo.png',
-      //   path: './public/cvr-logo-color.svg',
-      //   cid: 'logo'
-      // }]
+      //  attachments: [{
+      //    filename: 'cvr-logo-color.svg',
+      //    path: 'PáginaCVR/public/cvr-logo-color.svg',
+      //    cid: 'logo'
+      //  }]
     };
 
     const result = await transporter.sendMail(mailOptions);
@@ -206,9 +204,9 @@ const enviarNotificacionLogin = async (correo, nombre, tipoUsuario) => {
         </div>
       `,
       // attachments: [{
-      //   filename: 'cvr-logo.png',
-      //   path: './public/cvr-logo-color.svg',
-      //   cid: 'logo'
+      //   filename: 'cvr-logo-color.svg',
+       //  path: 'PáginaCVR/public/cvr-logo-color.svg',
+       //  cid: 'logo'
       // }]
     };
 
@@ -225,14 +223,12 @@ app.post('/api/register', async (req, res) => {
   const { nombre, correo, usuario, password } = req.body;
 
   try {
-    // Verificar si el correo ya existe en cualquier tabla
+    // Verificar si el correo ya existe en Usuario o Empleado
     const [existingUser] = await pool.query(
       `SELECT correo FROM Usuario WHERE correo = ? 
        UNION 
-       SELECT correo FROM Cliente WHERE correo = ? 
-       UNION 
        SELECT correo FROM Empleado WHERE correo = ?`,
-      [correo, correo, correo]
+      [correo, correo]
     );
 
     if (existingUser.length > 0) {
@@ -242,32 +238,25 @@ app.post('/api/register', async (req, res) => {
       });
     }
 
-    // Hash de la contraseña
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Insertar en tabla Cliente (mantener para referencias)
-    const [clienteResult] = await pool.query(
-      `INSERT INTO Cliente (nombre_completo, correo, usuario, contrasena) VALUES (?, ?, ?, ?)`,
-      [nombre, correo, usuario, hashedPassword]
+    // Usuario unificado tipo empleado por omisión si se requiere auto-registro, o limitar a admin más adelante
+    const [usuarioResult] = await pool.query(
+      `INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario) VALUES (?, ?, ?, 'cliente')`,
+      [nombre, correo, hashedPassword]
     );
 
-    // Generar foto de Gravatar si es un correo real
     let fotoPerfil = null;
     if (isRealEmail(correo)) {
       fotoPerfil = getGravatarUrl(correo);
+      await pool.query('UPDATE Usuario SET foto_perfil = ? WHERE id_usuario = ?', [fotoPerfil, usuarioResult.insertId]);
     }
 
-    // Insertar en tabla Usuario unificada
-    const [usuarioResult] = await pool.query(
-      `INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_cliente, foto_perfil) VALUES (?, ?, ?, 'cliente', ?, ?)`,
-      [nombre, correo, hashedPassword, clienteResult.insertId, fotoPerfil]
-    );
-
-    // Enviar correo de bienvenida
     await enviarCorreoBienvenida(correo, nombre);
+    // También notificar un primer acceso/creación
+    await enviarNotificacionLogin(correo, nombre, 'Cliente');
 
-    // Crear token para login automático
     const token = jwt.sign(
       { 
         id: usuarioResult.insertId, 
@@ -281,7 +270,7 @@ app.post('/api/register', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Cliente registrado exitosamente.',
+      message: 'Usuario registrado exitosamente.',
       id: usuarioResult.insertId,
       nombre,
       token,
@@ -293,7 +282,7 @@ app.post('/api/register', async (req, res) => {
     console.error(err);
     res.status(500).json({ 
       success: false,
-      message: 'Error al registrar el cliente.' 
+      message: 'Error al registrar el usuario.' 
     });
   }
 });
@@ -394,7 +383,6 @@ app.post('/api/usuarios', verificarToken, verificarAdmin, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(contrasena, 10);
     let id_empleado = null;
-    let id_cliente = null;
 
     if (tipo_usuario === 'empleado') {
       // Crear empleado básico
@@ -406,18 +394,11 @@ app.post('/api/usuarios', verificarToken, verificarAdmin, async (req, res) => {
         [nombre, apellido, correo, hashedPassword]
       );
       id_empleado = empResult.insertId;
-    } else if (tipo_usuario === 'cliente') {
-      // Crear cliente básico
-      const [cliResult] = await pool.query(
-        'INSERT INTO Cliente (nombre_completo, usuario, correo, contrasena, id_empresa) VALUES (?, ?, ?, ?, 1)',
-        [nombre_completo, correo, correo, hashedPassword]
-      );
-      id_cliente = cliResult.insertId;
     }
 
     const [result] = await pool.query(
-      'INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_empleado, id_cliente, activo) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [nombre_completo, correo, hashedPassword, tipo_usuario, id_empleado, id_cliente, !!activo]
+      'INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_empleado, activo) VALUES (?, ?, ?, ?, ?, ?)',
+      [nombre_completo, correo, hashedPassword, tipo_usuario, id_empleado, !!activo]
     );
 
     res.status(201).json({ success: true, message: 'Usuario creado exitosamente', data: { id: result.insertId } });
@@ -449,8 +430,6 @@ app.put('/api/usuarios/:id', verificarToken, verificarAdmin, async (req, res) =>
       const nombre = partes.slice(0, -1).join(' ') || nombre_completo;
       const apellido = partes.slice(-1).join(' ');
       await pool.query('UPDATE Empleado SET nombre = ?, apellido = ?, correo = ? WHERE id_empleado = ?', [nombre, apellido, correo, existing[0].id_empleado]);
-    } else if (existing[0].id_cliente) {
-      await pool.query('UPDATE Cliente SET nombre_completo = ?, correo = ? WHERE id_cliente = ?', [nombre_completo, correo, existing[0].id_cliente]);
     }
 
     res.json({ success: true, message: 'Usuario actualizado exitosamente' });
@@ -473,6 +452,36 @@ app.delete('/api/usuarios/:id', verificarToken, verificarAdmin, verificarPasswor
     res.json({ success: true, message: 'Usuario eliminado exitosamente' });
   } catch (error) {
     console.error('Error eliminando usuario:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Convertir usuario a empleado
+app.post('/api/usuarios/:id/convertir-empleado', verificarToken, verificarAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [userRows] = await pool.query('SELECT * FROM Usuario WHERE id_usuario = ? LIMIT 1', [id]);
+    if (userRows.length === 0) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    const user = userRows[0];
+    if (user.tipo_usuario === 'empleado' && user.id_empleado) {
+      return res.json({ success: true, message: 'El usuario ya es empleado' });
+    }
+
+    // Crear empleado básico usando nombre completo y correo del usuario
+    const partes = String(user.nombre_completo || '').split(' ');
+    const nombre = partes.slice(0, -1).join(' ') || user.nombre_completo;
+    const apellido = partes.slice(-1).join(' ') || '';
+
+    const [empResult] = await pool.query(
+      'INSERT INTO Empleado (nombre, apellido, correo, contrasena) VALUES (?, ?, ?, ?)',
+      [nombre, apellido, user.correo, user.contrasena]
+    );
+
+    await pool.query('UPDATE Usuario SET tipo_usuario = "empleado", id_empleado = ? WHERE id_usuario = ?', [empResult.insertId, id]);
+
+    res.json({ success: true, message: 'Usuario convertido a empleado', data: { id_empleado: empResult.insertId } });
+  } catch (error) {
+    console.error('Error convirtiendo usuario a empleado:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 });
@@ -788,20 +797,19 @@ app.delete('/api/roles/:id', verificarToken, verificarAdmin, verificarPasswordAd
 // ENDPOINTS CRUD PARA PROCESOS
 // ============================================
 
-// Obtener todos los procesos con información de empresa y cliente
+// Obtener todos los procesos con información de empresa
 app.get('/api/procesos', verificarToken, verificarAdmin, async (req, res) => {
   try {
-    const { empresa, year } = req.query;
+    const { empresa, year, month } = req.query;
     const params = [];
     let where = ' WHERE 1=1';
     if (empresa) { where += ' AND p.id_empresa = ?'; params.push(Number(empresa)); }
     if (year) { where += ' AND YEAR(p.fecha_creacion) = ?'; params.push(Number(year)); }
+    if (month) { where += ' AND MONTH(p.fecha_creacion) = ?'; params.push(Number(month)); }
     const [rows] = await pool.query(
-      `SELECT p.*, e.nombre_empresa, e.correo_empresa,
-              c.nombre_completo as cliente_nombre, c.correo as cliente_correo
+      `SELECT p.*, e.nombre_empresa, e.correo_empresa
        FROM Proceso p
        LEFT JOIN Empresa e ON p.id_empresa = e.id_empresa
-       LEFT JOIN Cliente c ON p.id_cliente = c.id_cliente
        ${where}
        ORDER BY p.id_proceso ASC`,
       params
@@ -813,29 +821,31 @@ app.get('/api/procesos', verificarToken, verificarAdmin, async (req, res) => {
   }
 });
 
-// Crear proceso
+// Crear proceso (sin cliente)
 app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
-  const { id_empresa, id_cliente, nombre_proceso, tipo_proceso } = req.body;
+  const { id_empresa, nombre_proceso, tipo_proceso } = req.body;
 
   try {
-    // Verificar si la empresa existe
     const [empresa] = await pool.query('SELECT id_empresa FROM Empresa WHERE id_empresa = ?', [id_empresa]);
     if (empresa.length === 0) {
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
     }
 
-    // Verificar si el cliente existe
-    const [cliente] = await pool.query('SELECT id_cliente FROM Cliente WHERE id_cliente = ?', [id_cliente]);
-    if (cliente.length === 0) {
-      return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
+    // Si no viene nombre_proceso, generar con mes anterior
+    let finalNombre = nombre_proceso;
+    if (!finalNombre || !String(finalNombre).trim()) {
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const mes = prev.toLocaleString('es-ES', { month: 'long' });
+      const anio = prev.getFullYear();
+      finalNombre = `Proceso de ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`;
     }
 
     const [result] = await pool.query(
-      'INSERT INTO Proceso (id_empresa, id_cliente, nombre_proceso, tipo_proceso) VALUES (?, ?, ?, ?)',
-      [id_empresa, id_cliente, nombre_proceso, tipo_proceso]
+      'INSERT INTO Proceso (id_empresa, nombre_proceso, tipo_proceso) VALUES (?, ?, ?)',
+      [id_empresa, finalNombre, tipo_proceso]
     );
 
-    // Instanciar etapas por rol según plantillas y asignaciones de la empresa
     await instanciarEtapasParaProceso(result.insertId, id_empresa);
 
     res.status(201).json({ 
@@ -849,37 +859,28 @@ app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin
   }
 });
 
-// Actualizar proceso
+// Actualizar proceso (sin cliente)
 app.put('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
   const { id } = req.params;
-  const { id_empresa, id_cliente, nombre_proceso, tipo_proceso, estado } = req.body;
+  const { id_empresa, nombre_proceso, tipo_proceso, estado } = req.body;
 
   try {
-    // Verificar si el proceso existe
     const [existing] = await pool.query('SELECT id_proceso FROM Proceso WHERE id_proceso = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Proceso no encontrado' });
     }
 
-    // Verificar si la empresa existe
     const [empresa] = await pool.query('SELECT id_empresa FROM Empresa WHERE id_empresa = ?', [id_empresa]);
     if (empresa.length === 0) {
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
     }
 
-    // Verificar si el cliente existe
-    const [cliente] = await pool.query('SELECT id_cliente FROM Cliente WHERE id_cliente = ?', [id_cliente]);
-    if (cliente.length === 0) {
-      return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
-    }
-
-    let updateQuery = 'UPDATE Proceso SET id_empresa = ?, id_cliente = ?, nombre_proceso = ?, tipo_proceso = ?';
-    let updateParams = [id_empresa, id_cliente, nombre_proceso, tipo_proceso];
+    let updateQuery = 'UPDATE Proceso SET id_empresa = ?, nombre_proceso = ?, tipo_proceso = ?';
+    let updateParams = [id_empresa, nombre_proceso, tipo_proceso];
 
     if (estado) {
       updateQuery += ', estado = ?';
       updateParams.push(estado);
-      
       if (estado === 'Completado') {
         updateQuery += ', fecha_completado = NOW()';
       }
@@ -930,7 +931,7 @@ app.delete('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswor
 // ENDPOINTS PARA ETAPAS DE PROCESOS
 // ============================================
 
-// Obtener etapas de un proceso específico
+// Obtener etapas de un proceso específico (admin)
 app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, res) => {
   const { id } = req.params;
 
@@ -946,13 +947,16 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
                INNER JOIN Empleado e ON e.id_empleado = ar.id_empleado
                INNER JOIN Proceso p2 ON p2.id_proceso = ep.id_proceso
                WHERE ar.id_rol = ep.id_rol AND ar.id_empresa = p2.id_empresa AND ar.estado = 'Activo'
-             ) AS responsable_nombres
+             ) AS responsable_nombres,
+             rec.orden AS orden_definido
       FROM EtapaProceso ep
       LEFT JOIN Rol r ON ep.id_rol = r.id_rol
       LEFT JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
       LEFT JOIN EtapaCatalogo eto ON ep.etapa_origen_error = eto.id_etapa
+      LEFT JOIN Proceso p ON p.id_proceso = ep.id_proceso
+      LEFT JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
       WHERE ep.id_proceso = ?
-      ORDER BY ep.fecha_inicio ASC, ep.id_etapa_proceso ASC
+      ORDER BY rec.orden ASC, ep.fecha_inicio ASC, ep.id_etapa_proceso ASC
     `, [id]);
     if (rows.length === 0) {
       const [proc] = await pool.query('SELECT id_empresa FROM Proceso WHERE id_proceso = ? LIMIT 1', [id]);
@@ -969,13 +973,16 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
                    INNER JOIN Empleado e ON e.id_empleado = ar.id_empleado
                    INNER JOIN Proceso p2 ON p2.id_proceso = ep.id_proceso
                    WHERE ar.id_rol = ep.id_rol AND ar.id_empresa = p2.id_empresa AND ar.estado = 'Activo'
-                 ) AS responsable_nombres
+                 ) AS responsable_nombres,
+                 rec.orden AS orden_definido
           FROM EtapaProceso ep
           LEFT JOIN Rol r ON ep.id_rol = r.id_rol
           LEFT JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
           LEFT JOIN EtapaCatalogo eto ON ep.etapa_origen_error = eto.id_etapa
+          LEFT JOIN Proceso p ON p.id_proceso = ep.id_proceso
+          LEFT JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
           WHERE ep.id_proceso = ?
-          ORDER BY ep.fecha_inicio ASC, ep.id_etapa_proceso ASC
+          ORDER BY rec.orden ASC, ep.fecha_inicio ASC, ep.id_etapa_proceso ASC
         `, [id]);
         rows = rows2;
       }
@@ -991,15 +998,13 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
 // ENDPOINTS CRUD PARA PAPELERÍA
 // ============================================
 
-// Obtener toda la papelería con información de cliente y empresa
+// Obtener toda la papelería con información de empresa y proceso
 app.get('/api/papeleria', verificarToken, verificarAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT p.*, 
-             c.nombre_completo as cliente_nombre, c.correo as cliente_correo,
              e.nombre_empresa, pr.nombre_proceso
       FROM Papeleria p
-      LEFT JOIN Cliente c ON p.id_cliente = c.id_cliente
       LEFT JOIN Empresa e ON p.id_empresa = e.id_empresa
       LEFT JOIN Proceso pr ON p.id_proceso = pr.id_proceso
       ORDER BY p.id_papeleria ASC
@@ -1011,40 +1016,25 @@ app.get('/api/papeleria', verificarToken, verificarAdmin, async (req, res) => {
   }
 });
 
-// Crear papelería
+// Crear papelería (sin cliente)
 app.post('/api/papeleria', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
-  const { id_cliente, id_empresa, descripcion, tipo_papeleria } = req.body;
+  const { id_empresa, descripcion, tipo_papeleria } = req.body;
 
   try {
-    // Verificar si el cliente existe
-    const [cliente] = await pool.query('SELECT id_cliente FROM Cliente WHERE id_cliente = ?', [id_cliente]);
-    if (cliente.length === 0) {
-      return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
-    }
-
-    // Verificar si la empresa existe
     const [empresa] = await pool.query('SELECT id_empresa FROM Empresa WHERE id_empresa = ?', [id_empresa]);
     if (empresa.length === 0) {
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
     }
 
     const [result] = await pool.query(
-      'INSERT INTO Papeleria (id_cliente, id_empresa, descripcion, tipo_papeleria) VALUES (?, ?, ?, ?)',
-      [id_cliente, id_empresa, descripcion, tipo_papeleria]
+      'INSERT INTO Papeleria (id_empresa, descripcion, tipo_papeleria) VALUES (?, ?, ?)',
+      [id_empresa, descripcion, tipo_papeleria]
     );
 
-    // Crear proceso automáticamente
-    await crearProcesoDesdePapeleria(id_cliente, id_empresa, tipo_papeleria);
-
-    // Vincular el último proceso creado de ese cliente/empresa/tipo al registro
-    const [proc] = await pool.query(
-      `SELECT id_proceso FROM Proceso 
-       WHERE id_cliente = ? AND id_empresa = ? AND tipo_proceso = ? 
-       ORDER BY fecha_creacion DESC LIMIT 1`,
-      [id_cliente, id_empresa, tipo_papeleria]
-    );
-    if (proc.length > 0) {
-      await pool.query('UPDATE Papeleria SET id_proceso = ? WHERE id_papeleria = ?', [proc[0].id_proceso, result.insertId]);
+    // Crear proceso automáticamente y vincular
+    const nuevoProcesoId = await crearProcesoDesdePapeleria(id_empresa, tipo_papeleria);
+    if (nuevoProcesoId) {
+      await pool.query('UPDATE Papeleria SET id_proceso = ? WHERE id_papeleria = ?', [nuevoProcesoId, result.insertId]);
     }
 
     res.status(201).json({ 
@@ -1064,7 +1054,6 @@ app.put('/api/papeleria/:id', verificarToken, verificarAdmin, verificarPasswordA
   const { descripcion, estado, fecha_entrega, tipo_papeleria } = req.body;
 
   try {
-    // Verificar si la papelería existe
     const [existing] = await pool.query('SELECT * FROM Papeleria WHERE id_papeleria = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Papelería no encontrada' });
@@ -1075,9 +1064,11 @@ app.put('/api/papeleria/:id', verificarToken, verificarAdmin, verificarPasswordA
       [descripcion, estado, fecha_entrega, tipo_papeleria, id]
     );
 
-    // Si se marca como entregada, crear proceso automáticamente
     if (estado === 'Entregada' && tipo_papeleria) {
-      await crearProcesoDesdePapeleria(existing[0].id_cliente, existing[0].id_empresa, tipo_papeleria);
+      const nuevoProcesoId = await crearProcesoDesdePapeleria(existing[0].id_empresa, tipo_papeleria);
+      if (nuevoProcesoId) {
+        await pool.query('UPDATE Papeleria SET id_proceso = ? WHERE id_papeleria = ?', [nuevoProcesoId, id]);
+      }
     }
 
     res.json({ success: true, message: 'Papelería actualizada exitosamente' });
@@ -1087,29 +1078,23 @@ app.put('/api/papeleria/:id', verificarToken, verificarAdmin, verificarPasswordA
   }
 });
 
-// Función auxiliar para crear proceso desde papelería
-const crearProcesoDesdePapeleria = async (id_cliente, id_empresa, tipo_papeleria) => {
+// Función auxiliar para crear proceso desde papelería (sin cliente)
+const crearProcesoDesdePapeleria = async (id_empresa, tipo_papeleria) => {
   try {
-    const fecha = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long' });
-    const nombreProceso = `Proceso de ${tipo_papeleria} ${fecha}`;
-    
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const mes = prev.toLocaleString('es-ES', { month: 'long' });
+    const anio = prev.getFullYear();
+    const nombreProceso = `Proceso de ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`;
     const [result] = await pool.query(
-      'INSERT INTO Proceso (id_empresa, id_cliente, nombre_proceso, tipo_proceso) VALUES (?, ?, ?, ?)',
-      [id_empresa, id_cliente, nombreProceso, tipo_papeleria]
+      'INSERT INTO Proceso (id_empresa, nombre_proceso, tipo_proceso) VALUES (?, ?, ?)',
+      [id_empresa, nombreProceso, tipo_papeleria]
     );
-
-    // Actualizar la papelería con el ID del proceso
-    await pool.query(
-      'UPDATE Papeleria SET id_proceso = ? WHERE id_cliente = ? AND id_empresa = ? AND tipo_papeleria = ? AND estado = "Entregada"',
-      [result.insertId, id_cliente, id_empresa, tipo_papeleria]
-    );
-
-    // Instanciar etapas del proceso recién creado
     await instanciarEtapasParaProceso(result.insertId, id_empresa);
-
-    console.log(`Proceso creado automáticamente: ${nombreProceso} (ID: ${result.insertId})`);
+    return result.insertId;
   } catch (error) {
     console.error('Error creando proceso desde papelería:', error);
+    return null;
   }
 };
 
@@ -1242,76 +1227,12 @@ app.delete('/api/etapas-catalogo/:id', verificarToken, verificarAdmin, verificar
 // ============================================
 
 // Obtener todos los clientes
-app.get('/api/clientes', verificarToken, verificarAdmin, async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT c.*, u.foto_perfil, u.activo, e.nombre_empresa
-      FROM Cliente c
-      LEFT JOIN Usuario u ON c.id_cliente = u.id_cliente
-      LEFT JOIN Empresa e ON c.id_empresa = e.id_empresa
-      ORDER BY c.id_cliente ASC
-    `);
-    res.json({ success: true, data: rows });
-  } catch (error) {
-    console.error('Error obteniendo clientes:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-});
 
 // Crear cliente
-app.post('/api/clientes', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
-  const { nombre_completo, correo, usuario, contrasena, id_empresa } = req.body;
-  try {
-    const [exists] = await pool.query('SELECT 1 FROM Cliente WHERE correo = ? LIMIT 1', [correo]);
-    if (exists.length > 0) {
-      return res.status(400).json({ success: false, message: 'El correo ya está registrado' });
-    }
-    const hashed = await bcrypt.hash(contrasena, 10);
-    const [cli] = await pool.query(
-      'INSERT INTO Cliente (nombre_completo, usuario, correo, contrasena, id_empresa) VALUES (?, ?, ?, ?, ?)',
-      [nombre_completo, usuario || correo, correo, hashed, id_empresa || 1]
-    );
-    // Crear usuario unificado
-    await pool.query(
-      'INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_cliente, activo) VALUES (?, ?, ?, "cliente", ?, 1)',
-      [nombre_completo, correo, hashed, cli.insertId]
-    );
-    res.status(201).json({ success: true, message: 'Cliente creado', data: { id: cli.insertId } });
-  } catch (error) {
-    console.error('Error creando cliente:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-});
 
 // Actualizar cliente
-app.put('/api/clientes/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { nombre_completo, correo, id_empresa, activo } = req.body;
-  try {
-    const [ex] = await pool.query('SELECT * FROM Cliente WHERE id_cliente = ?', [id]);
-    if (ex.length === 0) return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
-    await pool.query('UPDATE Cliente SET nombre_completo = ?, correo = ?, id_empresa = ? WHERE id_cliente = ?', [nombre_completo, correo, id_empresa || ex[0].id_empresa, id]);
-    await pool.query('UPDATE Usuario SET nombre_completo = ?, correo = ?, activo = ? WHERE id_cliente = ?', [nombre_completo, correo, activo !== undefined ? !!activo : true, id]);
-    res.json({ success: true, message: 'Cliente actualizado' });
-  } catch (error) {
-    console.error('Error actualizando cliente:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-});
 
 // Eliminar cliente
-app.delete('/api/clientes/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
-  const { id } = req.params;
-  try {
-    const [ex] = await pool.query('SELECT id_cliente FROM Cliente WHERE id_cliente = ?', [id]);
-    if (ex.length === 0) return res.status(404).json({ success: false, message: 'Cliente no encontrado' });
-    await pool.query('DELETE FROM Cliente WHERE id_cliente = ?', [id]);
-    res.json({ success: true, message: 'Cliente eliminado' });
-  } catch (error) {
-    console.error('Error eliminando cliente:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-});
 
 // ============================================
 // ENDPOINTS PARA ASIGNACIONES DE ROLES
@@ -1320,17 +1241,26 @@ app.delete('/api/clientes/:id', verificarToken, verificarAdmin, verificarPasswor
 // Obtener todas las asignaciones
 app.get('/api/asignaciones', verificarToken, verificarAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT ar.*, 
-             e.nombre, e.apellido, e.correo,
-             r.nombre_rol,
-             emp.nombre_empresa
-      FROM AsignacionRol ar
-      LEFT JOIN Empleado e ON ar.id_empleado = e.id_empleado
-      LEFT JOIN Rol r ON ar.id_rol = r.id_rol
-      LEFT JOIN Empresa emp ON ar.id_empresa = emp.id_empresa
-      ORDER BY ar.id_asignacion ASC
-    `);
+    const { empresa, year, month } = req.query;
+    const params = [];
+    let where = ' WHERE 1=1';
+    if (empresa) { where += ' AND ar.id_empresa = ?'; params.push(Number(empresa)); }
+    if (year) { where += ' AND YEAR(ar.fecha_asignacion) = ?'; params.push(Number(year)); }
+    if (month) { where += ' AND MONTH(ar.fecha_asignacion) = ?'; params.push(Number(month)); }
+
+    const [rows] = await pool.query(
+      `SELECT ar.*, 
+              e.nombre, e.apellido, e.correo,
+              r.nombre_rol,
+              emp.nombre_empresa
+       FROM AsignacionRol ar
+       LEFT JOIN Empleado e ON ar.id_empleado = e.id_empleado
+       LEFT JOIN Rol r ON ar.id_rol = r.id_rol
+       LEFT JOIN Empresa emp ON ar.id_empresa = emp.id_empresa
+       ${where}
+       ORDER BY ar.id_asignacion ASC`,
+      params
+    );
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error obteniendo asignaciones:', error);
@@ -1479,7 +1409,7 @@ app.get('/api/me', verificarToken, async (req, res) => {
   try {
     const [rows] = await pool.query(
       `SELECT u.id_usuario, u.nombre_completo, u.correo, u.tipo_usuario, u.foto_perfil,
-              u.id_empleado, u.id_cliente
+              u.id_empleado
        FROM Usuario u
        WHERE u.id_usuario = ?
        LIMIT 1`,
@@ -1522,10 +1452,9 @@ app.post('/api/verify-password', verificarToken, async (req, res) => {
   }
 });
 
-// Obtener procesos asignados al empleado autenticado (por empresas de sus asignaciones)
+// Obtener procesos asignados al empleado autenticado (sin cliente)
 app.get('/api/mis-procesos', verificarToken, async (req, res) => {
   try {
-    // Obtener id_empleado del usuario
     const [usrRows] = await pool.query(
       'SELECT id_empleado FROM Usuario WHERE id_usuario = ? LIMIT 1',
       [req.user.id]
@@ -1535,7 +1464,6 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Solo empleados pueden acceder a sus procesos' });
     }
 
-    // Filtros opcionales
     const { empresa, rol, from, to, month, year } = req.query;
 
     const params = [empleadoId];
@@ -1562,11 +1490,9 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
 
     const [rows] = await pool.query(
       `SELECT DISTINCT p.*, e.nombre_empresa, e.correo_empresa,
-              c.nombre_completo as cliente_nombre, c.correo as cliente_correo,
               r.nombre_rol
        FROM Proceso p
        INNER JOIN Empresa e ON p.id_empresa = e.id_empresa
-       LEFT JOIN Cliente c ON p.id_cliente = c.id_cliente
        INNER JOIN AsignacionRol ar ON ar.id_empresa = p.id_empresa
        INNER JOIN Rol r ON ar.id_rol = r.id_rol
        WHERE ar.id_empleado = ?${whereFecha}${whereEmpresa}${whereRol}
@@ -1581,55 +1507,38 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
   }
 });
 
-// Obtener etapas del proceso asignadas al empleado autenticado
+// Obtener etapas de un proceso para el empleado autenticado
 app.get('/api/mis-procesos/:id/etapas', verificarToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const [usrRows] = await pool.query(
-      'SELECT id_empleado FROM Usuario WHERE id_usuario = ? LIMIT 1',
-      [req.user.id]
-    );
+    // Obtener id_empleado del usuario autenticado
+    const [usrRows] = await pool.query('SELECT id_empleado FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
     const empleadoId = usrRows?.[0]?.id_empleado || null;
     if (!empleadoId) {
       return res.status(403).json({ success: false, message: 'Solo empleados pueden acceder a sus etapas' });
     }
 
-    let [rows] = await pool.query(
-      `SELECT ep.*, et.nombre_etapa, et.descripcion as etapa_descripcion,
-              r.nombre_rol
+    // Verificar empresa del proceso
+    const [proc] = await pool.query('SELECT id_empresa FROM Proceso WHERE id_proceso = ? LIMIT 1', [id]);
+    if (proc.length === 0) {
+      return res.status(404).json({ success: false, message: 'Proceso no encontrado' });
+    }
+
+    // Traer solo etapas cuyos roles estén asignados al empleado en la empresa del proceso
+    const [rows] = await pool.query(
+      `SELECT ep.*, r.nombre_rol, et.nombre_etapa, et.descripcion AS etapa_descripcion
        FROM EtapaProceso ep
        INNER JOIN Proceso p ON p.id_proceso = ep.id_proceso
-       INNER JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
-       INNER JOIN Rol r ON ep.id_rol = r.id_rol
-       WHERE ep.id_proceso = ? AND EXISTS (
-         SELECT 1 FROM AsignacionRol ar 
-         WHERE ar.id_empleado = ? AND ar.id_rol = ep.id_rol AND ar.id_empresa = p.id_empresa
-       )
+       LEFT JOIN Rol r ON ep.id_rol = r.id_rol
+       LEFT JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
+       WHERE ep.id_proceso = ?
+         AND EXISTS (
+           SELECT 1 FROM AsignacionRol ar
+           WHERE ar.id_empleado = ? AND ar.id_rol = ep.id_rol AND ar.id_empresa = p.id_empresa AND ar.estado = 'Activo'
+         )
        ORDER BY ep.fecha_inicio ASC, ep.id_etapa_proceso ASC`,
       [id, empleadoId]
     );
-
-    if (rows.length === 0) {
-      const [proc] = await pool.query('SELECT id_empresa FROM Proceso WHERE id_proceso = ? LIMIT 1', [id]);
-      if (proc.length > 0) {
-        await instanciarEtapasParaProceso(id, proc[0].id_empresa);
-        const [rows2] = await pool.query(
-          `SELECT ep.*, et.nombre_etapa, et.descripcion as etapa_descripcion,
-                  r.nombre_rol
-           FROM EtapaProceso ep
-           INNER JOIN Proceso p ON p.id_proceso = ep.id_proceso
-           INNER JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
-           INNER JOIN Rol r ON ep.id_rol = r.id_rol
-           WHERE ep.id_proceso = ? AND EXISTS (
-             SELECT 1 FROM AsignacionRol ar 
-             WHERE ar.id_empleado = ? AND ar.id_rol = ep.id_rol AND ar.id_empresa = p.id_empresa
-           )
-           ORDER BY ep.fecha_inicio ASC, ep.id_etapa_proceso ASC`,
-          [id, empleadoId]
-        );
-        rows = rows2;
-      }
-    }
 
     res.json({ success: true, data: rows });
   } catch (error) {

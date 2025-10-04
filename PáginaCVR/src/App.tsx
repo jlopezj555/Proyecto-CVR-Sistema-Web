@@ -16,6 +16,8 @@ import RegisterModal from "./components/RegisterModal";
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
 import AdminView from './components/AdminView';
 import UserView from './components/UserView';
+import SecretariaView from './components/SecretariaView';
+import RevisorView from './components/RevisorView';
 import axios from 'axios';
 
 
@@ -260,29 +262,26 @@ function App() {
         onClose={() => setIsRegisterOpen(false)} 
         onLoginSuccess={handleRegisterSuccess}
       />
-
       
-<div className="hero-image-container">
-  <h1 className="hero-text typing">Asesoría y Soluciones Óptimas para tus Finanzas</h1>
-</div>
+      <div className="hero-image-container">
+        <h1 className="hero-text typing">Asesoría y Soluciones Óptimas para tus Finanzas</h1>
+      </div>
 
-{/* Mensaje de bienvenida para clientes */}
-{showWelcomeMessage && (
-  <div className="welcome-message">
-    <div className="welcome-content">
-      <span className="welcome-icon">👋</span>
-      <span className="welcome-text">¡Bienvenido, {userName}! Has iniciado sesión como cliente.</span>
-      <button 
-        className="welcome-close" 
-        onClick={() => setShowWelcomeMessage(false)}
-      >
-        ✕
-      </button>
-    </div>
-  </div>
-)}
-
-
+      {/* Mensaje de bienvenida para clientes */}
+      {showWelcomeMessage && (
+        <div className="welcome-message">
+          <div className="welcome-content">
+            <span className="welcome-icon">👋</span>
+            <span className="welcome-text">¡Bienvenido, {userName}! Has iniciado sesión como cliente.</span>
+            <button 
+              className="welcome-close" 
+              onClick={() => setShowWelcomeMessage(false)}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {(!userRole || userType === 'cliente') && (
       <section id="about" className="about-section">
@@ -494,7 +493,6 @@ function App() {
 )}
 
 
-
   </div>
       </section>
       )}
@@ -521,6 +519,10 @@ function App() {
                 }
               }}
             />
+          ) : userRole?.toLowerCase().includes('secretaria') ? (
+            <SecretariaView nombre={userName || ''} />
+          ) : userRole?.toLowerCase().includes('revisor') ? (
+            <RevisorView nombre={userName || ''} />
           ) : (
             <div style={{ marginTop: '20px' }}>
               <h2 className="white-title">Bienvenido {userName}</h2>

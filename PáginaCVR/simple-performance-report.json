@@ -1,0 +1,19 @@
+{
+  "testDuration": 69993,
+  "totalSamples": 13,
+  "averageMemory": 4.846153846153846,
+  "peakMemory": 5,
+  "averageCPU": 0,
+  "peakCPU": 0,
+  "systemInfo": {
+    "os": "win32",
+    "arch": "x64",
+    "nodeVersion": "v22.18.0"
+  },
+  "recommendations": [
+    "Rendimiento excelente. El sistema puede manejar más carga.",
+    "Servidor recomendado: 1GB RAM mínimo, 2GB recomendado",
+    "Almacenamiento: 20GB SSD mínimo",
+    "Ancho de banda: 50 Mbps mínimo para 100 usuarios concurrentes"
+  ]
+}

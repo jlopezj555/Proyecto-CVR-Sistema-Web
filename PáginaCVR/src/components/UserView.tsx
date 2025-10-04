@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import './AdminView.css'
 import PasswordVerificationModal from './PasswordVerificationModal'
+import iconProcesos from '../assets/admin-procesos-white.svg'
 
 interface UserViewProps {
   nombre: string
@@ -123,19 +124,6 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     setPasswordModalOpen(true)
   }
 
-  const verificarContrasena = async (password: string) => {
-    try {
-      const resp = await axios.post(
-        'http://localhost:4000/api/verify-password',
-        { contrasena: password },
-        { headers: { Authorization: `Bearer ${token}` } }
-      )
-      return !!resp.data?.success
-    } catch (e) {
-      return false
-    }
-  }
-
   const onVerifyAndUpdate = async (password: string) => {
     if (!pendingEtapaId) return false
     try {
@@ -160,6 +148,21 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     return new Date(dateString).toLocaleDateString('es-ES')
   }
 
+  const meses = [
+    { value: 1, label: 'Enero' },
+    { value: 2, label: 'Febrero' },
+    { value: 3, label: 'Marzo' },
+    { value: 4, label: 'Abril' },
+    { value: 5, label: 'Mayo' },
+    { value: 6, label: 'Junio' },
+    { value: 7, label: 'Julio' },
+    { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Septiembre' },
+    { value: 10, label: 'Octubre' },
+    { value: 11, label: 'Noviembre' },
+    { value: 12, label: 'Diciembre' },
+  ]
+
   return (
     <div className="admin-view-container">
       {/* Sidebar: solo 1 pestaña "Procesos" para mantener el diseño */}
@@ -170,7 +173,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
         </div>
         <nav className="admin-nav">
           <button className={`admin-nav-item active`}>
-            <span className="nav-icon">⚙️</span>
+            <span className="nav-icon"><img src={iconProcesos} alt="Procesos" className="nav-icon-img" /></span>
             <span className="nav-label">Procesos</span>
           </button>
         </nav>
@@ -196,7 +199,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
           }}>
             <div>
               <label style={{ fontWeight: 600, color: '#000' }}>Empresa</label>
-              <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef' }}>
+              <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
                 <option value="">Todas</option>
                 {empresasDisponibles.map(emp => (
                   <option key={emp.id} value={emp.id}>{emp.name}</option>
@@ -205,7 +208,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
             </div>
             <div>
               <label style={{ fontWeight: 600, color: '#000' }}>Rol</label>
-              <select value={rolFiltro} onChange={(e) => setRolFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef' }}>
+              <select value={rolFiltro} onChange={(e) => setRolFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
                 <option value="">Todos</option>
                 {rolesDisponibles.map(rol => (
                   <option key={rol} value={rol}>{rol}</option>
@@ -214,16 +217,27 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
             </div>
             <div>
               <label style={{ fontWeight: 600, color: '#000' }}>Mes</label>
-              <select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef' }}>
+              <select
+                value={mesFiltro}
+                onChange={(e) => setMesFiltro(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: '2px solid #e9ecef',
+                  backgroundColor: 'white',
+                  color: 'black'
+                }}
+              >
                 <option value="">Todos</option>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                  <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                {meses.map((mes) => (
+                  <option key={mes.value} value={mes.value}>{mes.label}</option>
                 ))}
               </select>
             </div>
             <div>
               <label style={{ fontWeight: 600, color: '#000' }}>Año</label>
-              <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef' }}>
+              <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
                 <option value="">Todos</option>
                 {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => (
                   <option key={y} value={y}>{y}</option>
@@ -284,7 +298,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
                         <h4 style={{ margin: '8px 0 12px 0', color: '#2c3e50' }}>Etapas asignadas</h4>
                         {etapasPorProceso[proceso.id_proceso] && etapasPorProceso[proceso.id_proceso].length > 0 && (
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, overflowX: 'auto' }}>
-                            {etapasPorProceso[proceso.id_proceso]!.map((et, idx) => {
+                            {etapasPorProceso[proceso.id_proceso]!.map((et) => {
                               const estado = et.estado
                               const color = estado === 'Completada' ? '#28a745' : estado === 'En progreso' ? '#ffc107' : '#6c757d'
                               const isCurrent = estado === 'En progreso'
@@ -311,13 +325,12 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
                             {etapasPorProceso[proceso.id_proceso]!.map(et => {
                               const checked = et.estado === 'Completada'
                               return (
-                                <div key={et.id_etapa_proceso} style={{ display: 'grid', gridTemplateColumns: '24px 1fr', gap: 10, alignItems: 'start' }}>
+                                <div key={et.id_etapa_proceso} style={{ display: 'grid', gridTemplateColumns: '20px 1fr', gap: 10, alignItems: 'center' }}>
                                   <input
                                     type="checkbox"
                                     checked={checked}
                                     disabled={checked}
                                     onChange={() => solicitarCompletarEtapa(et.id_etapa_proceso, et.estado as EstadoEtapa)}
-                                    style={{ marginTop: 4 }}
                                   />
                                   <div>
                                     <div style={{ fontWeight: 600, color: '#000' }}>{et.nombre_etapa}</div>

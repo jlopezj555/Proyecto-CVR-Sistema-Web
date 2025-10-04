@@ -1,0 +1,36 @@
+# artillery-simple.yml
+config:
+  target: 'http://localhost:4000'
+  phases:
+    - duration: 30
+      arrivalRate: 2
+      name: "Warm up"
+    - duration: 60
+      arrivalRate: 5
+      name: "Normal load"
+    - duration: 30
+      arrivalRate: 10
+      name: "Peak load"
+  defaults:
+    headers:
+      Content-Type: 'application/json'
+
+scenarios:
+  - name: "Basic API test"
+    flow:
+      - post:
+          url: "/api/login"
+          json:
+            correo: "admin@test.com"
+            contrasena: "admin123"
+          capture:
+            - json: "$.token"
+              as: "token"
+      - get:
+          url: "/api/usuarios"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/api/empresas"
+          headers:
+            Authorization: "Bearer {{ token }}"

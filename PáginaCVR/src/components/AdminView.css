@@ -75,6 +75,12 @@
   text-align: center;
 }
 
+.nav-icon-img {
+  width: 24px;
+  height: 24px;
+  display: block;
+}
+
 .nav-label {
   flex: 1;
 }
@@ -162,6 +168,12 @@
 .welcome-icon {
   font-size: 1.8rem;
   color: white;
+}
+
+.welcome-icon-img {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 .welcome-info {

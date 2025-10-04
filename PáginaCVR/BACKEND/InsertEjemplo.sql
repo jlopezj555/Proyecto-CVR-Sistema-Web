@@ -1,56 +1,43 @@
 -- Insertar empresa por defecto
 INSERT INTO Empresa (nombre_empresa, direccion_empresa, telefono_empresa, correo_empresa) 
-VALUES ('CVR Asesoría Contable Financiera S.A.', '6a. Av. 0-60 Zona 4, Torre Profesional II, Oficina 303 "A"', '2335-1609', 'info@cvrasesoria.com');
+VALUES ('El Punto', '6a. Av. 0-60 Zona 4, Torre Profesional II, Oficina 303 "A"', '2335-1609', 'info@cvrasesoria.com');
 
 -- Insertar roles
 INSERT INTO Rol (nombre_rol, descripcion) VALUES 
 ('Administrador', 'Acceso completo al sistema'),
-('Contador', 'Acceso a cuentas y empresas asignadas'),
-('Cliente', 'Acceso limitado a sus propias cuentas');
-
--- Insertar empleados (contraseñas hasheadas con bcrypt)
--- admin123 -> $2b$10$rQZ8kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z
--- contador123 -> $2b$10$sRZ9kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z
-INSERT INTO Empleado (nombre, apellido, correo, contrasena) VALUES 
-('Cristabel', 'Velásquez Rodríguez', 'cristabel@cvrasesoria.com', '$2b$10$rQZ8kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z'),
-('María', 'González', 'maria@cvrasesoria.com', '$2b$10$sRZ9kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z');
-
--- Insertar cliente de ejemplo
-INSERT INTO Cliente (nombre_completo, usuario, correo, contrasena, id_empresa) VALUES 
-('Juan Pérez', 'jperez', 'juan.perez@empresa.com', '$2b$10$tSZ10kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z', 1);
-
--- Insertar procesos de ejemplo
-INSERT INTO Proceso (id_empresa, id_cliente, nombre_proceso, tipo_proceso) VALUES 
-(1, 1, 'Proceso de Ventas Enero 2024', 'Venta'),
-(1, 1, 'Proceso de Compras Enero 2024', 'Compra');
-
--- Insertar asignaciones de roles (ahora por empresa en lugar de cuenta)
-INSERT INTO AsignacionRol (id_empleado, id_rol, id_empresa, estado) VALUES 
-(1, 1, 1, 'Activo'), -- Cristabel como Administrador en empresa 1
-(2, 2, 1, 'Activo'); -- María como Contador en empresa 1
-
--- Insertar usuarios en tabla unificada
-INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_empleado) VALUES 
-('Cristabel Velásquez Rodríguez', 'cristabel@cvrasesoria.com', '$2b$10$rQZ8kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z', 'administrador', 1),
-('María González', 'maria@cvrasesoria.com', '$2b$10$sRZ9kF9XvJ8K9L2M3N4O5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z', 'empleado', 2);
+('Contador', 'Acceso a cuentas y empresas asignadas para su trabajo contable'),
+('Digitador', 'Acceso a cuentas y empresas asignadas para ingreso de datos'),
+('Revisor #1', 'Realiza la primera revisión'),
+('Revisor #2', 'Realiza la primera revisión'),
+('Revisor #3', 'Realiza la primera revisión'),
+('Encargada de Impresión', 'Imprime los cuadernillos revisados'),
+('Secretaria Recepcionista', 'Recibe la papelería y envía los cuadernillos impresos')
 
 
 -- INSERT USUARIO ADMINISTRADOR PARA PRUEBAS
 INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_empleado)
 VALUES ('Admin CVR', 'admin@cvrasesoria.com', 'admin123', 'administrador', NULL);
 
+SET SQL_SAFE_UPDATES = 0;
 
+UPDATE Usuario
+SET contrasena = '$2b$10$i7OLIZtvQ1wjoUO.qV8XeOZ6b4Fl/evnNdTTnq1fWPF4aQlw45YAC'
+WHERE nombre_completo = 'Admin CVR';
 
--- Insertar papelería de ejemplo
-INSERT INTO Papeleria (id_cliente, id_empresa, descripcion, tipo_papeleria) VALUES 
-(1, 1, 'Facturas de venta enero 2024', 'Venta'),
-(1, 1, 'Comprobantes de compra enero 2024', 'Compra');
+SET SQL_SAFE_UPDATES = 1;
 
 
 -- Insertar etapas del catálogo
 INSERT INTO EtapaCatalogo (nombre_etapa, descripcion, es_revision) VALUES 
-('Recepción de Documentos', 'Documentos recibidos del cliente', FALSE),
-('Revisión Inicial', 'Primera revisión de documentos', TRUE),
-('Procesamiento', 'Procesamiento de la información', FALSE),
-('Revisión Final', 'Revisión final antes de entrega', TRUE),
-('Entrega', 'Documentos entregados al cliente', FALSE);
+('Ingreso de papelería', 'Documentos recibidos de la empresa/cliente', FALSE),
+('Operación Ventas/Compras', 'Digitación de datos del proceso', FALSE),
+('Revisión Impuestos', 'Se revisa el impuesto de los procesos asignados', FALSE),
+('Operación Cheques/Depósitos', 'Ingreso de Documentos contables', FALSE),
+('Conciliaciones bancarias', 'Cuadrar los estados de cuenta', FALSE),
+('Trabajo Contable', 'Se cuadran los cheques y depósitos', FALSE),
+('Operación Cheques/Depósitos', 'Ingreso de Documentos contables', FALSE),
+('Revisión #1', 'Se realiza la primera revisión', TRUE),
+('Revisión #2', 'Se realiza la segunda revisión', TRUE),
+('Revisión #3', 'Se realiza la tercera revisión', TRUE),
+('Impresión de cuadernillo', 'Se imprime el cuadernillo revisado y autorizado', FALSE),
+('Envío al cliente', 'Se envía al cliente el cuadernillo terminado', FALSE)

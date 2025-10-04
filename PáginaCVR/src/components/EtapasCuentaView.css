@@ -5,11 +5,12 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   margin: 20px 0;
   overflow: hidden;
+  color: #000;
 }
 
 .etapas-cuenta-header {
   background: linear-gradient(135deg, #122745 0%, #1e3a5f 100%);
-  color: white;
+  color: #000;
   padding: 24px;
   text-align: center;
 }
@@ -22,8 +23,9 @@
 
 .etapas-cuenta-header p {
   margin: 0;
-  opacity: 0.9;
+  opacity: 1;
   font-size: 1rem;
+  color: #000;
 }
 
 .etapas-cuenta-controls {
@@ -41,23 +43,24 @@
 
 .cuenta-selector label {
   font-weight: 600;
-  color: #2c3e50;
+  color: #000;
   font-size: 0.9rem;
 }
 
 .cuenta-selector select {
   padding: 12px 16px;
-  border: 2px solid #e9ecef;
+  border: 1px solid #000;
   border-radius: 8px;
   font-size: 1rem;
-  background: white;
+  background: #fff;
+  color: #000;
   transition: all 0.2s ease;
 }
 
 .cuenta-selector select:focus {
   outline: none;
-  border-color: #A35D2D;
-  box-shadow: 0 0 0 3px rgba(163, 93, 45, 0.1);
+  border-color: #000;
+  box-shadow: none;
 }
 
 .etapas-cuenta-content {
@@ -68,7 +71,7 @@
 .etapas-empty {
   text-align: center;
   padding: 40px;
-  color: #6c757d;
+  color: #000;
   font-size: 1.1rem;
 }
 
@@ -78,7 +81,7 @@
 
 .etapas-timeline h3 {
   margin: 0 0 24px 0;
-  color: #2c3e50;
+  color: #000;
   font-size: 1.4rem;
   font-weight: 600;
 }
@@ -134,7 +137,7 @@
 
 .etapa-header h4 {
   margin: 0;
-  color: #2c3e50;
+  color: #000;
   font-size: 1.2rem;
   font-weight: 600;
 }
@@ -156,7 +159,7 @@
 
 .etapa-info p {
   margin: 0 0 8px 0;
-  color: #495057;
+  color: #000;
   line-height: 1.5;
 }
 
@@ -166,15 +169,16 @@
 
 .etapa-rechazo {
   background: #f8d7da;
-  border: 1px solid #f5c6cb;
+  border: 1px solid #000;
   border-radius: 8px;
   padding: 16px;
   margin-top: 12px;
+  color: #000;
 }
 
 .etapa-rechazo p {
   margin: 0 0 8px 0;
-  color: #721c24;
+  color: #000;
   font-size: 0.9rem;
 }
 

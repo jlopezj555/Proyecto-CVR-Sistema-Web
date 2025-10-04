@@ -7,6 +7,9 @@ export const emailConfig = {
     pass: 'tbza anbn gdhh taqw'      // CAMBIAR: Contraseña de aplicación de Gmail
   },
   
+// tbza anbn gdhh taqw 
+// contraseña para gmail joelslopezj@gmail.com (para pruebas)
+
   // Configuración de la empresa
   from: 'CVR Asesoría <joelslopezj@gmail.com>',
   
