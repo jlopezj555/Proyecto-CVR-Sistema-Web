@@ -1,4 +1,4 @@
- -- DROP DATABASE CVR_LDD;
+-- DROP DATABASE CVR_LDD;
 CREATE DATABASE CVR_LDD;
 USE  CVR_LDD;
 
@@ -114,7 +114,7 @@ CREATE TABLE Usuario (
     nombre_completo VARCHAR(150) NOT NULL,
     correo VARCHAR(120) UNIQUE NOT NULL,
     contrasena VARCHAR(255) NOT NULL, -- hash bcrypt
-    tipo_usuario ENUM('administrador', 'empleado') NOT NULL,
+    tipo_usuario ENUM('administrador', 'empleado', 'cliente') NOT NULL,
     id_empleado INT NULL, -- Referencia si es empleado
     foto_perfil VARCHAR(255) NULL, -- URL de la foto de perfil
     activo BOOLEAN DEFAULT TRUE,
@@ -141,3 +141,4 @@ CREATE TABLE Papeleria (
         ON DELETE SET NULL ON UPDATE CASCADE
 );
 
+ALTER TABLE Usuario MODIFY COLUMN tipo_usuario ENUM('administrador', 'empleado', 'cliente') NOT NULL;

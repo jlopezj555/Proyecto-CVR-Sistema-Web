@@ -221,9 +221,10 @@ const EtapasProcesoView: React.FC = () => {
           {procesos.map((proceso) => {
             const etapasInstanciadas = etapasPorProceso[proceso.id_proceso] || [];
             const progreso = calcularProgreso(proceso.id_proceso);
+            const tieneRechazada = etapasInstanciadas.some(e => e.estado === 'Rechazada');
 
             return (
-              <div key={proceso.id_proceso} style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
+              <div key={proceso.id_proceso} style={{ background: 'white', border: tieneRechazada ? '2.5px solid #dc3545' : '1px solid #e9ecef', borderRadius: 12, boxShadow: tieneRechazada ? '0 0 0 2px #dc3545' : '0 8px 24px rgba(0,0,0,0.06)' }}>
                 {/* Encabezado del proceso (colapsable como UserView) */}
                 <button onClick={() => toggleProceso(proceso.id_proceso)} style={{
                   width: '100%',
@@ -251,8 +252,8 @@ const EtapasProcesoView: React.FC = () => {
                 {expandedProcesoId === proceso.id_proceso && (
                 <div style={{ padding: 12 }}>
                   {/* Línea de etapas horizontal construida desde catálogo */}
-                  <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                    <div style={{ display: 'inline-flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', paddingBottom: 8 }}>
+                  <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+                    <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', paddingBottom: 8, minWidth: 'max-content' }}>
                       {catalogo.map((cat) => {
                       const etapa = etapasInstanciadas.find(e => e.id_etapa === cat.id_etapa);
                       const estado = etapa?.estado || 'Pendiente';
@@ -263,7 +264,7 @@ const EtapasProcesoView: React.FC = () => {
                       const key = `${proceso.id_proceso}:${cat.id_etapa}`;
 
                       return (
-                        <div key={key} style={{ minWidth: 160 }}>
+                        <div key={key} style={{ minWidth: 160, flex: '0 0 auto' }}>
                           <div
                             style={{
                               padding: 8,
@@ -276,6 +277,11 @@ const EtapasProcesoView: React.FC = () => {
                             <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Estado: <span style={{ color }}>{estado}</span></div>
                             <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Rol: {etapa?.nombre_rol || '-'}</div>
                             <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Responsable: {responsable}</div>
+                            {etapa?.estado === 'Rechazada' && etapa?.motivo_rechazo && (
+                              <div style={{ color: '#dc3545', marginTop: 4, fontSize: 12 }}>
+                                <strong>Motivo rechazo:</strong> {etapa.motivo_rechazo}
+                              </div>
+                            )}
                           </div>
                         </div>
                       );

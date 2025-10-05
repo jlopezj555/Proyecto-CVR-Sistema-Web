@@ -33,6 +33,7 @@ interface EtapaAsignadaItem {
   fecha_fin?: string | null
   nombre_etapa: string
   etapa_descripcion: string
+  motivo_rechazo?: string
   nombre_rol: string
 }
 
@@ -131,7 +132,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
         `http://localhost:4000/api/etapas-proceso/${pendingEtapaId}`,
         { estado: 'Completada', contrasena: password },
         { headers: { Authorization: `Bearer ${token}` } }
-      )
+      );
       if (resp.data?.success) {
         if (expandedProcesoId) await cargarEtapas(expandedProcesoId)
         return true
@@ -253,13 +254,15 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
             <div className="crud-error">No hay procesos asignados.</div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-              {procesos.map(proceso => (
-                <div key={proceso.id_proceso} style={{
-                  background: 'white',
-                  border: '1px solid #e9ecef',
-                  borderRadius: 12,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.06)'
-                }}>
+              {procesos.map(proceso => {
+                const tieneRechazada = (etapasPorProceso[proceso.id_proceso] || []).some(et => et.estado === 'Rechazada');
+                return (
+                  <div key={proceso.id_proceso} style={{
+                    background: 'white',
+                    border: tieneRechazada ? '2.5px solid #dc3545' : '1px solid #e9ecef',
+                    borderRadius: 12,
+                    boxShadow: tieneRechazada ? '0 0 0 2px #dc3545' : '0 8px 24px rgba(0,0,0,0.06)'
+                  }}>
                   <button onClick={() => toggleExpand(proceso.id_proceso)} style={{
                     width: '100%',
                     background: 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)',
@@ -280,68 +283,93 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
               </div>
                   </button>
 
-                  {expandedProcesoId === proceso.id_proceso && (
-                    <div style={{ padding: 16 }}>
-                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10, color: '#495057' }}>
-                        <span><strong>Estado:</strong> {proceso.estado || 'Activo'}</span>
-                        <span><strong>Creado:</strong> {formatDate(proceso.fecha_creacion)}</span>
-                        {proceso.fecha_completado && (
-                          <span><strong>Completado:</strong> {formatDate(proceso.fecha_completado)}</span>
-                        )}
-                        {proceso.nombre_rol && (
-                          <span><strong>Tu rol:</strong> {proceso.nombre_rol}</span>
-                        )}
-              </div>
+{expandedProcesoId === proceso.id_proceso && (
+  <div style={{ padding: 16 }}>
+    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10, color: '#495057' }}>
+      <span><strong>Estado:</strong> {proceso.estado || 'Activo'}</span>
+      <span><strong>Creado:</strong> {formatDate(proceso.fecha_creacion)}</span>
+      {proceso.fecha_completado && (
+        <span><strong>Completado:</strong> {formatDate(proceso.fecha_completado)}</span>
+      )}
+      {proceso.nombre_rol && (
+        <span><strong>Tu rol:</strong> {proceso.nombre_rol}</span>
+      )}
+    </div>
 
-                      {/* Línea de tiempo horizontal */}
-                      <div>
-                        <h4 style={{ margin: '8px 0 12px 0', color: '#2c3e50' }}>Etapas asignadas</h4>
-                        {etapasPorProceso[proceso.id_proceso] && etapasPorProceso[proceso.id_proceso].length > 0 && (
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, overflowX: 'auto' }}>
-                            {etapasPorProceso[proceso.id_proceso]!.map((et) => {
-                              const estado = et.estado
-                              const color = estado === 'Completada' ? '#28a745' : estado === 'En progreso' ? '#ffc107' : '#6c757d'
-                              const isCurrent = estado === 'En progreso'
-                              // Resaltar si la etapa corresponde a algún rol del empleado en la empresa del proceso
-                              const isMine = true // el endpoint ya filtra por roles del empleado en esa empresa
-                              const border = isCurrent ? '3px solid #1e3a5f' : isMine ? '2px dashed #1e3a5f' : '1px solid #dee2e6'
-                              return (
-                                <div key={`timeline-${et.id_etapa_proceso}`} style={{ minWidth: 160 }}>
-                                  <div style={{ padding: 10, borderRadius: 10, background: 'white', border }}>
-                                    <div style={{ fontWeight: 700, color: '#000' }}>{et.nombre_etapa}</div>
-                                    <div style={{ marginTop: 6, fontSize: 12, color: '#495057' }}>Estado: <span style={{ color }}>{estado}</span></div>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                        {loadingEtapas[proceso.id_proceso] ? (
-                          <div className="crud-loading">Cargando etapas...</div>
-                        ) : (etapasPorProceso[proceso.id_proceso]?.length || 0) === 0 ? (
-                          <div className="crud-error">No tienes etapas asignadas en este proceso.</div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {etapasPorProceso[proceso.id_proceso]!.map(et => {
-                              const checked = et.estado === 'Completada'
-                              return (
-                                <div key={et.id_etapa_proceso} style={{ display: 'grid', gridTemplateColumns: '20px 1fr', gap: 10, alignItems: 'center' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    disabled={checked}
-                                    onChange={() => solicitarCompletarEtapa(et.id_etapa_proceso, et.estado as EstadoEtapa)}
-                                  />
-                                  <div>
-                                    <div style={{ fontWeight: 600, color: '#000' }}>{et.nombre_etapa}</div>
-                                    <div style={{ fontSize: 13, color: '#495057' }}>{et.etapa_descripcion}</div>
-                                    <div style={{ fontSize: 12, color: '#6c757d', marginTop: 4 }}>
-                                      <span><strong>Estado:</strong> {et.estado}</span>{' • '}
-                                      <span><strong>Inicio:</strong> {formatDate(et.fecha_inicio)}</span>{' • '}
-                                      <span><strong>Fin:</strong> {formatDate(et.fecha_fin)}</span>
+    {/* Línea de tiempo horizontal */}
+    <div>
+      <h4 style={{ margin: '8px 0 12px 0', color: '#2c3e50' }}>Etapas asignadas</h4>
+
+      {etapasPorProceso[proceso.id_proceso] && etapasPorProceso[proceso.id_proceso].length > 0 && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, overflowX: 'auto' }}>
+          {etapasPorProceso[proceso.id_proceso]!.map((et) => {
+            const estado = et.estado
+            const color =
+              estado === 'Completada'
+                ? '#28a745'
+                : estado === 'En progreso'
+                  ? '#ffc107'
+                  : '#6c757d'
+            const isCurrent = estado === 'En progreso'
+            const isMine = true
+            const border = isCurrent
+              ? '3px solid #1e3a5f'
+              : isMine
+                ? '2px dashed #1e3a5f'
+                : '1px solid #dee2e6'
+
+            return (
+              <div key={`timeline-${et.id_etapa_proceso}`} style={{ minWidth: 160 }}>
+                <div style={{ padding: 10, borderRadius: 10, background: 'white', border }}>
+                  <div style={{ fontWeight: 700, color: '#000' }}>{et.nombre_etapa}</div>
+                  <div style={{ marginTop: 6, fontSize: 12, color: '#495057' }}>
+                    Estado: <span style={{ color }}>{estado}</span>
+                  </div>
+                  {et.estado === 'Rechazada' && et.motivo_rechazo && (
+                    <div style={{ color: 'red', marginTop: 4 }}>
+                      <strong>Rechazado por:</strong> {et.motivo_rechazo}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
+            )
+          })}
+        </div>
+      )}
+                        {loadingEtapas[proceso.id_proceso] ? (
+        <div className="crud-loading">Cargando etapas...</div>
+      ) : (etapasPorProceso[proceso.id_proceso]?.length || 0) === 0 ? (
+        <div className="crud-error">No tienes etapas asignadas en este proceso.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {etapasPorProceso[proceso.id_proceso]!.map(et => {
+            const checked = et.estado === 'Completada'
+            return (
+              <div
+                key={et.id_etapa_proceso}
+                style={{ display: 'grid', gridTemplateColumns: '20px 1fr', gap: 10, alignItems: 'center' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={checked}
+                  onChange={() => solicitarCompletarEtapa(et.id_etapa_proceso, et.estado as EstadoEtapa)}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, color: '#000' }}>{et.nombre_etapa}</div>
+                  <div style={{ fontSize: 13, color: '#495057' }}>{et.etapa_descripcion}</div>
+                  <div style={{ fontSize: 12, color: '#6c757d', marginTop: 4 }}>
+                    <span><strong>Estado:</strong> {et.estado}</span>{' • '}
+                    <span><strong>Inicio:</strong> {formatDate(et.fecha_inicio)}</span>{' • '}
+                    <span><strong>Fin:</strong> {formatDate(et.fecha_fin)}</span>
+                    {et.estado === 'Rechazada' && et.motivo_rechazo && (
+                      <div style={{ color: 'red', marginTop: 4 }}>
+                        <strong>Rechazado por:</strong> {et.motivo_rechazo}
+                      </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
                               )
                             })}
                           </div>
@@ -350,8 +378,9 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+              )
+            })}
+          </div>
           )}
         </div>
       </div>

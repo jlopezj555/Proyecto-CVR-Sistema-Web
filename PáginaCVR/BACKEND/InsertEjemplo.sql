@@ -8,20 +8,19 @@ INSERT INTO Rol (nombre_rol, descripcion) VALUES
 ('Contador', 'Acceso a cuentas y empresas asignadas para su trabajo contable'),
 ('Digitador', 'Acceso a cuentas y empresas asignadas para ingreso de datos'),
 ('Revisor #1', 'Realiza la primera revisión'),
-('Revisor #2', 'Realiza la primera revisión'),
-('Revisor #3', 'Realiza la primera revisión'),
+('Revisor #2', 'Realiza la segunda revisión'),
+('Revisor #3', 'Realiza la tercera revisión'),
 ('Encargada de Impresión', 'Imprime los cuadernillos revisados'),
-('Secretaria Recepcionista', 'Recibe la papelería y envía los cuadernillos impresos')
+('Secretaria Recepcionista', 'Recibe la papelería y envía los cuadernillos impresos');
 
 
--- INSERT USUARIO ADMINISTRADOR PARA PRUEBAS
 INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario, id_empleado)
 VALUES ('Admin CVR', 'admin@cvrasesoria.com', 'admin123', 'administrador', NULL);
 
 SET SQL_SAFE_UPDATES = 0;
 
 UPDATE Usuario
-SET contrasena = '$2b$10$i7OLIZtvQ1wjoUO.qV8XeOZ6b4Fl/evnNdTTnq1fWPF4aQlw45YAC'
+SET contrasena = '$2b$10$tmYxy8MitcaXLorfJLhkKey2QpbHtAuQUFimQi3bPzDJ1baXtir3S'
 WHERE nombre_completo = 'Admin CVR';
 
 SET SQL_SAFE_UPDATES = 1;
@@ -35,7 +34,6 @@ INSERT INTO EtapaCatalogo (nombre_etapa, descripcion, es_revision) VALUES
 ('Operación Cheques/Depósitos', 'Ingreso de Documentos contables', FALSE),
 ('Conciliaciones bancarias', 'Cuadrar los estados de cuenta', FALSE),
 ('Trabajo Contable', 'Se cuadran los cheques y depósitos', FALSE),
-('Operación Cheques/Depósitos', 'Ingreso de Documentos contables', FALSE),
 ('Revisión #1', 'Se realiza la primera revisión', TRUE),
 ('Revisión #2', 'Se realiza la segunda revisión', TRUE),
 ('Revisión #3', 'Se realiza la tercera revisión', TRUE),

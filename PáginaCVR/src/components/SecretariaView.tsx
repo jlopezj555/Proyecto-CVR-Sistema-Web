@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import './AdminView.css'
+import './EtapasCuentaView.css'
 import iconProcesos from '../assets/admin-procesos-white.svg'
 import iconPapeleria from '../assets/admin-papeleria-white.svg'
-import PasswordVerificationModal from './PasswordVerificationModal'
+import CRUDTable from './CRUDTable'
 
 interface ProcesoItem {
   id_proceso: number
@@ -18,35 +19,40 @@ interface ProcesoItem {
   cliente_nombre: string
 }
 
-interface EtapaItem {
-  id_etapa_proceso: number
-  id_proceso: number
-  id_rol: number
-  id_etapa: number
-  estado: string
-  fecha_inicio: string
-  fecha_fin?: string | null
-  nombre_etapa: string
-  etapa_descripcion: string
-}
 
 const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const [activeTab, setActiveTab] = useState<'procesos' | 'papeleria'>('procesos')
   const token = localStorage.getItem('token')
 
-  // Procesos y etapas filtradas (solo ingreso/envío de papelería)
+  // Filtros de procesos
+  const [empresaFiltro, setEmpresaFiltro] = useState<string>('')
+  const [anioFiltro, setAnioFiltro] = useState<string>('')
+  const [mesFiltro, setMesFiltro] = useState<string>('')
+
+  // Procesos (solo cabecera + progreso)
   const [procesos, setProcesos] = useState<ProcesoItem[]>([])
-  const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [etapas, setEtapas] = useState<Record<number, EtapaItem[]>>({})
-  const [loadingProc, setLoadingProc] = useState(false)
-  const [loadingEtapas, setLoadingEtapas] = useState<Record<number, boolean>>({})
+    const [loadingProc, setLoadingProc] = useState(false)
+  const [progreso, setProgreso] = useState<Record<number, { porcentaje: number, total: number, completadas: number }>>({})
+  const [loadingProgreso, setLoadingProgreso] = useState<Record<number, boolean>>({})
+  const [empresasAsignadas, setEmpresasAsignadas] = useState<{ value: number, label: string }[]>([])
+  const [expandedProcesoId, setExpandedProcesoId] = useState<number | null>(null)
 
   const cargarProcesos = async () => {
     setLoadingProc(true)
     try {
-      // Reutilizamos mis-procesos (empleado) para empresas asignadas
+      // Usar los mismos nombres de params que en EtapasProcesoView (`year`, `month`)
+      const params: any = {}
+      if (empresaFiltro) params.empresa = empresaFiltro
+      const month = mesFiltro
+      const year = anioFiltro
+      // si se seleccionó mes pero no año, asumir año actual (comportamiento previo)
+      if (month && !year) params.year = String(new Date().getFullYear())
+      if (year) params.year = year
+      if (month) params.month = month
+
       const { data } = await axios.get('http://localhost:4000/api/mis-procesos', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params
       })
       setProcesos(data.data || [])
     } catch (e) {
@@ -56,153 +62,75 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     }
   }
 
-  const cargarEtapas = async (id: number) => {
-    setLoadingEtapas(prev => ({ ...prev, [id]: true }))
+  const cargarProgreso = async (id: number) => {
+    setLoadingProgreso(prev => ({ ...prev, [id]: true }))
     try {
-      const { data } = await axios.get(`http://localhost:4000/api/mis-procesos/${id}/etapas`, {
+      const { data } = await axios.get(`http://localhost:4000/api/procesos/${id}/progreso`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      // Filtrar solo etapas de ingreso/envío de papelería por nombre
-      const filtered = (data.data || []).filter((e: EtapaItem) => {
-        const n = (e.nombre_etapa || '').toLowerCase()
-        return n.includes('ingreso') || n.includes('envío') || n.includes('envio') || n.includes('papeler')
-      })
-      setEtapas(prev => ({ ...prev, [id]: filtered }))
+      const payload = data?.data || { porcentaje: 0, total: 0, completadas: 0 }
+      setProgreso(prev => ({ ...prev, [id]: payload }))
     } catch (e) {
-      console.error('Error cargando etapas secretaria:', e)
+      console.error('Error cargando progreso del proceso:', e)
     } finally {
-      setLoadingEtapas(prev => ({ ...prev, [id]: false }))
+      setLoadingProgreso(prev => ({ ...prev, [id]: false }))
     }
   }
 
-  useEffect(() => { cargarProcesos() }, [])
+  useEffect(() => { cargarProcesos() }, [empresaFiltro, mesFiltro, anioFiltro])
 
-  const toggleExpand = (id: number) => {
-    const newId = expandedId === id ? null : id
-    setExpandedId(newId)
-    if (newId && !etapas[newId]) cargarEtapas(newId)
-  }
+  // Refrescar al entrar en la pestaña de procesos
+  useEffect(() => {
+    if (activeTab === 'procesos') cargarProcesos()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
-  // Papelería CRUD (lista + crear + editar + eliminar + marcar entregada)
-  const [papeleria, setPapeleria] = useState<any[]>([])
-  const [empresas, setEmpresas] = useState<any[]>([])
-  const [form, setForm] = useState({ id_cliente: '', id_empresa: '', tipo_papeleria: 'Venta', descripcion: '' })
-  const [loadingPap, setLoadingPap] = useState(false)
-  const [creating, setCreating] = useState(false)
-
-  // edición/eliminación
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState({ descripcion: '', tipo_papeleria: 'Venta', estado: 'Recibida', fecha_entrega: '' })
-  const [pendingAction, setPendingAction] = useState<'update' | 'delete' | null>(null)
-  const [showPwd, setShowPwd] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<any | null>(null)
-
-  const cargarPapeleria = async () => {
-    setLoadingPap(true)
+  const cargarMisEmpresas = async () => {
     try {
-      // usar endpoints de admin para tener mismas capacidades
-      const { data } = await axios.get('http://localhost:4000/api/papeleria', {
+      const { data } = await axios.get('http://localhost:4000/api/mis-empresas', {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setPapeleria(data.data || [])
+      const opts = (data?.data || []).map((e: any) => ({ value: e.id_empresa, label: e.nombre_empresa }))
+      setEmpresasAsignadas(opts)
     } catch (e) {
-      console.error('Error listando papelería secretaria:', e)
-    } finally {
-      setLoadingPap(false)
-    }
-  }
-
-  const cargarCatalogos = async () => {
-    try {
-      const [emp] = await Promise.all([
-        axios.get('http://localhost:4000/api/empresas', { headers: { Authorization: `Bearer ${token}` } })
-      ])
-      setEmpresas(emp.data.data || [])
-    } catch (e) {
-      console.error('Error cargando catálogos:', e)
+      // Fallback: derivar desde procesos si el endpoint no existe
+      const fallback = Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries())
+        .map(([value, label]) => ({ value: Number(value), label: String(label) }))
+      setEmpresasAsignadas(fallback)
     }
   }
 
   useEffect(() => {
-    if (activeTab === 'papeleria') {
-      cargarPapeleria()
-      cargarCatalogos()
-    }
+    if (activeTab === 'papeleria') cargarMisEmpresas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
-  const crearPapeleria = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCreating(true)
-    try {
-      await axios.post('http://localhost:4000/api/papeleria', { id_empresa: form.id_empresa, tipo_papeleria: form.tipo_papeleria, descripcion: form.descripcion }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      setForm({ id_cliente: '', id_empresa: '', tipo_papeleria: 'Venta', descripcion: '' })
-      await cargarPapeleria()
-    } catch (e) {
-      console.error('Error creando papelería:', e)
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  const abrirEditar = (item: any) => {
-    setEditingId(item.id_papeleria)
-    setEditForm({
-      descripcion: item.descripcion || '',
-      tipo_papeleria: item.tipo_papeleria || 'Venta',
-      estado: item.estado || 'Recibida',
-      fecha_entrega: item.fecha_entrega ? item.fecha_entrega.substring(0, 10) : ''
+  // Cargar progreso para todos los procesos listados
+  useEffect(() => {
+    if (!procesos || procesos.length === 0) return
+    procesos.forEach(p => {
+      if (!progreso[p.id_proceso]) cargarProgreso(p.id_proceso)
     })
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [procesos])
 
-  const solicitarActualizar = (item: any) => {
-    setSelectedItem(item)
-    setPendingAction('update')
-    setShowPwd(true)
-  }
-
-  const solicitarEliminar = (item: any) => {
-    setSelectedItem(item)
-    setPendingAction('delete')
-    setShowPwd(true)
-  }
-
-  const onVerify = async (password: string): Promise<boolean> => {
-    try {
-      if (!selectedItem) return false
-      if (pendingAction === 'update') {
-        const id = selectedItem.id_papeleria
-        const payload = { ...editForm, adminContrasena: password }
-        await axios.put(`http://localhost:4000/api/papeleria/${id}`,
-          payload,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-      } else if (pendingAction === 'delete') {
-        const id = selectedItem.id_papeleria
-        await axios.delete(`http://localhost:4000/api/papeleria/${id}`,
-          { data: { adminContrasena: password }, headers: { Authorization: `Bearer ${token}` } }
-        )
-      }
-      setShowPwd(false)
-      setPendingAction(null)
-      setSelectedItem(null)
-      setEditingId(null)
-      await cargarPapeleria()
-      return true
-    } catch (e) {
-      console.error('Error en operación protegida:', e)
-      return false
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  const toggleProceso = (procesoId: number) => {
+    const newId = expandedProcesoId === procesoId ? null : procesoId
+    setExpandedProcesoId(newId)
+    if (newId && !progreso[newId]) {
+      cargarProgreso(newId)
     }
-  }
-
-  const marcarEntregada = async (id_papeleria: number) => {
-    try {
-      await axios.put(`http://localhost:4000/api/papeleria/${id_papeleria}`, { estado: 'Entregada', fecha_entrega: new Date().toISOString().substring(0,10) }, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      await cargarPapeleria()
-    } catch (e) { console.error('Error marcando entregada:', e) }
   }
 
   const formatDate = (s?: string | null) => (s ? new Date(s).toLocaleDateString('es-ES') : '-')
@@ -234,52 +162,86 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
         <div className="admin-content-body">
           {activeTab === 'procesos' && (
-            <>
+            <div className="etapas-cuenta-container">
+              <h2>Gestión de Etapas de Procesos</h2>
+
+              <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <label>Empresa</label>
+                  <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
+                    <option value="">Todas</option>
+                    {Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries()).map(([id, nombre]) => (
+                      <option key={id} value={String(id)}>{nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label>Año</label>
+                  <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
+                    <option value="">Todos</option>
+                    {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                      <option key={y} value={String(y)}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label>Mes</label>
+                  <select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
+                    <option value="">Todos</option>
+                    {[{value:1,label:'Enero'},{value:2,label:'Febrero'},{value:3,label:'Marzo'},{value:4,label:'Abril'},{value:5,label:'Mayo'},{value:6,label:'Junio'},{value:7,label:'Julio'},{value:8,label:'Agosto'},{value:9,label:'Septiembre'},{value:10,label:'Octubre'},{value:11,label:'Noviembre'},{value:12,label:'Diciembre'}].map(m => (
+                      <option key={m.value} value={String(m.value)}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               {loadingProc ? (
-                <div className="crud-loading">Cargando procesos...</div>
+                <div className="loading">Cargando procesos...</div>
               ) : procesos.length === 0 ? (
-                <div className="crud-error">No hay procesos</div>
+                <div className="no-data">No hay procesos registrados.</div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-                  {procesos.map(p => (
-                    <div key={p.id_proceso} style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12 }}>
-                      <button onClick={() => toggleExpand(p.id_proceso)} style={{
-                        width: '100%', background: 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)', color: 'white',
-                        border: 'none', padding: '16px 18px', borderTopLeftRadius: 12, borderTopRightRadius: 12, cursor: 'pointer', textAlign: 'left'
+                <div style={{ display: 'grid', gap: 16 }}>
+                  {procesos.map((p) => (
+                    <div key={p.id_proceso} style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
+                      {/* Encabezado colapsable (idéntico al admin) */}
+                      <button onClick={() => toggleProceso(p.id_proceso)} style={{
+                        width: '100%',
+                        background: 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)',
+                        color: 'white', border: 'none', padding: '14px 16px',
+                        borderTopLeftRadius: 12, borderTopRightRadius: 12, cursor: 'pointer', textAlign: 'left'
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                           <div>
-                            <div style={{ fontWeight: 700 }}>{p.nombre_proceso}</div>
-                            <div style={{ opacity: 0.85, fontSize: 12 }}>{p.nombre_empresa} • {p.tipo_proceso}</div>
+                            <div style={{ fontWeight: 700, fontSize: 14 }}>{p.nombre_proceso}</div>
+                            <div style={{ opacity: 0.85, fontSize: 11 }}>{p.nombre_empresa} • {p.tipo_proceso}</div>
                           </div>
-                          <div style={{ fontSize: 18 }}>{expandedId === p.id_proceso ? '▴' : '▾'}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ fontSize: 11, opacity: 0.9 }}>Creado: {formatDate(p.fecha_creacion)}</div>
+                            <div style={{ fontSize: 18 }}>{expandedProcesoId === p.id_proceso ? '▴' : '▾'}</div>
+                          </div>
                         </div>
                       </button>
-                      {expandedId === p.id_proceso && (
-                        <div style={{ padding: 16 }}>
-                          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10, color: '#495057' }}>
-                            <span><strong>Estado:</strong> {p.estado}</span>
-                            <span><strong>Creado:</strong> {formatDate(p.fecha_creacion)}</span>
-                            {p.fecha_completado && <span><strong>Completado:</strong> {formatDate(p.fecha_completado)}</span>}
-                          </div>
-                          {loadingEtapas[p.id_proceso] ? (
-                            <div className="crud-loading">Cargando etapas...</div>
-                          ) : (etapas[p.id_proceso]?.length || 0) === 0 ? (
-                            <div className="crud-error">No hay etapas de papelería asignadas</div>
+
+                      {expandedProcesoId === p.id_proceso && (
+                        <div style={{ padding: 12 }}>
+                          {/* Solo barra de progreso y porcentaje */}
+                          {loadingProgreso[p.id_proceso] ? (
+                            <div className="loading">Calculando progreso...</div>
                           ) : (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                              {etapas[p.id_proceso]!.map(et => (
-                                <div key={et.id_etapa_proceso} style={{ padding: 10, background: 'white', border: '1px solid #dee2e6', borderRadius: 8 }}>
-                                  <div style={{ fontWeight: 600, color: '#000' }}>{et.nombre_etapa}</div>
-                                  <div style={{ fontSize: 13, color: '#495057' }}>{et.etapa_descripcion}</div>
-                                  <div style={{ fontSize: 12, color: '#6c757d', marginTop: 4 }}>
-                                    <span><strong>Estado:</strong> {et.estado}</span>{' • '}
-                                    <span><strong>Inicio:</strong> {formatDate(et.fecha_inicio)}</span>{' • '}
-                                    <span><strong>Fin:</strong> {formatDate(et.fecha_fin)}</span>
+                            (() => {
+                              const pct = progreso[p.id_proceso]?.porcentaje ?? 0
+                              return (
+                                <div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                                    <span style={{ fontWeight: 600, color: '#000', fontSize: 13 }}>Avance del proceso</span>
+                                    <span style={{ color: '#000', fontSize: 12 }}>{pct}%</span>
+                                  </div>
+                                  <div style={{ position: 'relative', height: 10, background: '#e9ecef', borderRadius: 999, overflow: 'hidden' }}>
+                                    <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: 'linear-gradient(90deg, #1e3a5f, #4e7ab5)', borderRadius: 999, transition: 'width 600ms ease' }} />
                                   </div>
                                 </div>
-                              ))}
-                            </div>
+                              )
+                            })()
                           )}
                         </div>
                       )}
@@ -287,99 +249,53 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                   ))}
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {activeTab === 'papeleria' && (
             <>
-              <div style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                <h3 style={{ marginTop: 0, color: '#2c3e50' }}>Registrar papelería</h3>
-                <form onSubmit={crearPapeleria} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 12 }}>
-                  <div>
-                    <label>Empresa</label>
-                    <select required value={form.id_empresa} onChange={(e) => setForm({ ...form, id_empresa: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
-                      <option value="">Seleccione</option>
-                      {empresas.map(emp => <option key={emp.id_empresa} value={emp.id_empresa}>{emp.nombre_empresa}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label>Tipo</label>
-                    <select required value={form.tipo_papeleria} onChange={(e) => setForm({ ...form, tipo_papeleria: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
-                      <option value="Venta">Venta</option>
-                      <option value="Compra">Compra</option>
-                    </select>
-                  </div>
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <label>Descripción</label>
-                    <input required value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: 8, border: '2px solid #e9ecef' }} />
-                  </div>
-                  <div style={{ gridColumn: '1 / -1', textAlign: 'right' }}>
-                    <button disabled={creating} className="crud-btn-create" type="submit">{creating ? 'Guardando...' : 'Guardar'}</button>
-                  </div>
-                </form>
-              </div>
-
-              {loadingPap ? (
-                <div className="crud-loading">Cargando papelería...</div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
-                  {papeleria.map(p => (
-                    <div key={p.id_papeleria} style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12, padding: 12 }}>
-                      <div style={{ fontWeight: 700, color: '#000' }}>{p.descripcion}</div>
-                      <div style={{ fontSize: 12, color: '#6c757d' }}>{p.nombre_empresa} • {p.tipo_papeleria}</div>
-                      <div style={{ fontSize: 12, color: '#6c757d' }}>Recibida: {formatDate(p.fecha_recepcion)} • Entrega: {formatDate(p.fecha_entrega)}</div>
-                      <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ padding: '4px 8px', borderRadius: 8, background: '#f8f9fa', border: '1px solid #dee2e6' }}>{p.estado}</span>
-                        {p.estado !== 'Entregada' && (
-                          <button className="crud-btn-edit" onClick={() => marcarEntregada(p.id_papeleria)}>Marcar Entregada</button>
-                        )}
-                        <button className="crud-btn-edit" onClick={() => abrirEditar(p)}>Editar</button>
-                        <button className="crud-btn-delete" onClick={() => solicitarEliminar(p)}>Eliminar</button>
-                      </div>
-
-                      {editingId === p.id_papeleria && (
-                        <div style={{ marginTop: 10, background: '#f8f9fa', border: '1px solid #e9ecef', borderRadius: 10, padding: 10 }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))', gap: 10 }}>
-                            <div>
-                              <label>Descripción</label>
-                              <input value={editForm.descripcion} onChange={(e) => setEditForm({ ...editForm, descripcion: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: 8, border: '2px solid #e9ecef' }} />
-                            </div>
-                            <div>
-                              <label>Tipo</label>
-                              <select value={editForm.tipo_papeleria} onChange={(e) => setEditForm({ ...editForm, tipo_papeleria: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
-                                <option value="Venta">Venta</option>
-                                <option value="Compra">Compra</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label>Estado</label>
-                              <select value={editForm.estado} onChange={(e) => setEditForm({ ...editForm, estado: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
-                                <option value="Recibida">Recibida</option>
-                                <option value="En proceso">En proceso</option>
-                                <option value="Entregada">Entregada</option>
-                              </select>
-                            </div>
-                            <div>
-                              <label>Fecha de Entrega</label>
-                              <input type="date" value={editForm.fecha_entrega} onChange={(e) => setEditForm({ ...editForm, fecha_entrega: e.target.value })} style={{ width: '100%', padding: '8px', borderRadius: 8, border: '2px solid #e9ecef', background: 'white', color: 'black' }} />
-                            </div>
-                          </div>
-                          <div style={{ marginTop: 10, textAlign: 'right' }}>
-                            <button className="crud-btn-save" onClick={() => solicitarActualizar(p)}>Guardar cambios</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <PasswordVerificationModal
-                isOpen={showPwd}
-                onClose={() => { setShowPwd(false); setPendingAction(null); setSelectedItem(null) }}
-                onVerify={onVerify}
-                title="Verificación de Administrador"
-                message={pendingAction === 'delete' ? 'Ingresa tu contraseña para eliminar este registro' : 'Ingresa tu contraseña para actualizar este registro'}
+              {/* Cargar empresas asignadas a la secretaria a partir de mis-procesos */}
+              {/* Deriva empresas únicas para el select de creación */}
+              <CRUDTable
+                title="Papelería"
+                endpoint="papeleria"
+                columns={[
+                  { key: 'id_papeleria', label: 'ID' },
+                  { key: 'nombre_empresa', label: 'Empresa' },
+                  { key: 'tipo_papeleria', label: 'Tipo' },
+                  { key: 'descripcion', label: 'Descripción' },
+                  { key: 'estado', label: 'Estado' },
+                  { key: 'nombre_proceso', label: 'Proceso' },
+                  { key: 'fecha_recepcion', label: 'Fecha Recepción' },
+                  { key: 'fecha_entrega', label: 'Fecha Entrega' }
+                ]}
+                createFields={(() => {
+                  const opcionesEmpresas = (empresasAsignadas && empresasAsignadas.length > 0)
+                    ? empresasAsignadas
+                    : Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries())
+                        .map(([value, label]) => ({ value: Number(value), label: String(label) }))
+                  return [
+                    { key: 'id_empresa', label: 'Empresa', type: 'select' as const, required: true, options: opcionesEmpresas },
+                    { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true, options: [
+                      { value: 'Venta', label: 'Venta' },
+                      { value: 'Compra', label: 'Compra' }
+                    ]},
+                    { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
+                  ]
+                })()}
+                editFields={[
+                  { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true },
+                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true, options: [
+                    { value: 'Venta', label: 'Venta' },
+                    { value: 'Compra', label: 'Compra' }
+                  ]},
+                  { key: 'estado', label: 'Estado', type: 'select' as const, required: true, options: [
+                    { value: 'Recibida', label: 'Recibida' },
+                    { value: 'En proceso', label: 'En proceso' },
+                    { value: 'Entregada', label: 'Entregada' }
+                  ]},
+                  { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date' as const, required: false }
+                ]}
               />
             </>
           )}

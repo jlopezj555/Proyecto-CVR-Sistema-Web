@@ -314,7 +314,15 @@ const verificarAdmin = (req, res, next) => {
   next();
 };
 
-// Middleware para verificar contraseña de administrador
+// Middleware para permitir acceso a Secretarias o Administradores
+const verificarSecretariaOrAdmin = (req, res, next) => {
+  if (req.user.tipo === 'administrador') return next();
+  const rol = String(req.user.rol || '').toLowerCase();
+  if (rol.includes('secretaria')) return next();
+  return res.status(403).json({ success: false, message: 'Acceso denegado. Solo secretarias o administradores.' });
+};
+
+// Middleware para verificar contraseña: admin o usuario actual
 const verificarPasswordAdmin = async (req, res, next) => {
   const contrasena = req.body?.adminContrasena || req.body?.contrasena;
   
@@ -344,6 +352,37 @@ const verificarPasswordAdmin = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
     }
 
+    next();
+  } catch (error) {
+    console.error('Error verificando contraseña:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+};
+
+const verificarPasswordActualOAdmin = async (req, res, next) => {
+  const contrasena = req.body?.adminContrasena || req.body?.contrasena;
+  if (!contrasena) {
+    return res.status(400).json({ success: false, message: 'Contraseña requerida' });
+  }
+  try {
+    if (req.user.tipo === 'administrador') {
+      // reutilizar lógica admin
+      const [adminRows] = await pool.query(
+        'SELECT contrasena FROM Usuario WHERE id_usuario = ? AND tipo_usuario = "administrador" LIMIT 1',
+        [req.user.id]
+      );
+      if (adminRows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Administrador no encontrado' });
+      }
+      const ok = await bcrypt.compare(contrasena, adminRows[0].contrasena);
+      if (!ok) return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
+      return next();
+    }
+    // validar password del usuario actual (empleado/secretaria)
+    const [rows] = await pool.query('SELECT contrasena FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    const ok = await bcrypt.compare(contrasena, rows[0].contrasena);
+    if (!ok) return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
     next();
   } catch (error) {
     console.error('Error verificando contraseña:', error);
@@ -999,7 +1038,7 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
 // ============================================
 
 // Obtener toda la papelería con información de empresa y proceso
-app.get('/api/papeleria', verificarToken, verificarAdmin, async (req, res) => {
+app.get('/api/papeleria', verificarToken, verificarSecretariaOrAdmin, async (req, res) => {
   try {
     const [rows] = await pool.query(`
       SELECT p.*, 
@@ -1017,7 +1056,7 @@ app.get('/api/papeleria', verificarToken, verificarAdmin, async (req, res) => {
 });
 
 // Crear papelería (sin cliente)
-app.post('/api/papeleria', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+app.post('/api/papeleria', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
   const { id_empresa, descripcion, tipo_papeleria } = req.body;
 
   try {
@@ -1049,7 +1088,7 @@ app.post('/api/papeleria', verificarToken, verificarAdmin, verificarPasswordAdmi
 });
 
 // Actualizar papelería
-app.put('/api/papeleria/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+app.put('/api/papeleria/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
   const { id } = req.params;
   const { descripcion, estado, fecha_entrega, tipo_papeleria } = req.body;
 
@@ -1091,6 +1130,20 @@ const crearProcesoDesdePapeleria = async (id_empresa, tipo_papeleria) => {
       [id_empresa, nombreProceso, tipo_papeleria]
     );
     await instanciarEtapasParaProceso(result.insertId, id_empresa);
+    // Marcar la etapa "Ingreso de papelería" como completada para este proceso
+    try {
+      await pool.query(
+        `UPDATE EtapaProceso ep
+         JOIN EtapaCatalogo ec ON ep.id_etapa = ec.id_etapa
+         SET ep.estado = 'Completada', ep.fecha_inicio = NOW(), ep.fecha_fin = NOW()
+         WHERE ep.id_proceso = ? AND ec.nombre_etapa LIKE 'Ingreso de papeler%'
+        `,
+        [result.insertId]
+      );
+    } catch (err) {
+      console.error('Error marcando ingreso de papelería como completada:', err);
+    }
+
     return result.insertId;
   } catch (error) {
     console.error('Error creando proceso desde papelería:', error);
@@ -1099,7 +1152,7 @@ const crearProcesoDesdePapeleria = async (id_empresa, tipo_papeleria) => {
 };
 
 // Eliminar papelería
-app.delete('/api/papeleria/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+app.delete('/api/papeleria/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -1469,11 +1522,22 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
     const params = [empleadoId];
     let whereFecha = '';
     if (from && to) {
+      // Rango explícito
       whereFecha = ' AND p.fecha_creacion BETWEEN ? AND ?';
       params.push(from, to);
     } else if (month && year) {
+      // Mes + año
       whereFecha = ' AND MONTH(p.fecha_creacion) = ? AND YEAR(p.fecha_creacion) = ?';
       params.push(Number(month), Number(year));
+    } else if (year) {
+      // Solo año
+      whereFecha = ' AND YEAR(p.fecha_creacion) = ?';
+      params.push(Number(year));
+    } else if (month) {
+      // Solo mes (si el frontend lo manda sin año) -> asumir año actual
+      const currentYear = new Date().getFullYear();
+      whereFecha = ' AND MONTH(p.fecha_creacion) = ? AND YEAR(p.fecha_creacion) = ?';
+      params.push(Number(month), currentYear);
     }
 
     let whereEmpresa = '';
@@ -1503,6 +1567,31 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error obteniendo mis procesos:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Empresas asignadas al empleado autenticado
+app.get('/api/mis-empresas', verificarToken, async (req, res) => {
+  try {
+    const [usrRows] = await pool.query('SELECT id_empleado FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    const empleadoId = usrRows?.[0]?.id_empleado || null;
+    if (!empleadoId) {
+      return res.status(403).json({ success: false, message: 'Solo empleados pueden acceder a sus empresas' });
+    }
+
+    const [rows] = await pool.query(
+      `SELECT DISTINCT emp.id_empresa, emp.nombre_empresa
+       FROM AsignacionRol ar
+       INNER JOIN Empresa emp ON emp.id_empresa = ar.id_empresa
+       WHERE ar.id_empleado = ? AND ar.estado = 'Activo'
+       ORDER BY emp.nombre_empresa ASC`,
+      [empleadoId]
+    );
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error obteniendo mis empresas:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 });
@@ -1543,6 +1632,285 @@ app.get('/api/mis-procesos/:id/etapas', verificarToken, async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error obteniendo etapas del proceso del empleado:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// ==========================
+// ENDPOINTS PARA REVISOR
+// ==========================
+
+// Lista procesos disponibles para el revisor (solo su rol)
+app.get('/api/revisor/procesos-terminados', verificarToken, async (req, res) => {
+  try {
+    // obtener id_empleado
+    const [usrRows] = await pool.query('SELECT id_empleado, nombre_completo FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    const empleadoId = usrRows?.[0]?.id_empleado || null;
+    if (!empleadoId) return res.status(403).json({ success: false, message: 'Solo empleados pueden acceder a revisiones' });
+
+    // Obtener roles asignados al empleado que son revisores
+    const [roles] = await pool.query(
+      `SELECT ar.id_rol, r.nombre_rol FROM AsignacionRol ar INNER JOIN Rol r ON ar.id_rol = r.id_rol WHERE ar.id_empleado = ? AND ar.estado = 'Activo' AND r.nombre_rol LIKE 'Revisor %'`,
+      [empleadoId]
+    );
+    if (!roles || roles.length === 0) return res.status(403).json({ success: false, message: 'No tienes un rol de revisor asignado' });
+
+    // Si tiene varios roles de revisor, considerar todos
+    const roleIds = roles.map(r => r.id_rol);
+
+    // Buscar procesos donde exista una etapa para este rol pendiente/en progreso
+    // y además todas las etapas con orden menor estén completadas
+    const [rows] = await pool.query(
+      `SELECT DISTINCT p.* , e.nombre_empresa
+       FROM Proceso p
+       INNER JOIN EtapaProceso ep ON ep.id_proceso = p.id_proceso
+       INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
+       INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
+       WHERE ep.id_rol IN (?) AND ep.estado IN ('Pendiente','En progreso')
+         AND NOT EXISTS (
+           SELECT 1 FROM EtapaProceso ep2
+           INNER JOIN RolEtapaCatalogo rec2 ON rec2.id_rol = ep2.id_rol AND rec2.id_etapa = ep2.id_etapa
+           WHERE ep2.id_proceso = p.id_proceso AND rec2.orden < rec.orden AND ep2.estado <> 'Completada'
+         )
+       ORDER BY p.fecha_creacion DESC`,
+      [roleIds]
+    );
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error en revisor/procesos-terminados:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Obtener etapas de un proceso (para revisar y seleccionar etapa con error)
+app.get('/api/revisor/procesos/:id/etapas', verificarToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [usrRows] = await pool.query('SELECT id_empleado, nombre_completo FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    const empleadoId = usrRows?.[0]?.id_empleado || null;
+    if (!empleadoId) return res.status(403).json({ success: false, message: 'Solo empleados pueden acceder a revisiones' });
+
+    // verificar que el revisor tenga asignación de rol revisor para este proceso
+    const [roleRows] = await pool.query(
+      `SELECT DISTINCT r.id_rol FROM AsignacionRol ar INNER JOIN Rol r ON ar.id_rol = r.id_rol WHERE ar.id_empleado = ? AND ar.estado = 'Activo' AND r.nombre_rol LIKE 'Revisor %'`,
+      [empleadoId]
+    );
+    if (!roleRows || roleRows.length === 0) return res.status(403).json({ success: false, message: 'No tienes un rol de revisor asignado' });
+    const roleIds = roleRows.map(r => r.id_rol);
+
+    // devolver todas las etapas del proceso con info de catálogo
+    const [rows] = await pool.query(
+      `SELECT ep.id_etapa_proceso, ep.id_proceso, ep.id_rol, ep.id_etapa, ep.estado, ep.motivo_rechazo, ep.etapa_origen_error,
+              ep.fecha_inicio, ep.fecha_fin, ec.nombre_etapa, ec.descripcion AS etapa_descripcion
+       FROM EtapaProceso ep
+       INNER JOIN EtapaCatalogo ec ON ec.id_etapa = ep.id_etapa
+       WHERE ep.id_proceso = ?
+       ORDER BY ep.id_etapa_proceso ASC`,
+      [id]
+    );
+
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error en revisor/procesos/:id/etapas:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Rechazar un proceso (marcar etapa específica como con error y desmarcar posteriores hasta el nivel del revisor)
+app.post('/api/revisor/procesos/:id/rechazar', verificarToken, async (req, res) => {
+  const { id } = req.params;
+  const { etapasFallidas = [], motivo, contrasena } = req.body;
+  if (!contrasena) return res.status(400).json({ success: false, message: 'Contraseña requerida' });
+  if (!Array.isArray(etapasFallidas) || etapasFallidas.length === 0) return res.status(400).json({ success: false, message: 'Etapas fallidas requeridas' });
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // validar contraseña y obtener empleado
+    const [[usr]] = await conn.query('SELECT contrasena, id_empleado, nombre_completo FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    if (!usr) { await conn.rollback(); return res.status(404).json({ success: false, message: 'Usuario no encontrado' }); }
+    const ok = await bcrypt.compare(contrasena, usr.contrasena);
+    if (!ok) { await conn.rollback(); return res.status(401).json({ success: false, message: 'Contraseña incorrecta' }); }
+    const empleadoId = usr.id_empleado;
+    const revisorNombre = usr.nombre_completo;
+
+    // obtener roles revisor asignados al empleado y determinar su nivel
+    const [roleRows] = await conn.query(
+      `SELECT ar.id_rol, r.nombre_rol 
+       FROM AsignacionRol ar 
+       INNER JOIN Rol r ON ar.id_rol = r.id_rol 
+       WHERE ar.id_empleado = ? AND ar.estado = 'Activo' AND r.nombre_rol LIKE 'Revisor %'
+       ORDER BY r.nombre_rol DESC
+       LIMIT 1`, 
+      [empleadoId]
+    );
+    if (!roleRows || roleRows.length === 0) { 
+      await conn.rollback(); 
+      return res.status(403).json({ success: false, message: 'No tienes rol de revisor' }); 
+    }
+    
+    // Extraer el nivel del revisor del nombre del rol (ejemplo: 'Revisor 2' -> nivel 2)
+    const nivelRevisor = parseInt(roleRows[0].nombre_rol.replace('Revisor ', '')) || 1;
+    const roleIds = roleRows.map(r => r.id_rol);
+
+    // verificar que el revisor esté autorizado para este proceso (exista al menos una etapa de su rol en el proceso)
+    const [auth] = await conn.query('SELECT 1 FROM EtapaProceso WHERE id_proceso = ? AND id_rol IN (?) LIMIT 1', [id, roleIds]);
+    if (!auth || auth.length === 0) { await conn.rollback(); return res.status(403).json({ success: false, message: 'No autorizado para revisar este proceso' }); }
+
+    // obtener orden mínimo y etapa de catálogo de las etapas fallidas
+    const [minOrderRow] = await conn.query(
+      `SELECT 
+         MIN(rec.orden) AS minOrden,
+         ep.id_etapa AS catalog_etapa_id
+       FROM EtapaProceso ep
+       INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
+       WHERE ep.id_etapa_proceso IN (?)
+       GROUP BY ep.id_etapa
+       HAVING minOrden = MIN(rec.orden)
+       LIMIT 1`,
+      [etapasFallidas.map(e => e.id_etapa_proceso)]
+    );
+    const minOrden = minOrderRow?.[0]?.minOrden;
+    const catalogEtapaId = minOrderRow?.[0]?.catalog_etapa_id;
+    if (!minOrden) { await conn.rollback(); return res.status(400).json({ success: false, message: 'No se pudo determinar orden de las etapas fallidas' }); }
+
+    // determinar orden del nivel del revisor (mínimo orden de sus etapas en este proceso)
+    const [revOrderRow] = await conn.query(
+      `SELECT MIN(rec.orden) AS revOrden
+       FROM EtapaProceso ep
+       INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
+       WHERE ep.id_proceso = ? AND ep.id_rol IN (?)`,
+      [id, roleIds]
+    );
+    const revOrden = revOrderRow?.[0]?.revOrden || null;
+
+    // 1. Marcar solo las etapas seleccionadas como Rechazadas
+    for (const etapa of etapasFallidas) {
+      const motivoFull = `${revisorNombre}: ${etapa.motivo || ''}`;
+      await conn.query(
+        `UPDATE EtapaProceso 
+         SET estado = 'Rechazada', 
+             motivo_rechazo = ?, 
+             fecha_fin = NOW() 
+         WHERE id_etapa_proceso = ?`, 
+        [motivoFull, etapa.id_etapa_proceso]
+      );
+    }
+
+    // 2. Obtener todas las etapas del proceso que sean de tipo revisión
+    const [revisionEtapas] = await conn.query(
+      `SELECT ep.id_etapa_proceso, ep.id_rol, r.nombre_rol, rec.orden
+       FROM EtapaProceso ep
+       INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
+       INNER JOIN Rol r ON r.id_rol = ep.id_rol
+       INNER JOIN EtapaCatalogo ec ON ec.id_etapa = ep.id_etapa
+       WHERE ep.id_proceso = ? AND ec.es_revision = true
+       ORDER BY rec.orden`,
+      [id]
+    );
+
+    // 3. Manejar las etapas de revisión según su nivel
+    const updatePromises = revisionEtapas.map(async revEtapa => {
+      // Extraer el nivel numérico del nombre del rol (ej: 'Revisor 2' -> 2)
+      const nivelEtapa = parseInt(revEtapa.nombre_rol.replace('Revisor ', '')) || 1;
+      const esEtapaFallida = etapasFallidas.some(e => e.id_etapa_proceso === revEtapa.id_etapa_proceso);
+      
+      // Si la etapa ya está marcada como fallida, no hacer nada
+      if (esEtapaFallida) return;
+      
+      // Para etapas del mismo nivel o superior al revisor actual:
+      if (nivelEtapa >= nivelRevisor) {
+        await conn.query(
+          `UPDATE EtapaProceso
+           SET estado = 'Pendiente',
+               fecha_fin = NULL,
+               motivo_rechazo = NULL,
+               etapa_origen_error = ?
+           WHERE id_etapa_proceso = ?`,
+          [catalogEtapaId, revEtapa.id_etapa_proceso]
+        );
+      } else {
+        // Para niveles inferiores, asegurar que se mantengan como completadas
+        await conn.query(
+          `UPDATE EtapaProceso
+           SET estado = 'Completada'
+           WHERE id_etapa_proceso = ? AND estado != 'Rechazada'`,
+          [revEtapa.id_etapa_proceso]
+        );
+      }
+    });
+    
+    // Ejecutar todas las actualizaciones
+    await Promise.all(updatePromises);
+
+    // Responder
+    await conn.commit();
+    res.json({ success: true, message: 'Proceso rechazado y etapas posteriores reiniciadas' });
+  } catch (error) {
+    await conn.rollback();
+    console.error('Error en revisor/rechazar:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  } finally {
+    conn.release();
+  }
+});
+
+// Aprobar un proceso desde el revisor (completar sus etapas y si corresponde marcar proceso completado)
+app.post('/api/revisor/procesos/:id/aprobar', verificarToken, async (req, res) => {
+  const { id } = req.params;
+  const { contrasena } = req.body;
+  if (!contrasena) return res.status(400).json({ success: false, message: 'Contraseña requerida' });
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    const [[usr]] = await conn.query('SELECT contrasena, id_empleado, nombre_completo FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    if (!usr) { await conn.rollback(); return res.status(404).json({ success: false, message: 'Usuario no encontrado' }); }
+    const ok = await bcrypt.compare(contrasena, usr.contrasena);
+    if (!ok) { await conn.rollback(); return res.status(401).json({ success: false, message: 'Contraseña incorrecta' }); }
+    const empleadoId = usr.id_empleado;
+
+    const [roleRows] = await conn.query(`SELECT ar.id_rol FROM AsignacionRol ar INNER JOIN Rol r ON ar.id_rol = r.id_rol WHERE ar.id_empleado = ? AND ar.estado = 'Activo' AND r.nombre_rol LIKE 'Revisor %'`, [empleadoId]);
+    if (!roleRows || roleRows.length === 0) { await conn.rollback(); return res.status(403).json({ success: false, message: 'No tienes rol de revisor' }); }
+    const roleIds = roleRows.map(r => r.id_rol);
+
+    // Marcar como completadas las etapas de este revisor en el proceso
+    await conn.query(`UPDATE EtapaProceso SET estado = 'Completada', fecha_fin = NOW() WHERE id_proceso = ? AND id_rol IN (?)`, [id, roleIds]);
+
+    // Si todas las etapas del proceso están completadas, marcar proceso como completado
+    const [[compRow]] = await conn.query('SELECT COUNT(*) AS pendientes FROM EtapaProceso WHERE id_proceso = ? AND estado <> "Completada"', [id]);
+    if (compRow && compRow.pendientes === 0) {
+      await conn.query('UPDATE Proceso SET estado = "Completado", fecha_completado = NOW() WHERE id_proceso = ?', [id]);
+    }
+
+    await conn.commit();
+    res.json({ success: true, message: 'Proceso aprobado por revisor' });
+  } catch (error) {
+    await conn.rollback();
+    console.error('Error en revisor/aprobar:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  } finally {
+    conn.release();
+  }
+});
+
+// Progreso de un proceso (empleados y admin): porcentaje sobre total del catálogo
+app.get('/api/procesos/:id/progreso', verificarToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [[totalRow]] = await pool.query('SELECT COUNT(*) AS total FROM EtapaCatalogo');
+    const total = Number(totalRow?.total || 0);
+    if (total === 0) {
+      return res.json({ success: true, data: { porcentaje: 0, total: 0, completadas: 0 } });
+    }
+    const [[compRow]] = await pool.query('SELECT COUNT(*) AS completadas FROM EtapaProceso WHERE id_proceso = ? AND estado = "Completada"', [id]);
+    const completadas = Number(compRow?.completadas || 0);
+    const porcentaje = Math.max(0, Math.min(100, Math.round((completadas / total) * 100)));
+    res.json({ success: true, data: { porcentaje, total, completadas } });
+  } catch (error) {
+    console.error('Error obteniendo progreso de proceso:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 });

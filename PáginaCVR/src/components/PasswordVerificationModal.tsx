@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import './PasswordVerificationModal.css';
 
 interface PasswordVerificationModalProps {
@@ -24,6 +24,13 @@ const PasswordVerificationModal: React.FC<PasswordVerificationModalProps> = ({
   const [revealPwd, setRevealPwd] = useState(false);
   const onDown = () => setRevealPwd(true);
   const onUp = () => setRevealPwd(false);
+
+  // Cuando el CRUD actualiza el mensaje de error, reflejarlo en el modal
+  useEffect(() => {
+    if (isOpen && errorMessage) {
+      setError(errorMessage);
+    }
+  }, [errorMessage, isOpen]);
 
   if (!isOpen) return null;
 

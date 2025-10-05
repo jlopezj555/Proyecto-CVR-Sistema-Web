@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import PasswordVerificationModal from './PasswordVerificationModal'
 import axios from 'axios'
 import './AdminView.css'
 import iconEtapasProceso from '../assets/admin-etapas-proceso-white.svg'
@@ -26,9 +27,12 @@ interface EtapaItem {
   fecha_fin?: string | null
   nombre_etapa: string
   etapa_descripcion: string
+  motivo_rechazo?: string
 }
 
 const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [pendingAccion, setPendingAccion] = useState<'aprobar' | 'rechazar' | null>(null);
   const token = localStorage.getItem('token')
   const [procesos, setProcesos] = useState<ProcesoItem[]>([])
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -36,9 +40,11 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const [loading, setLoading] = useState(false)
   const [loadingEtapas, setLoadingEtapas] = useState<Record<number, boolean>>({})
 
-  const [rechazo, setRechazo] = useState<{ [procesoId: number]: { etapas: Set<number>, motivo: string } }>({})
-  const [password, setPassword] = useState('')
-  const [nivelRevision, setNivelRevision] = useState<1 | 2 | 3>(1)
+  // rechazo: { [procesoId]: { etapas: { [id_etapa_proceso]: motivo }, seleccionadas: number[] } }
+  const [rechazo, setRechazo] = useState<{ [procesoId: number]: { etapas: Record<number, string>, seleccionadas: number[] } }>({})
+  // Eliminados: password, errorMsg, showPasswordModal
+  const [accion, setAccion] = useState<'aprobar' | 'rechazar' | null>(null)
+  const [procesoSeleccionado, setProcesoSeleccionado] = useState<number | null>(null)
 
   useEffect(() => {
     // Obtener nivel de revisión del usuario autenticado si el backend lo expone
@@ -51,8 +57,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
     try {
       // endpoint acepta query param nivel para filtrar según regla solicitada
       const { data } = await axios.get('http://localhost:4000/api/revisor/procesos-terminados', {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { nivel: nivelRevision }
+        headers: { Authorization: `Bearer ${token}` }
       })
       setProcesos(data.data || [])
     } catch (e) {
@@ -76,7 +81,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
     }
   }
 
-  useEffect(() => { loadProcesos() }, [nivelRevision])
+  useEffect(() => { loadProcesos() }, [])
 
   const toggleExpand = (id: number) => {
     const n = expanded === id ? null : id
@@ -84,47 +89,56 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
     if (n && !etapas[n]) loadEtapas(n)
   }
 
-  const toggleEtapaRechazo = (procesoId: number, etapaId: number) => {
-    setRechazo(prev => {
-      const curr = prev[procesoId] || { etapas: new Set<number>(), motivo: '' }
-      const newSet = new Set(curr.etapas)
-      if (newSet.has(etapaId)) newSet.delete(etapaId); else newSet.add(etapaId)
-      return { ...prev, [procesoId]: { ...curr, etapas: newSet } }
-    })
-  }
+  // Funciones eliminadas: toggleEtapaRechazo y setMotivo, ya no se usan con el nuevo estado
 
-  const setMotivo = (procesoId: number, motivo: string) => {
-    setRechazo(prev => ({ ...prev, [procesoId]: { ...(prev[procesoId] || { etapas: new Set<number>(), motivo: '' }), motivo } }))
-  }
-
-  const rechazar = async (procesoId: number) => {
+  const rechazar = async (procesoId: number, pwd: string) => {
     try {
-      const payload = {
-        etapasFallidas: Array.from(rechazo[procesoId]?.etapas || []),
-        motivo: rechazo[procesoId]?.motivo || '',
-        contrasena: password
+      const etapasSeleccionadas = rechazo[procesoId]?.seleccionadas || [];
+      // Validar que todas las etapas seleccionadas tengan un motivo
+      if (!etapasSeleccionadas.every(id => rechazo[procesoId]?.etapas[id]?.trim())) {
+        console.error('Todas las etapas deben tener un motivo de rechazo');
+        return false;
       }
+      
+      // Asegurar que los IDs sean números
+      const etapasFallidas = etapasSeleccionadas.map(id => ({
+        id_etapa_proceso: Number(id),
+        motivo: rechazo[procesoId]?.etapas[id]?.trim() || ''
+      }));
+      
+      const payload = {
+        etapasFallidas,
+        contrasena: pwd
+      };
       const { data } = await axios.post(`http://localhost:4000/api/revisor/procesos/${procesoId}/rechazar`, payload, {
         headers: { Authorization: `Bearer ${token}` }
-      })
+      });
       if (data.success !== false) {
-        await loadProcesos()
-        setExpanded(null)
+        await loadProcesos();
+        setExpanded(null);
+        setPasswordModalOpen(false);
+        setAccion(null);
+        setProcesoSeleccionado(null);
       }
-    } catch (e) { console.error('Error rechazando:', e) }
+      return data.success !== false;
+    } catch (e) { console.error('Error rechazando:', e); return false; }
   }
 
-  const aprobar = async (procesoId: number) => {
+  const aprobar = async (procesoId: number, pwd: string) => {
     try {
-      const payload = { contrasena: password }
+      const payload = { contrasena: pwd };
       const { data } = await axios.post(`http://localhost:4000/api/revisor/procesos/${procesoId}/aprobar`, payload, {
         headers: { Authorization: `Bearer ${token}` }
-      })
+      });
       if (data.success !== false) {
-        await loadProcesos()
-        setExpanded(null)
+        await loadProcesos();
+        setExpanded(null);
+        setPasswordModalOpen(false);
+        setAccion(null);
+        setProcesoSeleccionado(null);
       }
-    } catch (e) { console.error('Error aprobando:', e) }
+      return data.success !== false;
+    } catch (e) { console.error('Error aprobando:', e); return false; }
   }
 
   const formatDate = (s?: string | null) => (s ? new Date(s).toLocaleDateString('es-ES') : '-')
@@ -151,20 +165,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
         </div>
 
         <div className="admin-content-body">
-          <div style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12, padding: 12, marginBottom: 12, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div>
-              <label style={{ fontWeight: 600, marginRight: 8 }}>Contraseña:</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, border: '2px solid #e9ecef' }} />
-            </div>
-            <div>
-              <label style={{ fontWeight: 600, marginRight: 8 }}>Nivel:</label>
-              <select value={nivelRevision} onChange={e => setNivelRevision(Number(e.target.value) as 1 | 2 | 3)} style={{ padding: '8px 10px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
-                <option value={1}>Revisión 1</option>
-                <option value={2}>Revisión 2</option>
-                <option value={3}>Revisión 3</option>
-              </select>
-            </div>
-          </div>
+          {/* Eliminado el top de contraseña y nivel */}
 
           {loading ? (
             <div className="crud-loading">Cargando procesos...</div>
@@ -195,42 +196,120 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
                         {p.fecha_completado && (<span><strong>Completado:</strong> {formatDate(p.fecha_completado)}</span>)}
                       </div>
 
-                      {loadingEtapas[p.id_proceso] ? (
-                        <div className="crud-loading">Cargando etapas...</div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                          {(etapas[p.id_proceso] || []).map(et => (
-                            <div key={et.id_etapa_proceso} style={{ padding: 10, background: 'white', border: '1px solid #dee2e6', borderRadius: 8 }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: '20px 1fr', gap: 10 }}>
-                                <input
-                                  type="checkbox"
-                                  checked={!!rechazo[p.id_proceso]?.etapas?.has(et.id_etapa_proceso)}
-                                  onChange={() => toggleEtapaRechazo(p.id_proceso, et.id_etapa_proceso)}
-                                />
-                                <div>
-                                  <div style={{ fontWeight: 600, color: '#000' }}>{et.nombre_etapa}</div>
-                                  <div style={{ fontSize: 13, color: '#495057' }}>{et.etapa_descripcion}</div>
-                                  <div style={{ fontSize: 12, color: '#6c757d', marginTop: 4 }}>
-                                    <span><strong>Estado:</strong> {et.estado}</span>{' • '}
-                                    <span><strong>Inicio:</strong> {formatDate(et.fecha_inicio)}</span>{' • '}
-                                    <span><strong>Fin:</strong> {formatDate(et.fecha_fin)}</span>
-                                  </div>
-                                </div>
+                      <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button className="crud-btn-edit" onClick={() => {
+                          setProcesoSeleccionado(p.id_proceso);
+                          setAccion('rechazar');
+                        }}>Rechazar</button>
+                        <button className="crud-btn-create" onClick={() => {
+                          setProcesoSeleccionado(p.id_proceso);
+                          setPendingAccion('aprobar');
+                          setPasswordModalOpen(true);
+                        }}>Aprobar</button>
+                      </div>
+
+                      {/* Si está en modo rechazar, mostrar checkboxes de etapas previas y motivo por etapa */}
+                      {accion === 'rechazar' && procesoSeleccionado === p.id_proceso && (
+                        <>
+                          {loadingEtapas[p.id_proceso] ? (
+                            <div className="crud-loading">Cargando etapas...</div>
+                          ) : (
+                            <div style={{ marginTop: 16 }}>
+                              <label style={{ fontWeight: 600, color: '#000' }}>Selecciona las etapas a rechazar:</label>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 8 }}>
+                                {(etapas[p.id_proceso] || [])
+                                  .filter(et => et.nombre_etapa !== 'Ingreso de papelería' && et.estado === 'Completada')
+                                  .map(et => (
+                                    <div key={et.id_etapa_proceso} style={{ background: 'white', color: '#000', borderRadius: 8, border: '1.5px solid #e9ecef', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={rechazo[p.id_proceso]?.seleccionadas?.includes(et.id_etapa_proceso) || false}
+                                        onChange={e => {
+                                          setRechazo(prev => {
+                                            const actual = prev[p.id_proceso] || { etapas: {}, seleccionadas: [] };
+                                            const seleccionadas = e.target.checked
+                                              ? [...actual.seleccionadas, et.id_etapa_proceso]
+                                              : actual.seleccionadas.filter(id => id !== et.id_etapa_proceso);
+                                            return {
+                                              ...prev,
+                                              [p.id_proceso]: {
+                                                etapas: actual.etapas,
+                                                seleccionadas
+                                              }
+                                            };
+                                          });
+                                        }}
+                                      />
+                                      <span style={{ fontWeight: 600 }}>{et.nombre_etapa}</span>
+                                      <input
+                                        type="text"
+                                        placeholder="Motivo específico"
+                                        value={rechazo[p.id_proceso]?.etapas?.[et.id_etapa_proceso] || ''}
+                                        onChange={e => {
+                                          setRechazo(prev => {
+                                            const actual = prev[p.id_proceso] || { etapas: {}, seleccionadas: [] };
+                                            return {
+                                              ...prev,
+                                              [p.id_proceso]: {
+                                                etapas: { ...actual.etapas, [et.id_etapa_proceso]: e.target.value },
+                                                seleccionadas: actual.seleccionadas
+                                              }
+                                            };
+                                          });
+                                        }}
+                                        style={{ flex: 1, marginLeft: 8, borderRadius: 6, border: '1px solid #e9ecef', padding: '6px 8px', color: '#000', background: 'white' }}
+                                      />
+                                    </div>
+                                  ))}
                               </div>
+                              <button 
+                                className="crud-btn-edit" 
+                                style={{ marginTop: 8 }} 
+                                onClick={() => {
+                                  // Solo mostrar modal si hay etapas seleccionadas y todas tienen motivo
+                                  const etapasSeleccionadas = rechazo[p.id_proceso]?.seleccionadas || [];
+                                  const motivosCompletos = etapasSeleccionadas.every(
+                                    id => rechazo[p.id_proceso]?.etapas[id]?.trim()
+                                  );
+                                  
+                                  if (etapasSeleccionadas.length === 0) {
+                                    alert('Selecciona al menos una etapa para rechazar');
+                                    return;
+                                  }
+                                  
+                                  if (!motivosCompletos) {
+                                    alert('Ingresa un motivo para cada etapa seleccionada');
+                                    return;
+                                  }
+                                  
+                                  setPendingAccion('rechazar');
+                                  setPasswordModalOpen(true);
+                                }}
+                              >
+                                Confirmar rechazo
+                              </button>
                             </div>
-                          ))}
-                        </div>
+                          )}
+                        </>
                       )}
 
-                      <div style={{ marginTop: 12 }}>
-                        <label style={{ fontWeight: 600 }}>Motivo del rechazo (opcional):</label>
-                        <textarea value={rechazo[p.id_proceso]?.motivo || ''} onChange={e => setMotivo(p.id_proceso, e.target.value)} rows={3} style={{ width: '100%', padding: 10, borderRadius: 8, border: '2px solid #e9ecef' }} />
-                      </div>
-
-                      <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button className="crud-btn-edit" onClick={() => rechazar(p.id_proceso)}>Rechazar</button>
-                        <button className="crud-btn-create" onClick={() => aprobar(p.id_proceso)}>Aprobar</button>
-                      </div>
+                      {/* Modal de contraseña con validación */}
+                      {passwordModalOpen && procesoSeleccionado === p.id_proceso && (
+                        <PasswordVerificationModal
+                          isOpen={passwordModalOpen}
+                          onClose={() => { setPasswordModalOpen(false); setPendingAccion(null); setProcesoSeleccionado(null); }}
+                          onVerify={async (pwd) => {
+                            if (pendingAccion === 'aprobar') {
+                              return await aprobar(p.id_proceso, pwd);
+                            } else if (pendingAccion === 'rechazar') {
+                              return await rechazar(p.id_proceso, pwd);
+                            }
+                            return false;
+                          }}
+                          title={pendingAccion === 'aprobar' ? 'Confirmar aprobación' : 'Confirmar rechazo'}
+                          message={pendingAccion === 'aprobar' ? 'Ingresa tu contraseña para aprobar el proceso.' : 'Ingresa tu contraseña para rechazar el proceso.'}
+                        />
+                      )}
                     </div>
                   )}
                 </div>

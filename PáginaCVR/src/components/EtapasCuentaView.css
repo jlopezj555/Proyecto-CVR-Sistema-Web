@@ -4,7 +4,8 @@
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   margin: 20px 0;
-  overflow: hidden;
+  /* permitir que los contenedores internos muestren sus scrollbars */
+  overflow: visible;
   color: #000;
 }
 
