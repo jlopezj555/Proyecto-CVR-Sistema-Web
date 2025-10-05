@@ -197,7 +197,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
                       </div>
 
                       <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button className="crud-btn-edit" onClick={() => {
+                        <button style={{ background: '#dc3545', color: 'white', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} onClick={() => {
                           setProcesoSeleccionado(p.id_proceso);
                           setAccion('rechazar');
                         }}>Rechazar</button>
@@ -264,7 +264,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
                               </div>
                               <button 
                                 className="crud-btn-edit" 
-                                style={{ marginTop: 8 }} 
+                                style={{ marginTop: 8, background: '#A35D2D', color: 'white', border: 'none', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontWeight: 700 }} 
                                 onClick={() => {
                                   // Solo mostrar modal si hay etapas seleccionadas y todas tienen motivo
                                   const etapasSeleccionadas = rechazo[p.id_proceso]?.seleccionadas || [];

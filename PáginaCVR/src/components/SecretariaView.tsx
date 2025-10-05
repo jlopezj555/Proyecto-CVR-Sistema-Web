@@ -229,7 +229,11 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                             <div className="loading">Calculando progreso...</div>
                           ) : (
                             (() => {
-                              const pct = progreso[p.id_proceso]?.porcentaje ?? 0
+                              const prog = progreso[p.id_proceso]
+                              const pct = prog?.porcentaje ?? 0
+                              const completadas = prog?.completadas ?? 0
+                              const total = prog?.total ?? 0
+                              const isAlmostComplete = completadas === total - 1 && pct < 100
                               return (
                                 <div>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -239,6 +243,24 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                                   <div style={{ position: 'relative', height: 10, background: '#e9ecef', borderRadius: 999, overflow: 'hidden' }}>
                                     <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: `${pct}%`, background: 'linear-gradient(90deg, #1e3a5f, #4e7ab5)', borderRadius: 999, transition: 'width 600ms ease' }} />
                                   </div>
+                                  {isAlmostComplete && (
+                                    <div style={{ marginTop: 12 }}>
+                                      <button
+                                        onClick={() => {
+                                          // TODO: implement confirm envio
+                                          if (window.confirm('¿Confirmar envío del proceso?')) {
+                                            // call endpoint
+                                            axios.post(`http://localhost:4000/api/procesos/${p.id_proceso}/confirmar-envio`, {}, { headers: { Authorization: `Bearer ${token}` } })
+                                              .then(() => { cargarProcesos(); cargarProgreso(p.id_proceso); })
+                                              .catch(err => console.error('Error confirmando envío:', err))
+                                          }
+                                        }}
+                                        style={{ background: '#28a745', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}
+                                      >
+                                        Confirmar envío
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               )
                             })()

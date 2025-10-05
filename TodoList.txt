@@ -1,0 +1,7 @@
+- [x] Analyze current codebase (RevisorView.tsx, SecretariaView.tsx, server.js)
+- [x] Fix rejection logic: Ensure only rejected stages change, others stay the same
+- [x] Fix revisor selection filtering: Add es_revision to etapas query and filter properly
+- [x] Add "Confirmar envío" button in SecretariaView when all previous stages completed but last pending
+- [x] Implement confirm envio functionality to complete the process 100%
+- [x] Make completed processes disappear from user views
+- [x] Test all changes and verify functionality

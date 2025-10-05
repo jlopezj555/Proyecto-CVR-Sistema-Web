@@ -1560,6 +1560,7 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
        INNER JOIN AsignacionRol ar ON ar.id_empresa = p.id_empresa
        INNER JOIN Rol r ON ar.id_rol = r.id_rol
        WHERE ar.id_empleado = ?${whereFecha}${whereEmpresa}${whereRol}
+       AND p.estado <> 'Completado'
        ORDER BY p.fecha_creacion DESC`,
       params
     );
@@ -1659,18 +1660,22 @@ app.get('/api/revisor/procesos-terminados', verificarToken, async (req, res) => 
     const roleIds = roles.map(r => r.id_rol);
 
     // Buscar procesos donde exista una etapa para este rol pendiente/en progreso
-    // y además todas las etapas con orden menor estén completadas
+    // y además todas las etapas con orden menor estén completadas, considerando es_revision
     const [rows] = await pool.query(
       `SELECT DISTINCT p.* , e.nombre_empresa
        FROM Proceso p
        INNER JOIN EtapaProceso ep ON ep.id_proceso = p.id_proceso
        INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
+       INNER JOIN EtapaCatalogo ec ON ec.id_etapa = ep.id_etapa
        INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
        WHERE ep.id_rol IN (?) AND ep.estado IN ('Pendiente','En progreso')
          AND NOT EXISTS (
            SELECT 1 FROM EtapaProceso ep2
            INNER JOIN RolEtapaCatalogo rec2 ON rec2.id_rol = ep2.id_rol AND rec2.id_etapa = ep2.id_etapa
-           WHERE ep2.id_proceso = p.id_proceso AND rec2.orden < rec.orden AND ep2.estado <> 'Completada'
+           INNER JOIN EtapaCatalogo ec2 ON ec2.id_etapa = ep2.id_etapa
+           WHERE ep2.id_proceso = p.id_proceso AND rec2.orden < rec.orden
+             AND ep2.estado <> 'Completada'
+             AND NOT (ec2.es_revision = true AND rec2.orden < rec.orden)
          )
        ORDER BY p.fecha_creacion DESC`,
       [roleIds]
@@ -1786,9 +1791,14 @@ app.post('/api/revisor/procesos/:id/rechazar', verificarToken, async (req, res) 
     );
     const revOrden = revOrderRow?.[0]?.revOrden || null;
 
-    // 1. Marcar solo las etapas seleccionadas como Rechazadas
-    for (const etapa of etapasFallidas) {
-      const motivoFull = `${revisorNombre}: ${etapa.motivo || ''}`;
+    // 1. Marcar solo las etapas seleccionadas como Rechazadas, pero solo si tienen motivo
+    const etapasFallidasValidas = etapasFallidas.filter(e => e.motivo && String(e.motivo).trim().length > 0);
+    if (etapasFallidasValidas.length === 0) {
+      // nada para hacer (ya validamos en cliente, pero doble chequeo)
+    }
+
+    for (const etapa of etapasFallidasValidas) {
+      const motivoFull = `${revisorNombre}: ${etapa.motivo}`.trim();
       await conn.query(
         `UPDATE EtapaProceso 
          SET estado = 'Rechazada', 
@@ -1799,51 +1809,9 @@ app.post('/api/revisor/procesos/:id/rechazar', verificarToken, async (req, res) 
       );
     }
 
-    // 2. Obtener todas las etapas del proceso que sean de tipo revisión
-    const [revisionEtapas] = await conn.query(
-      `SELECT ep.id_etapa_proceso, ep.id_rol, r.nombre_rol, rec.orden
-       FROM EtapaProceso ep
-       INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
-       INNER JOIN Rol r ON r.id_rol = ep.id_rol
-       INNER JOIN EtapaCatalogo ec ON ec.id_etapa = ep.id_etapa
-       WHERE ep.id_proceso = ? AND ec.es_revision = true
-       ORDER BY rec.orden`,
-      [id]
-    );
+    // 2. Identificar la revisión exacta (nivel) que realizó el rechazo — usar el rol(es) del revisor autenticado
+    // nivelRevisor ya calculado antes
 
-    // 3. Manejar las etapas de revisión según su nivel
-    const updatePromises = revisionEtapas.map(async revEtapa => {
-      // Extraer el nivel numérico del nombre del rol (ej: 'Revisor 2' -> 2)
-      const nivelEtapa = parseInt(revEtapa.nombre_rol.replace('Revisor ', '')) || 1;
-      const esEtapaFallida = etapasFallidas.some(e => e.id_etapa_proceso === revEtapa.id_etapa_proceso);
-      
-      // Si la etapa ya está marcada como fallida, no hacer nada
-      if (esEtapaFallida) return;
-      
-      // Para etapas del mismo nivel o superior al revisor actual:
-      if (nivelEtapa >= nivelRevisor) {
-        await conn.query(
-          `UPDATE EtapaProceso
-           SET estado = 'Pendiente',
-               fecha_fin = NULL,
-               motivo_rechazo = NULL,
-               etapa_origen_error = ?
-           WHERE id_etapa_proceso = ?`,
-          [catalogEtapaId, revEtapa.id_etapa_proceso]
-        );
-      } else {
-        // Para niveles inferiores, asegurar que se mantengan como completadas
-        await conn.query(
-          `UPDATE EtapaProceso
-           SET estado = 'Completada'
-           WHERE id_etapa_proceso = ? AND estado != 'Rechazada'`,
-          [revEtapa.id_etapa_proceso]
-        );
-      }
-    });
-    
-    // Ejecutar todas las actualizaciones
-    await Promise.all(updatePromises);
 
     // Responder
     await conn.commit();
@@ -2057,6 +2025,34 @@ app.delete('/api/rol-etapas/:idRol/:idEtapa', verificarToken, verificarAdmin, ve
     res.json({ success: true, message: 'Asignación eliminada' });
   } catch (error) {
     console.error('Error eliminando etapa por rol:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Confirmar envío de proceso (secretaria completa el proceso si está casi listo)
+app.post('/api/procesos/:id/confirmar-envio', verificarToken, verificarSecretariaOrAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Verificar que el proceso existe y no esté completado
+    const [proc] = await pool.query('SELECT id_proceso, estado, id_empresa FROM Proceso WHERE id_proceso = ? LIMIT 1', [id]);
+    if (!proc.length) return res.status(404).json({ success: false, message: 'Proceso no encontrado' });
+    if (proc[0].estado === 'Completado') return res.status(400).json({ success: false, message: 'El proceso ya está completado' });
+
+    // Verificar que solo queda una etapa pendiente
+    const [[progress]] = await pool.query('SELECT COUNT(*) AS total, SUM(CASE WHEN estado = "Completada" THEN 1 ELSE 0 END) AS completadas FROM EtapaProceso WHERE id_proceso = ?', [id]);
+    if (!progress || progress.total - progress.completadas !== 1) {
+      return res.status(400).json({ success: false, message: 'No se puede confirmar envío: debe permanecer solo una etapa pendiente' });
+    }
+
+    // Marcar la etapa pendiente como completada
+    await pool.query('UPDATE EtapaProceso SET estado = "Completada", fecha_fin = NOW() WHERE id_proceso = ? AND estado <> "Completada"', [id]);
+
+    // Marcar el proceso como completado
+    await pool.query('UPDATE Proceso SET estado = "Completado", fecha_completado = NOW() WHERE id_proceso = ?', [id]);
+
+    res.json({ success: true, message: 'Proceso enviado y completado exitosamente' });
+  } catch (error) {
+    console.error('Error confirmando envío:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 });
