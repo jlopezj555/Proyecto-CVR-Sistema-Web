@@ -1144,6 +1144,9 @@ const crearProcesoDesdePapeleria = async (id_empresa, tipo_papeleria) => {
       console.error('Error marcando ingreso de papelería como completada:', err);
     }
 
+    // Enviar notificaciones por email a empleados asignados
+    enviarNotificacionNuevoProceso(result.insertId, id_empresa);
+
     return result.insertId;
   } catch (error) {
     console.error('Error creando proceso desde papelería:', error);
@@ -1276,10 +1279,322 @@ app.delete('/api/etapas-catalogo/:id', verificarToken, verificarAdmin, verificar
 });
 
 // ============================================
-// ENDPOINTS CRUD PARA CLIENTES
+// FUNCIONES PARA NOTIFICACIONES POR CORREO
 // ============================================
 
-// Obtener todos los clientes
+// Función para enviar email cuando se crea un nuevo proceso
+const enviarNotificacionNuevoProceso = async (idProceso, idEmpresa) => {
+  try {
+    // Obtener información del proceso y empresa
+    const [[proc]] = await pool.query(`
+      SELECT p.nombre_proceso, e.nombre_empresa, e.correo_empresa
+      FROM Proceso p
+      INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
+      WHERE p.id_proceso = ?
+    `, [idProceso]);
+    
+    if (!proc) return;
+
+    // Obtener empleados asignados a roles en esta empresa
+    const [empleados] = await pool.query(`
+      SELECT DISTINCT u.correo, u.nombre_completo,
+             GROUP_CONCAT(DISTINCT ec.nombre_etapa ORDER BY rec.orden SEPARATOR ', ') as etapas_responsabilidades
+      FROM AsignacionRol ar
+      INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
+      INNER JOIN Rol r ON r.id_rol = ar.id_rol
+      INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = r.id_rol
+      INNER JOIN EtapaCatalogo ec ON ec.id_etapa = rec.id_etapa
+      WHERE ar.id_empresa = ? AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
+      GROUP BY u.correo, u.nombre_completo
+    `, [idEmpresa]);
+
+    // Enviar email a cada empleado
+    for (const emp of empleados) {
+      const mailOptions = {
+        from: emailConfig.from,
+        to: emp.correo,
+        subject: `Nuevo Proceso Asignado: ${proc.nombre_proceso}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="text-align: center; background: #122745; padding: 20px; color: white;">
+              <h1>Nuevo Proceso Asignado</h1>
+              <p>CVR Asesoría - Sistema de Procesos</p>
+            </div>
+            <div style="padding: 20px; background: #f8f9fa;">
+              <h2>Hola ${emp.nombre_completo},</h2>
+              <p>Te ha sido asignado un nuevo proceso en la empresa <strong>${proc.nombre_empresa}</strong>.</p>
+              <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin: 0 0 10px 0; color: #1976d2;">Detalles del Proceso:</h3>
+                <p><strong>Proceso:</strong> ${proc.nombre_proceso}</p>
+                <p><strong>Empresa:</strong> ${proc.nombre_empresa}</p>
+                <p><strong>Tus responsabilidades:</strong> ${emp.etapas_responsabilidades || 'Sin etapas definidas'}</p>
+              </div>
+              <p>Por favor, revisa el sistema para comenzar con tus tareas asignadas.</p>
+              <div style="text-align: center; margin: 20px 0;">
+                <div style="background: #122745; color: white; padding: 20px; border-radius: 10px; display: inline-block;">
+                  <h2 style="margin: 0; font-size: 24px;">CVR ASESORÍA</h2>
+                  <p style="margin: 5px 0 0 0; font-size: 14px;">Asesoría y Soluciones Óptimas</p>
+                </div>
+              </div>
+              <p>¡Gracias por tu dedicación!</p>
+            </div>
+          </div>
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+    }
+
+    console.log(`Notificaciones enviadas para nuevo proceso ${proc.nombre_proceso}`);
+  } catch (error) {
+    console.error('Error enviando notificación de nuevo proceso:', error);
+  }
+};
+
+// Función para enviar email cuando una etapa de revisión se completa (se envía al siguiente revisor)
+const enviarNotificacionEtapaCompletada = async (idProceso) => {
+  try {
+    // Obtener el proceso y empresa
+    const [[proc]] = await pool.query(`
+      SELECT p.nombre_proceso, e.nombre_empresa, e.id_empresa
+      FROM Proceso p
+      INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
+      WHERE p.id_proceso = ?
+    `, [idProceso]);
+
+    if (!proc) return;
+
+    // Obtener todas las etapas del proceso completadas (ordenadas por rol)
+    const [etapasCompletadas] = await pool.query(`
+      SELECT ep.id_rol, r.nombre_rol, ep.estado
+      FROM EtapaProceso ep
+      INNER JOIN Rol r ON ep.id_rol = r.id_rol
+      WHERE ep.id_proceso = ? AND ep.estado = 'Completada' AND r.nombre_rol LIKE 'Revisor %'
+      ORDER BY CAST(SUBSTRING_INDEX(r.nombre_rol, ' ', -1) AS UNSIGNED) ASC
+    `, [idProceso]);
+
+    // Determinar cuál es el siguiente revisor basado en completadas
+    const revisoresCompletados = etapasCompletadas.map(e => parseInt(e.nombre_rol.replace('Revisor ', ''))).sort((a,b)=>a-b);
+
+    let siguienteRevisor = 1; // default
+    for (let i = 1; i <= 3; i++) {
+      if (!revisoresCompletados.includes(i)) {
+        siguienteRevisor = i;
+        break;
+      }
+    }
+
+    // Obtener el empleado asignado al siguiente revisor
+    const [empleados] = await pool.query(`
+      SELECT DISTINCT u.correo, u.nombre_completo, u.id_empleado
+      FROM AsignacionRol ar
+      INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
+      INNER JOIN Rol r ON r.id_rol = ar.id_rol
+      WHERE ar.id_empresa = ? AND r.nombre_rol = ?
+      LIMIT 1
+    `, [proc.id_empresa, `Revisor ${siguienteRevisor}`]);
+
+    if (!empleados || empleados.length === 0) return;
+
+    const emp = empleados[0];
+
+    const mailOptions = {
+      from: emailConfig.from,
+      to: emp.correo,
+      subject: `Proceso Listo para Revisión: ${proc.nombre_proceso}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          ${logoHTML}
+          <div style="padding: 20px; background: #f8f9fa;">
+            <h2>Hola ${emp.nombre_completo},</h2>
+            <p>El proceso <strong>${proc.nombre_proceso}</strong> de la empresa <strong>${proc.nombre_empresa}</strong> está listo para tu nivel de revisión (Revisor ${siguienteRevisor}).</p>
+            <p>Por favor, revisa el sistema para proceder con tu revisión.</p>
+            <div style="text-align: center; margin: 20px 0;">
+              <div style="background: #122745; color: white; padding: 20px; border-radius: 10px; display: inline-block;">
+                <h2 style="margin: 0; font-size: 24px;">CVR ASESORÍA</h2>
+                <p style="margin: 5px 0 0 0; font-size: 14px;">Asesoría y Soluciones Óptimas</p>
+              </div>
+            </div>
+            ${copyrightText}
+          </div>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Notificación enviada al siguiente revisor ${emp.nombre_completo} para nivel ${siguienteRevisor}`);
+  } catch (error) {
+    console.error('Error enviando notificación al siguiente revisor:', error);
+  }
+};
+
+// Función para enviar email cuando todas las revisiones se completan
+const enviarNotificacionProcesocompletado = async (idProceso) => {
+  try {
+    // Obtener información del proceso
+    const [[proc]] = await pool.query(`
+      SELECT p.nombre_proceso, e.nombre_empresa, e.correo_empresa
+      FROM Proceso p
+      INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
+      WHERE p.id_proceso = ?
+    `, [idProceso]);
+
+    if (!proc) return;
+
+    // Obtener secretaria (usuario con rol que incluye 'secretaria')
+    const [secretarias] = await pool.query(`
+      SELECT DISTINCT u.correo, u.nombre_completo
+      FROM AsignacionRol ar
+      INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
+      INNER JOIN Rol r ON r.id_rol = ar.id_rol
+      WHERE ar.id_empresa = (SELECT id_empresa FROM Proceso WHERE id_proceso = ?)
+        AND r.nombre_rol LIKE '%secretaria%' AND u.correo IS NOT NULL
+    `, [idProceso]);
+
+    // Obtener jefe de revisión (usuario con rol 'Jefe de Revisión' o similar, asumiendo 'Revisor 3' o nombre específico)
+    const [jefesRevision] = await pool.query(`
+      SELECT DISTINCT u.correo, u.nombre_completo
+      FROM AsignacionRol ar
+      INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
+      INNER JOIN Rol r ON r.id_rol = ar.id_rol
+      WHERE ar.id_empresa = (SELECT id_empresa FROM Proceso WHERE id_proceso = ?)
+        AND (r.nombre_rol LIKE '%jefe%' OR r.nombre_rol LIKE '%revision%' OR r.nombre_rol = 'Administrador')
+        AND u.correo IS NOT NULL
+    `, [idProceso]);
+
+    // Lista de destinatarios únicos
+    const destinatarios = [];
+    const emailsVistos = new Set();
+
+    // Añadir secretarias
+    for (const sec of secretarias) {
+      if (sec.correo && !emailsVistos.has(sec.correo)) {
+        emailsVistos.add(sec.correo);
+        destinatarios.push({ correo: sec.correo, nombre: sec.nombre_completo });
+      }
+    }
+
+    // Añadir jefes de revisión
+    for (const jefe of jefesRevision) {
+      if (jefe.correo && !emailsVistos.has(jefe.correo)) {
+        emailsVistos.add(jefe.correo);
+        destinatarios.push({ correo: jefe.correo, nombre: jefe.nombre_completo });
+      }
+    }
+
+    // Enviar email a cada destinatario
+    for (const dest of destinatarios) {
+      const mailOptions = {
+        from: emailConfig.from,
+        to: dest.correo,
+        subject: `Proceso Completado: ${proc.nombre_proceso}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="text-align: center; background: #122745; padding: 20px; color: white;">
+              <h1>Proceso Completado</h1>
+              <p>CVR Asesoría - Sistema de Procesos</p>
+            </div>
+            <div style="padding: 20px; background: #f8f9fa;">
+              <h2>Hola ${dest.nombre},</h2>
+              <p>El proceso <strong>${proc.nombre_proceso}</strong> de la empresa <strong>${proc.nombre_empresa}</strong> ha sido completado exitosamente tras la aprobación de todas las revisiones.</p>
+              <div style="text-align: center; margin: 20px 0;">
+                <div style="background: #122745; color: white; padding: 20px; border-radius: 10px; display: inline-block;">
+                  <h2 style="margin: 0; font-size: 24px;">CVR ASESORÍA</h2>
+                  <p style="margin: 5px 0 0 0; font-size: 14px;">Asesoría y Soluciones Óptimas</p>
+                </div>
+              </div>
+              <p>El proceso está listo para los siguientes pasos.</p>
+            </div>
+          </div>
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+    }
+
+    console.log(`Notificaciones enviadas por proceso completado ${proc.nombre_proceso}`);
+  } catch (error) {
+    console.error('Error enviando notificación de proceso completado:', error);
+  }
+};
+
+// Función para enviar email cuando el proceso es enviado por secretaria
+const enviarNotificacionProcesoEnviado = async (idProceso) => {
+  try {
+    // Obtener información del proceso
+    const [[proc]] = await pool.query(`
+      SELECT p.nombre_proceso, e.nombre_empresa, e.correo_empresa
+      FROM Proceso p
+      INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
+      WHERE p.id_proceso = ?
+    `, [idProceso]);
+
+    if (!proc) return;
+
+    // Obtener administradores y email principal
+    const [admins] = await pool.query(`
+      SELECT correo, nombre_completo
+      FROM Usuario
+      WHERE tipo_usuario = 'administrador' AND correo IS NOT NULL AND LENGTH(correo) > 0
+    `);
+
+    const destinatarios = [];
+    const emailsVistos = new Set();
+
+    // Añadir administradores
+    for (const admin of admins) {
+      if (admin.correo && !emailsVistos.has(admin.correo)) {
+        emailsVistos.add(admin.correo);
+        destinatarios.push({ correo: admin.correo, nombre: admin.nombre_completo });
+      }
+    }
+
+    // Añadir email de la empresa si no está ya incluido
+    if (proc.correo_empresa && !emailsVistos.has(proc.correo_empresa)) {
+      emailsVistos.add(proc.correo_empresa);
+      destinatarios.push({ correo: proc.correo_empresa, nombre: proc.nombre_empresa });
+    }
+
+    // Enviar email a cada destinatario
+    for (const dest of destinatarios) {
+      const mailOptions = {
+        from: emailConfig.from,
+        to: dest.correo,
+        subject: `Proceso Enviado: ${proc.nombre_proceso}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="text-align: center; background: #122745; padding: 20px; color: white;">
+              <h1>Proceso Enviado</h1>
+              <p>CVR Asesoría - Sistema de Procesos</p>
+            </div>
+            <div style="padding: 20px; background: #f8f9fa;">
+              <h2>Hola ${dest.nombre},</h2>
+              <p>El proceso <strong>${proc.nombre_proceso}</strong> de la empresa <strong>${proc.nombre_empresa}</strong> ha sido enviado exitosamente por la secretaria.</p>
+              <p>El proceso ha completado todas las etapas y está listo para su procesamiento final.</p>
+              <div style="text-align: center; margin: 20px 0;">
+                <div style="background: #122745; color: white; padding: 20px; border-radius: 10px; display: inline-block;">
+                  <h2 style="margin: 0; font-size: 24px;">CVR ASESORÍA</h2>
+                  <p style="margin: 5px 0 0 0; font-size: 14px;">Asesoría y Soluciones Óptimas</p>
+                </div>
+              </div>
+              <p>Gracias por tu atención.</p>
+            </div>
+          </div>
+        `
+      };
+
+      await transporter.sendMail(mailOptions);
+    }
+
+    console.log(`Notificaciones enviadas por proceso enviado ${proc.nombre_proceso}`);
+  } catch (error) {
+    console.error('Error enviando notificación de proceso enviado:', error);
+  }
+};
+
+// ============================================
+// ENDPOINTS CRUD PARA CLIENTES
+// ============================================
 
 // Crear cliente
 
@@ -1847,10 +2162,15 @@ app.post('/api/revisor/procesos/:id/aprobar', verificarToken, async (req, res) =
     // Marcar como completadas las etapas de este revisor en el proceso
     await conn.query(`UPDATE EtapaProceso SET estado = 'Completada', fecha_fin = NOW() WHERE id_proceso = ? AND id_rol IN (?)`, [id, roleIds]);
 
-    // Si todas las etapas del proceso están completadas, marcar proceso como completado
+    // Enviar notificación de completación de etapa al revisor
+    enviarNotificacionEtapaCompletada(id, empleadoId);
+
+    // Si todas las etapas del proceso están completadas, marcar proceso como completado y enviar notificación
     const [[compRow]] = await conn.query('SELECT COUNT(*) AS pendientes FROM EtapaProceso WHERE id_proceso = ? AND estado <> "Completada"', [id]);
     if (compRow && compRow.pendientes === 0) {
       await conn.query('UPDATE Proceso SET estado = "Completado", fecha_completado = NOW() WHERE id_proceso = ?', [id]);
+      // Enviar notificación de proceso completado
+      enviarNotificacionProcesocompletado(id);
     }
 
     await conn.commit();
@@ -2049,6 +2369,9 @@ app.post('/api/procesos/:id/confirmar-envio', verificarToken, verificarSecretari
 
     // Marcar el proceso como completado
     await pool.query('UPDATE Proceso SET estado = "Completado", fecha_completado = NOW() WHERE id_proceso = ?', [id]);
+
+    // Enviar notificación de proceso enviado
+    enviarNotificacionProcesoEnviado(id);
 
     res.json({ success: true, message: 'Proceso enviado y completado exitosamente' });
   } catch (error) {
