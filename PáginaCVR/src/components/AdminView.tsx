@@ -21,7 +21,6 @@ import iconEtapasCatalogo from '../assets/admin-etapas-catalogo-white.svg'
 import iconEtapasProceso from '../assets/admin-etapas-proceso-white.svg'
 import iconAsignaciones from '../assets/admin-asignaciones-white.svg'
 import iconRolEtapas from '../assets/admin-rol-etapas-white.svg'
-import Card from './Card'
 
 interface AdminViewProps {
   nombre: string
@@ -53,7 +52,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
   }, [externalSection])
 
   const menuItems = [
-    { id: 'dashboard' as AdminSection, label: 'Dashboard', icon: iconDashboard },
+    { id: 'dashboard' as AdminSection, label: 'Administración', icon: iconDashboard },
     { id: 'usuarios' as AdminSection, label: 'Usuarios', icon: iconUsuarios },
     { id: 'empleados' as AdminSection, label: 'Empleados', icon: iconEmpleados },
     { id: 'empresas' as AdminSection, label: 'Empresas', icon: iconEmpresas },
@@ -98,16 +97,13 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                 </div>
                 <div className="welcome-info">
                   <h3 className="welcome-title">Bienvenido, {nombre}</h3>
-                  <p className="welcome-subtitle">Panel de Administración</p>
+                  <p className="welcome-subtitle">Descripción de los procesos del Panel de Administración</p>
                 </div>
               </div>
               <div className="welcome-content">
-                <p className="welcome-description" style={{ fontSize: 20, fontWeight: 500, marginBottom: 24, textAlign: 'center' }}>
-                  Selecciona un módulo para gestionar el sistema.<br />
-                  <span style={{ fontSize: 22, color: '#2563eb', fontWeight: 700 }}>Guía rápida de cada pestaña:</span>
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 12, justifyItems: 'center' }}>
-                  {[
+
+                <div className="admin-instructions-grid">
+                  {[ 
                     { icon: iconUsuarios, title: 'Usuarios', desc: 'Gestión de usuarios del sistema. Crear, editar, activar.' },
                     { icon: iconEmpleados, title: 'Empleados', desc: 'Alta y mantenimiento de empleados vinculados a Usuarios.' },
                     { icon: iconEmpresas, title: 'Empresas', desc: 'Empresas clientes para asignación de roles y procesos.' },
@@ -119,13 +115,15 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                     { icon: iconAsignaciones, title: 'Asignaciones', desc: 'Asignar roles a empleados por empresa.' },
                     { icon: iconRolEtapas, title: 'Etapas por Rol', desc: 'Orden y asociación de etapas a cada rol.' }
                   ].map((c, idx) => (
-                    <Card
-                      key={idx}
-                      title={c.title}
-                      text={<span style={{ fontSize: 16 }}>{c.desc}</span>}
-                      image={c.icon}
-                      imageAlt={c.title}
-                    />
+                    <div key={idx} className="admin-instruction-card">
+                      <div className="welcome-icon-container admin-icon admin-instruction-icon">
+                        <img src={c.icon} alt={c.title} className="welcome-icon-img" />
+                      </div>
+                      <div className="admin-instruction-text">
+                        <div className="admin-instruction-title">{c.title}</div>
+                        <div className="admin-instruction-desc">{c.desc}</div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>

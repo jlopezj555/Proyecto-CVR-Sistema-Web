@@ -36,6 +36,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  overflow: hidden;
 }
 
 .register-content.closing {
@@ -69,7 +70,7 @@
 .register-content h2 {
   color: white;
   margin-bottom: 1.5rem;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: bold;
 }
 
@@ -122,6 +123,20 @@
   box-shadow: 0 0 6px rgba(163, 93, 45, 0.4);
 }
 
+/* Botón ojo dentro del input (mismo comportamiento que Login) */
+.register-content .password-eye {
+  background: transparent;
+  border: none;
+  color: rgba(0,0,0,0.7);
+  cursor: pointer;
+}
+.register-content .password-eye:hover {
+  color: rgba(0,0,0,0.85);
+}
+.register-content .password-eye svg {
+  color: currentColor;
+}
+
 /* Botón principal */
 .register-btn {
   background: #A35D2D;
@@ -153,6 +168,35 @@
   align-items: center;
   z-index: 2000;
   animation: fadeInOverlay 0.3s ease-in;
+}
+
+/* Overlay de carga dentro del modal */
+.register-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 39, 69, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 5;
+}
+.register-loading-overlay .spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+.register-loading-overlay p {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .register-dialog {

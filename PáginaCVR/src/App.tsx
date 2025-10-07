@@ -447,7 +447,7 @@ function App() {
       <div className="icon-circle">
         <FaEnvelope className="contact-icon" />
       </div>
-      <span>info@cvrasesoria.com</span>
+      <span>impuestos@cvrasesoria.com.gt</span>
     </a>
 
     {/* Teléfono */}
@@ -483,8 +483,7 @@ function App() {
   <div className="modal-overlay" onClick={() => setShowMap(false)}>
     <div className="map-modal-content" onClick={(e) => e.stopPropagation()}>
       <button className="close-button" onClick={() => setShowMap(false)}>X</button>
-<iframe
-  src="https://www.google.com/maps?q=6a.+Av.+0-60+Zona+4,+Torre+Profesional+II,+Oficina+303+A,+Gran+Centro+Comercial+Zona+4,+Guatemala&output=embed"
+<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3860.549060121114!2d-90.5165068!3d14.6247455!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8589a23ab88536ef%3A0x195a64415ba0d954!2sGran%20Centro%20Comercial%20zona%204!5e0!3m2!1ses-419!2sgt!4v1759809700440!5m2!1ses-419!2sgt" 
   allowFullScreen
   loading="lazy"
 ></iframe>

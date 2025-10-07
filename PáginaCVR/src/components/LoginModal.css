@@ -66,10 +66,10 @@
 }
 
 /* Título */
-.modal-content h2 {
-  color: white;
+.login-modal h2 {
+  color: #ffffff;
   margin-bottom: 1.5rem;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: bold;
 }
 
@@ -114,6 +114,20 @@
   background-color: #fff;
   color: #000;
   transition: border 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Estilos del botón del ojo cuando va encima del input */
+.password-eye {
+  background: transparent;
+  border: none;
+  color: rgba(0,0,0,0.7);
+  cursor: pointer;
+}
+.password-eye:hover {
+  color: rgba(0,0,0,0.85);
+}
+.password-eye svg {
+  color: currentColor;
 }
 
 .login-form input:focus {

@@ -199,10 +199,56 @@
 }
 
 .welcome-description {
-  font-size: 1.1rem;
-  line-height: 1.6;
+  font-size: 1.2rem;
+  line-height: 1.7;
   color: #495057;
   margin-bottom: 1.5rem;
+}
+
+/* Grid de instrucciones debajo del texto */
+.admin-instructions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+.admin-instruction-card {
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  animation: floatCard 4s ease-in-out infinite;
+}
+.admin-instruction-card:nth-child(2n) { animation-delay: 0.2s; }
+.admin-instruction-card:nth-child(3n) { animation-delay: 0.4s; }
+.admin-instruction-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.1);
+}
+.admin-instruction-icon {
+  width: 56px !important;
+  height: 56px !important;
+}
+.admin-instruction-text { flex: 1; }
+.admin-instruction-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #000;
+}
+.admin-instruction-desc {
+  color: #495057;
+  font-size: 0.95rem;
+}
+
+@keyframes floatCard {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+  100% { transform: translateY(0); }
 }
 
 .welcome-features {
