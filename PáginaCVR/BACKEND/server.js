@@ -20,6 +20,9 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT || 3306
 });
 
+// Secret for JWT
+const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro';
+
 // Configuración de nodemailer para envío de correos
 const transporter = nodemailer.createTransport(emailConfig);
 
@@ -104,7 +107,7 @@ app.post('/api/login', async (req, res) => {
         tipo: usuario.tipo_usuario,
         foto: fotoPerfil
       },
-      'secreto_super_seguro',
+      JWT_SECRET,
       { expiresIn: '2h' }
     );
 
@@ -299,7 +302,7 @@ const verificarToken = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, 'secreto_super_seguro');
+    const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch (error) {
@@ -2702,13 +2705,22 @@ app.post('/api/contact', async (req, res) => {
 
 // Hook: si en crear/editar etapa se envía id_rol, registrar/actualizar en RolEtapaCatalogo
 
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).send('CVR Sistema Web - Backend');
+});
+
 // Health check endpoint para Railway
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
+app.get('/api/health', async (req, res) => {
+  const info = { status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() };
+  // Intentar un ping ligero a la base de datos para dar información útil, pero no fallar el healthcheck si DB no está lista
+  try {
+    const [rows] = await pool.query('SELECT 1');
+    info.db = { ok: true };
+  } catch (err) {
+    info.db = { ok: false, error: String(err.message || err) };
+  }
+  res.status(200).json(info);
 });
 
 // Configurar CORS para producción
