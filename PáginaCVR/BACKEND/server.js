@@ -13,10 +13,11 @@ app.use(cors());
 app.use(express.json());
 
 const pool = mysql.createPool({
-  host: 'localhost',
-  user: 'root',  
-  password: '1234',  
-  database: 'CVR_LDD'
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',  
+  password: process.env.DB_PASSWORD || '1234',  
+  database: process.env.DB_NAME || 'CVR_LDD',
+  port: process.env.DB_PORT || 3306
 });
 
 // Configuración de nodemailer para envío de correos
@@ -2700,3 +2701,28 @@ app.post('/api/contact', async (req, res) => {
 });
 
 // Hook: si en crear/editar etapa se envía id_rol, registrar/actualizar en RolEtapaCatalogo
+
+// Health check endpoint para Railway
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
+// Configurar CORS para producción
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Iniciar servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor CVR ejecutándose en puerto ${PORT}`);
+  console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
+});

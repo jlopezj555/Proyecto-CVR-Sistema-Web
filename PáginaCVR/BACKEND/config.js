@@ -1,16 +1,16 @@
 // Configuración de correo para CVR Asesoría (Stackmail)
 export const emailConfig = {
   // Configuración de Stackmail
-  host: 'mx.stackmail.com', // Servidor SMTP de tu correo
-  port: 465,                // 465 para SSL, 587 para TLS
-  secure: true,             // true para SSL, false para TLS
+  host: process.env.EMAIL_HOST || 'mx.stackmail.com',
+  port: parseInt(process.env.EMAIL_PORT) || 465,
+  secure: process.env.EMAIL_SECURE === 'true' || true,
   auth: {
-    user: 'impuestos@cvrasesoria.com.gt', // Tu correo corporativo
-    pass: 'Puesto2025!'      // Contraseña normal del correo
+    user: process.env.EMAIL_USER || 'impuestos@cvrasesoria.com.gt',
+    pass: process.env.EMAIL_PASS || 'Puesto2025!'
   },
 
   // Configuración de la empresa
-  from: 'CVR Asesoría <impuestos@cvrasesoria.com.gt>',
+  from: `CVR Asesoría <${process.env.EMAIL_USER || 'impuestos@cvrasesoria.com.gt'}>`,
 
   // Dominios de correo considerados "reales"
   realEmailDomains: [

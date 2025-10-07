@@ -1,17 +1,26 @@
 {
+  "name": "cvr-sistema-web",
+  "version": "1.0.0",
+  "description": "Sistema Web CVR - Frontend React + Backend Express",
+  "main": "PáginaCVR/BACKEND/server.js",
+  "scripts": {
+    "install:all": "npm install && cd PáginaCVR && npm install && cd BACKEND && npm install",
+    "build": "cd PáginaCVR && npm run build",
+    "start": "cd PáginaCVR/BACKEND && npm start",
+    "start:prod": "cd PáginaCVR/BACKEND && npm start",
+    "dev": "cd PáginaCVR && npm run dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["cvr", "sistema", "web", "react", "express"],
+  "author": "CVR Asesoría",
+  "license": "ISC",
   "dependencies": {
     "@mui/material": "^7.3.2",
     "axios": "^1.12.1",
     "bcrypt": "^6.0.0"
   },
-  "name": "cvr",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
 }
