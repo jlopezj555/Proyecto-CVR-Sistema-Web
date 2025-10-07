@@ -46,7 +46,7 @@ const PapeleriaCRUD: React.FC = () => {
       type: 'select' as const, 
       required: true,
       // Dinámico según empresa seleccionada y mes asignado
-      dynamicOptions: async (formData) => {
+      dynamicOptions: async (formData: Record<string, any>) => {
         const empresaSel = formData['id_empresa'];
         if (!empresaSel) return [];
         try {
@@ -61,7 +61,7 @@ const PapeleriaCRUD: React.FC = () => {
         }
       },
       dependsOnKeys: ['id_empresa'],
-      disabledWhen: (fd) => !fd['id_empresa']
+      disabledWhen: (fd: Record<string, any>) => !fd['id_empresa']
     },
     { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
   ];

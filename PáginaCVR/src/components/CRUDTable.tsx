@@ -3,7 +3,7 @@ import axios from 'axios';
 import './CRUDTable.css';
 import PasswordVerificationModal from './PasswordVerificationModal';
 
-interface Column {
+export interface Column {
   key: string;
   label: string;
   type?: 'text' | 'email' | 'select' | 'date' | 'boolean' | 'multiselect' | 'checkboxes';
@@ -29,7 +29,7 @@ interface CRUDTableProps {
   queryParams?: Record<string, any>;
 }
 
-interface TableData {
+export interface TableData {
   [key: string]: any;
 }
 
