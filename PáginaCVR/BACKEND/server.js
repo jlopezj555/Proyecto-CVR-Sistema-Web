@@ -2559,4 +2559,144 @@ app.post('/api/procesos/:id/confirmar-envio', verificarToken, verificarSecretari
   }
 });
 
+// Actualizar perfil del usuario actual (nombre, correo y/o contraseña)
+app.put('/api/me', verificarToken, async (req, res) => {
+  const { nombre, correo, nuevaContrasena, contrasenaActual } = req.body;
+
+  if (!contrasenaActual) {
+    return res.status(400).json({ success: false, message: 'Contraseña actual requerida' });
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Obtener usuario actual
+    const [[usr]] = await conn.query(
+      'SELECT id_usuario, id_empleado, nombre_completo, correo, contrasena, foto_perfil FROM Usuario WHERE id_usuario = ? LIMIT 1',
+      [req.user.id]
+    );
+    if (!usr) {
+      await conn.rollback();
+      return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    }
+
+    // Verificar contraseña actual
+    const ok = await bcrypt.compare(contrasenaActual, usr.contrasena);
+    if (!ok) {
+      await conn.rollback();
+      return res.status(401).json({ success: false, message: 'Contraseña actual incorrecta' });
+    }
+
+    // Validar correo duplicado si cambió
+    if (correo && correo !== usr.correo) {
+      const [[dup]] = await conn.query('SELECT COUNT(*) AS cnt FROM Usuario WHERE correo = ? AND id_usuario <> ?', [correo, usr.id_usuario]);
+      if (Number(dup?.cnt || 0) > 0) {
+        await conn.rollback();
+        return res.status(400).json({ success: false, message: 'El correo ya está registrado' });
+      }
+    }
+
+    // Preparar actualización
+    const nuevoNombre = typeof nombre === 'string' && nombre.trim() ? nombre.trim() : usr.nombre_completo;
+    const nuevoCorreo = typeof correo === 'string' && correo.trim() ? correo.trim() : usr.correo;
+
+    let setPasswordSql = '';
+  let setPasswordParams = [];
+
+    if (typeof nuevaContrasena === 'string' && nuevaContrasena.trim()) {
+      const hashed = await bcrypt.hash(nuevaContrasena.trim(), 10);
+      setPasswordSql = ', contrasena = ?';
+      setPasswordParams.push(hashed);
+    }
+
+    // Foto de perfil por Gravatar si el correo es real
+    let fotoPerfil = usr.foto_perfil;
+    if (nuevoCorreo && isRealEmail(nuevoCorreo)) {
+      fotoPerfil = getGravatarUrl(nuevoCorreo);
+    }
+
+    await conn.query(
+      `UPDATE Usuario SET nombre_completo = ?, correo = ?, foto_perfil = ?${setPasswordSql} WHERE id_usuario = ?`,
+      [nuevoNombre, nuevoCorreo, fotoPerfil, ...setPasswordParams, usr.id_usuario]
+    );
+
+    // Si está enlazado a empleado, mantener espejo de nombre/correo básicos
+    if (usr.id_empleado) {
+      const partes = String(nuevoNombre).split(' ');
+      const nombreEmp = partes.slice(0, -1).join(' ') || nuevoNombre;
+      const apellidoEmp = partes.slice(-1).join(' ') || '';
+      await conn.query(
+        'UPDATE Empleado SET nombre = ?, apellido = ?, correo = ? WHERE id_empleado = ?',
+        [nombreEmp, apellidoEmp, nuevoCorreo, usr.id_empleado]
+      );
+    }
+
+    await conn.commit();
+
+    return res.json({
+      success: true,
+      message: 'Perfil actualizado',
+      data: {
+        id_usuario: usr.id_usuario,
+        nombre_completo: nuevoNombre,
+        correo: nuevoCorreo,
+        foto_perfil: fotoPerfil,
+        tipo_usuario: req.user.tipo
+      }
+    });
+  } catch (error) {
+    await conn.rollback();
+    console.error('Error actualizando perfil:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  } finally {
+    conn.release();
+  }
+});
+
+// Endpoint para formulario de contacto (página pública)
+app.post('/api/contact', async (req, res) => {
+  try {
+    const { nombre, telefono, correo, empresa, mensaje } = req.body || {};
+
+    if (!nombre || !correo || !mensaje) {
+      return res.status(400).json({ success: false, message: 'Nombre, correo y mensaje son requeridos' });
+    }
+
+    const destinatario = (emailConfig && (emailConfig.contactRecipient || emailConfig.to)) || 'impuestos@cvrasesoria.com.gt';
+    const asunto = `Nuevo mensaje de contacto - ${nombre}${empresa ? ' (' + empresa + ')' : ''}`;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <div style="background:#122745;color:#fff;padding:16px;border-radius:8px 8px 0 0;">
+          <h2 style="margin:0;">Contacto desde la web CVR Asesoría</h2>
+        </div>
+        <div style="background:#fff;padding:16px;border:1px solid #e9ecef;border-top:none;border-radius:0 0 8px 8px;">
+          <p><strong>Nombre:</strong> ${nombre}</p>
+          <p><strong>Correo:</strong> ${correo}</p>
+          ${telefono ? `<p><strong>Teléfono:</strong> ${telefono}</p>` : ''}
+          ${empresa ? `<p><strong>Empresa:</strong> ${empresa}</p>` : ''}
+          <div style="margin-top:12px;">
+            <p><strong>Mensaje:</strong></p>
+            <div style="background:#f8f9fa;padding:12px;border-radius:8px;white-space:pre-wrap;">${String(mensaje || '').replace(/[<>]/g, '')}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: emailConfig.from,
+      to: destinatario,
+      subject: asunto,
+      html,
+      replyTo: correo
+    });
+
+    return res.json({ success: true, message: 'Mensaje enviado' });
+  } catch (error) {
+    console.error('Error enviando contacto:', error);
+    return res.status(500).json({ success: false, message: 'Error enviando mensaje' });
+  }
+});
+
 // Hook: si en crear/editar etapa se envía id_rol, registrar/actualizar en RolEtapaCatalogo

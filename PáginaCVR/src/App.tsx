@@ -216,20 +216,33 @@ function App() {
     }, 2500);
   };
 
-  const handleContactSubmit = (event: React.FormEvent) => {
+  const handleContactSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const formData = new FormData(event.target as HTMLFormElement);
-    const subject = formData.get('subject') as string;
-    const message = formData.get('message') as string;
+    const form = event.target as HTMLFormElement;
+    const formData = new FormData(form);
 
-    const updatedSubject = userType === 'cliente' ? `Cliente Registrado - ${subject}` : subject;
+    const payload = {
+      nombre: String(formData.get('nombre') || ''),
+      telefono: String(formData.get('telefono') || ''),
+      correo: String(formData.get('correo') || ''),
+      empresa: String(formData.get('empresa') || ''),
+      mensaje: String(formData.get('mensaje') || ''),
+    };
 
-    // Simulate sending the email
-    console.log('Enviando correo con asunto:', updatedSubject);
-    console.log('Mensaje:', message);
-
-    alert('Correo enviado exitosamente.');
+    const overlay = showLoadingDialog('Enviando mensaje...');
+    try {
+      await axios.post('http://localhost:4000/api/contact', payload);
+      // Feedback de éxito
+      alert('Mensaje enviado. Gracias por contactarnos.');
+      form.reset();
+    } catch (error: any) {
+      console.error('Error enviando contacto:', error);
+      const errorMessage = error?.response?.data?.message || 'No se pudo enviar el mensaje, intenta nuevamente.';
+      showErrorDialog(errorMessage);
+    } finally {
+      setTimeout(() => document.body.removeChild(overlay), 800);
+    }
   };
 
 {

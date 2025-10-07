@@ -1,18 +1,17 @@
-// Configuración de correo para CVR Asesoría
+// Configuración de correo para CVR Asesoría (Stackmail)
 export const emailConfig = {
-  // Configuración de Gmail
-  service: 'gmail',
+  // Configuración de Stackmail
+  host: 'mx.stackmail.com', // Servidor SMTP de tu correo
+  port: 465,                // 465 para SSL, 587 para TLS
+  secure: true,             // true para SSL, false para TLS
   auth: {
-    user: 'joelslopezj@gmail.com', // CAMBIAR: Tu email de Gmail
-    pass: 'tbza anbn gdhh taqw'      // CAMBIAR: Contraseña de aplicación de Gmail
+    user: 'impuestos@cvrasesoria.com.gt', // Tu correo corporativo
+    pass: 'Puesto2025!'      // Contraseña normal del correo
   },
-  
-// tbza anbn gdhh taqw 
-// contraseña para gmail joelslopezj@gmail.com (para pruebas)
 
   // Configuración de la empresa
-  from: 'CVR Asesoría <joelslopezj@gmail.com>',
-  
+  from: 'CVR Asesoría <impuestos@cvrasesoria.com.gt>',
+
   // Dominios de correo considerados "reales"
   realEmailDomains: [
     'gmail.com', 
@@ -26,10 +25,12 @@ export const emailConfig = {
   ]
 };
 
-// INSTRUCCIONES PARA CONFIGURAR GMAIL:
-// 1. Ve a tu cuenta de Gmail
-// 2. Activa la verificación en 2 pasos
-// 3. Ve a "Contraseñas de aplicación"
-// 4. Genera una nueva contraseña para "CVR Asesoría"
-// 5. Copia esa contraseña y reemplaza 'tu-app-password'
-// 6. Cambia 'tu-email@gmail.com' por tu email real
+/*
+INSTRUCCIONES PARA CONFIGURAR STACKMAIL:
+1. Verifica que tu cuenta impuestos@cvrasesoria.com.gt esté activa y tengas la contraseña correcta.
+2. Asegúrate de usar el servidor SMTP: mx.stackmail.com
+3. El puerto recomendado para SSL es 465. Para TLS/STARTTLS usa 587 y secure: false
+4. Reemplaza 'TU_CONTRASEÑA_DEL_CORREO' por la contraseña real del correo.
+5. No es necesaria una contraseña de aplicación como en Gmail.
+6. Opcional: configura SPF y DMARC en tu dominio para evitar que los correos lleguen a SPAM.
+*/

@@ -34,8 +34,10 @@ const Card: React.FC<CardProps> = ({ title, text, image, imageAlt }) => {
 
   return (
     <div ref={cardRef} className={`card ${isVisible ? "visible" : ""}`}>
-      {/* Imagen arriba, con hover y borde redondeado */}
-      <img src={image} alt={imageAlt} className="card-image" />
+      {/* Imagen arriba en contenedor de relación fija para evitar cortes */}
+      <div className="card-image-wrap">
+        <img src={image} alt={imageAlt} className="card-image" />
+      </div>
 
       <div className="card-content">
         <h3 className="card-title">{title}</h3>
