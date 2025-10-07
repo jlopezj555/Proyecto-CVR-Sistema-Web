@@ -439,7 +439,7 @@ function App() {
   <div className="contact-cards">
     {/* Email */}
     <a 
-      href="https://mail.google.com/mail/?view=cm&fs=1&to=info@cvrasesoria.com" 
+      href="https://mail.google.com/mail/?view=cm&fs=1&to=impuestos@cvrasesoria.com.gt" 
       target="_blank" 
       rel="noopener noreferrer"
       className="contact-card"
@@ -507,10 +507,13 @@ function App() {
                 activeTab === 'empleados' ? 'empleados' :
                 activeTab === 'empresas' ? 'empresas' :
                 activeTab === 'roles' ? 'roles' :
-                activeTab === 'cuentas' ? 'cuentas' :
                 activeTab === 'papeleria' ? 'papeleria' :
                 activeTab === 'etapas-catalogo' ? 'etapas-catalogo' :
-                activeTab === 'etapas-cuenta' ? 'etapas-cuenta' :
+                activeTab === 'etapas-proceso' ? 'etapas-proceso' :
+                activeTab === 'asignaciones' ? 'asignaciones' :
+                activeTab === 'rol-etapas' ? 'rol-etapas' :
+                activeTab === 'usuarios' ? 'usuarios' :
+                activeTab === 'procesos' ? 'procesos' :
                 null
               }
               onSectionChange={(section) => {

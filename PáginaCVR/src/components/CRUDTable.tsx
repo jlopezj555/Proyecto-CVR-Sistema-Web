@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './CRUDTable.css';
 import PasswordVerificationModal from './PasswordVerificationModal';
@@ -10,6 +10,11 @@ interface Column {
   options?: { value: any; label: string }[];
   required?: boolean;
   readonly?: boolean;
+  // Opcional: opciones dinámicas dependientes de otros campos del formulario
+  dynamicOptions?: (formData: TableData, token: string) => Promise<{ value: any; label: string }[]>;
+  dependsOnKeys?: string[];
+  // Deshabilitar el campo condicionalmente según formData
+  disabledWhen?: (formData: TableData) => boolean;
 }
 
 interface CRUDTableProps {
@@ -54,6 +59,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   const [revealMap, setRevealMap] = useState<Record<string, boolean>>({});
   const revealOn = (key: string) => setRevealMap(prev => ({ ...prev, [key]: true }));
   const revealOff = (key: string) => setRevealMap(prev => ({ ...prev, [key]: false }));
+  // Opciones dinámicas por campo (se actualizan según depende de otros campos)
+  const [dynamicFieldOptions, setDynamicFieldOptions] = useState<Record<string, { value: any; label: string }[]>>({});
+  const prevDepsRef = useRef<Record<string, string>>({});
 
   // Búsqueda y orden
   const [searchOpen, setSearchOpen] = useState(false);
@@ -81,6 +89,33 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Actualizar opciones dinámicas cuando cambie el formData o el modo del modal
+  useEffect(() => {
+    const tokenLocal = token || '';
+    (async () => {
+      const fields = (showEditModal ? editFields : createFields) || [];
+      for (const field of fields) {
+        if (typeof field.dynamicOptions === 'function') {
+          const deps = (field.dependsOnKeys || []).map(k => String(formData[k] ?? '')).join('|');
+          if (prevDepsRef.current[field.key] !== deps) {
+            prevDepsRef.current[field.key] = deps;
+            try {
+              const opts = await field.dynamicOptions(formData, tokenLocal);
+              setDynamicFieldOptions(prev => ({ ...prev, [field.key]: opts }));
+              const currentVal = formData[field.key];
+              if (currentVal && !opts.some(o => String(o.value) === String(currentVal))) {
+                setFormData(prev => ({ ...prev, [field.key]: '' }));
+              }
+            } catch (e) {
+              // Silenciar errores de carga de opciones dinámicas
+            }
+          }
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData, showEditModal, showCreateModal]);
 
   // Refetch cuando cambien los filtros externos
   useEffect(() => {
@@ -208,6 +243,8 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
 
   const renderFormField = (field: Column) => {
     const value = formData[field.key] || '';
+    const disabled = !!field.readonly || (!!field.disabledWhen && field.disabledWhen(formData));
+    const effOptions = dynamicFieldOptions[field.key] || field.options;
 
     switch (field.type) {
       case 'select':
@@ -216,10 +253,10 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
             value={value}
             onChange={(e) => handleInputChange(field.key, e.target.value)}
             required={field.required}
-            disabled={field.readonly}
+            disabled={disabled}
           >
             <option value="">Seleccionar...</option>
-            {field.options?.map(option => (
+            {effOptions?.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -232,7 +269,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
             type="checkbox"
             checked={!!value}
             onChange={(e) => handleInputChange(field.key, e.target.checked)}
-            disabled={field.readonly}
+            disabled={disabled}
           />
         );
       case 'multiselect':
@@ -245,9 +282,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
               handleInputChange(field.key, options);
             }}
             required={field.required}
-            disabled={field.readonly}
+            disabled={disabled}
           >
-            {field.options?.map(option => (
+            {effOptions?.map(option => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -257,7 +294,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       case 'checkboxes':
         return (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {field.options?.map(opt => {
+            {effOptions?.map(opt => {
               const current: any[] = Array.isArray(value) ? value : [];
               const checked = current.includes(String(opt.value)) || current.includes(opt.value);
               return (
@@ -271,7 +308,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                       const next = e.target.checked ? Array.from(new Set([...(prev.map(String)), val])) : prev.filter((v) => String(v) !== val);
                       handleInputChange(field.key, next);
                     }}
-                    disabled={field.readonly}
+                    disabled={disabled}
                   />
                   <span>{opt.label}</span>
                 </label>
@@ -286,7 +323,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
             value={value}
             onChange={(e) => handleInputChange(field.key, e.target.value)}
             required={field.required}
-            disabled={field.readonly}
+            disabled={disabled}
           />
         );
       default:
@@ -300,7 +337,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                 value={value}
                 onChange={(e) => handleInputChange(field.key, e.target.value)}
                 required={field.required}
-                disabled={field.readonly}
+                disabled={disabled}
                 placeholder={`Ingresa ${field.label.toLowerCase()}`}
                 style={{ paddingRight: 36, boxSizing: 'border-box' }}
               />
@@ -350,7 +387,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
             value={value}
             onChange={(e) => handleInputChange(field.key, e.target.value)}
             required={field.required}
-            disabled={field.readonly}
+            disabled={disabled}
             placeholder={`Ingresa ${field.label.toLowerCase()}`}
           />
         );

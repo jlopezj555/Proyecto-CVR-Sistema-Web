@@ -843,8 +843,12 @@ app.get('/api/procesos', verificarToken, verificarAdmin, async (req, res) => {
     const params = [];
     let where = ' WHERE 1=1';
     if (empresa) { where += ' AND p.id_empresa = ?'; params.push(Number(empresa)); }
-    if (year) { where += ' AND YEAR(p.fecha_creacion) = ?'; params.push(Number(year)); }
-    if (month) { where += ' AND MONTH(p.fecha_creacion) = ?'; params.push(Number(month)); }
+
+    // Importante: los filtros de mes/año se aplican al "mes asignado" del proceso,
+    // que es el mes anterior a la fecha de creación
+    if (year) { where += ' AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?'; params.push(Number(year)); }
+    if (month) { where += ' AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?'; params.push(Number(month)); }
+
     const [rows] = await pool.query(
       `SELECT p.*, e.nombre_empresa, e.correo_empresa
        FROM Proceso p
@@ -1065,6 +1069,25 @@ app.post('/api/papeleria', verificarToken, verificarSecretariaOrAdmin, verificar
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
     }
 
+    // Validar unicidad por empresa/mes asignado/tipo (solo un proceso de Venta y uno de Compra por mes)
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonth = prev.getMonth() + 1; // 1-12
+    const prevYear = prev.getFullYear();
+
+    const [[dup]] = await pool.query(
+      `SELECT COUNT(*) AS cnt
+       FROM Proceso p
+       WHERE p.id_empresa = ? AND p.tipo_proceso = ?
+         AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?
+         AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?`,
+      [id_empresa, tipo_papeleria, prevYear, prevMonth]
+    );
+    if (Number(dup?.cnt || 0) > 0) {
+      const alterno = tipo_papeleria === 'Venta' ? 'Compra' : 'Venta';
+      return res.status(400).json({ success: false, message: `Ya existe un proceso de ${tipo_papeleria} para este mes asignado. Solo puedes registrar ${alterno}.` });
+    }
+
     const [result] = await pool.query(
       'INSERT INTO Papeleria (id_empresa, descripcion, tipo_papeleria) VALUES (?, ?, ?)',
       [id_empresa, descripcion, tipo_papeleria]
@@ -1096,6 +1119,26 @@ app.put('/api/papeleria/:id', verificarToken, verificarSecretariaOrAdmin, verifi
     const [existing] = await pool.query('SELECT * FROM Papeleria WHERE id_papeleria = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Papelería no encontrada' });
+    }
+
+    // Si se intenta cambiar el tipo, validar unicidad en el mes asignado
+    if (tipo_papeleria && tipo_papeleria !== existing[0].tipo_papeleria) {
+      const now = new Date();
+      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevMonth = prev.getMonth() + 1;
+      const prevYear = prev.getFullYear();
+      const [[dup]] = await pool.query(
+        `SELECT COUNT(*) AS cnt
+         FROM Proceso p
+         WHERE p.id_empresa = ? AND p.tipo_proceso = ?
+           AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?
+           AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?`,
+        [existing[0].id_empresa, tipo_papeleria, prevYear, prevMonth]
+      );
+      if (Number(dup?.cnt || 0) > 0) {
+        const alterno = tipo_papeleria === 'Venta' ? 'Compra' : 'Venta';
+        return res.status(400).json({ success: false, message: `Ya existe un proceso de ${tipo_papeleria} para este mes asignado. Solo puedes usar ${alterno}.` });
+      }
     }
 
     await pool.query(
@@ -1351,7 +1394,7 @@ const enviarNotificacionNuevoProceso = async (idProceso, idEmpresa) => {
   }
 };
 
-// Función para enviar email cuando una etapa de revisión se completa (se envía al siguiente revisor)
+// Función para enviar email cuando una etapa clave se completa: notifica al siguiente revisor elegible
 const enviarNotificacionEtapaCompletada = async (idProceso) => {
   try {
     // Obtener el proceso y empresa
@@ -1364,33 +1407,61 @@ const enviarNotificacionEtapaCompletada = async (idProceso) => {
 
     if (!proc) return;
 
-    // Obtener todas las etapas del proceso completadas (ordenadas por rol)
+    // Revisores completados (por número)
     const [etapasCompletadas] = await pool.query(`
-      SELECT ep.id_rol, r.nombre_rol, ep.estado
+      SELECT r.nombre_rol
       FROM EtapaProceso ep
       INNER JOIN Rol r ON ep.id_rol = r.id_rol
       WHERE ep.id_proceso = ? AND ep.estado = 'Completada' AND r.nombre_rol LIKE 'Revisor %'
-      ORDER BY CAST(SUBSTRING_INDEX(r.nombre_rol, ' ', -1) AS UNSIGNED) ASC
     `, [idProceso]);
+    const revisoresCompletados = etapasCompletadas
+      .map(e => parseInt(String(e.nombre_rol).replace(/[^0-9]/g, ''), 10))
+      .filter(n => !isNaN(n));
 
-    // Determinar cuál es el siguiente revisor basado en completadas
-    const revisoresCompletados = etapasCompletadas.map(e => parseInt(e.nombre_rol.replace('Revisor ', ''))).sort((a,b)=>a-b);
-
-    let siguienteRevisor = 1; // default
+    // Determinar siguiente revisor pendiente (1..3)
+    let siguienteRevisor = null;
     for (let i = 1; i <= 3; i++) {
-      if (!revisoresCompletados.includes(i)) {
-        siguienteRevisor = i;
-        break;
+      if (!revisoresCompletados.includes(i)) { siguienteRevisor = i; break; }
+    }
+    if (siguienteRevisor === null) {
+      // No hay siguiente revisor; probablemente ya terminaron todos
+      return;
+    }
+
+    // Verificar elegibilidad por ORDEN: todas las etapas anteriores (no de revisión) deben estar completadas
+    const [[ordenRevRow]] = await pool.query(`
+      SELECT MIN(rec.orden) AS minOrden
+      FROM EtapaProceso ep
+      INNER JOIN Rol r ON r.id_rol = ep.id_rol
+      INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
+      WHERE ep.id_proceso = ? AND r.nombre_rol = ?
+    `, [idProceso, `Revisor ${siguienteRevisor}`]);
+    const minOrdenRevisor = Number(ordenRevRow?.minOrden || 0);
+
+    if (minOrdenRevisor > 0) {
+      const [[pendPrev]] = await pool.query(`
+        SELECT COUNT(*) AS pendientes
+        FROM EtapaProceso ep2
+        INNER JOIN RolEtapaCatalogo rec2 ON rec2.id_rol = ep2.id_rol AND rec2.id_etapa = ep2.id_etapa
+        INNER JOIN EtapaCatalogo ec2 ON ec2.id_etapa = ep2.id_etapa
+        WHERE ep2.id_proceso = ?
+          AND rec2.orden < ?
+          AND ep2.estado <> 'Completada'
+          AND ec2.es_revision = FALSE
+      `, [idProceso, minOrdenRevisor]);
+      if (Number(pendPrev?.pendientes || 0) > 0) {
+        // Aún hay etapas previas (no de revisión) sin completar; no notificar todavía
+        return;
       }
     }
 
     // Obtener el empleado asignado al siguiente revisor
     const [empleados] = await pool.query(`
-      SELECT DISTINCT u.correo, u.nombre_completo, u.id_empleado
+      SELECT DISTINCT u.correo, u.nombre_completo
       FROM AsignacionRol ar
       INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
       INNER JOIN Rol r ON r.id_rol = ar.id_rol
-      WHERE ar.id_empresa = ? AND r.nombre_rol = ?
+      WHERE ar.id_empresa = ? AND r.nombre_rol = ? AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
       LIMIT 1
     `, [proc.id_empresa, `Revisor ${siguienteRevisor}`]);
 
@@ -1401,28 +1472,30 @@ const enviarNotificacionEtapaCompletada = async (idProceso) => {
     const mailOptions = {
       from: emailConfig.from,
       to: emp.correo,
-      subject: `Proceso Listo para Revisión: ${proc.nombre_proceso}`,
+      subject: `Proceso listo para tu revisión (Revisor ${siguienteRevisor}): ${proc.nombre_proceso}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          ${logoHTML}
+          <div style="text-align: center; background: #122745; padding: 20px; color: white;">
+            <h1>Revisión requerida</h1>
+            <p>CVR Asesoría - Sistema de Procesos</p>
+          </div>
           <div style="padding: 20px; background: #f8f9fa;">
             <h2>Hola ${emp.nombre_completo},</h2>
             <p>El proceso <strong>${proc.nombre_proceso}</strong> de la empresa <strong>${proc.nombre_empresa}</strong> está listo para tu nivel de revisión (Revisor ${siguienteRevisor}).</p>
-            <p>Por favor, revisa el sistema para proceder con tu revisión.</p>
+            <p>Ingresa al sistema para continuar con tu revisión.</p>
             <div style="text-align: center; margin: 20px 0;">
               <div style="background: #122745; color: white; padding: 20px; border-radius: 10px; display: inline-block;">
                 <h2 style="margin: 0; font-size: 24px;">CVR ASESORÍA</h2>
                 <p style="margin: 5px 0 0 0; font-size: 14px;">Asesoría y Soluciones Óptimas</p>
               </div>
             </div>
-            ${copyrightText}
           </div>
         </div>
       `
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(`Notificación enviada al siguiente revisor ${emp.nombre_completo} para nivel ${siguienteRevisor}`);
+    console.log(`Notificación enviada al siguiente revisor (${siguienteRevisor}) -> ${emp.correo}`);
   } catch (error) {
     console.error('Error enviando notificación al siguiente revisor:', error);
   }
@@ -1518,12 +1591,13 @@ const enviarNotificacionProcesocompletado = async (idProceso) => {
   }
 };
 
-// Función para enviar email cuando el proceso es enviado por secretaria
+// Función para enviar email cuando el proceso es enviado por secretaria (finalizado 100%)
+// Requerimiento: NO enviar a la empresa; enviar a administradores y al titular de config.js
 const enviarNotificacionProcesoEnviado = async (idProceso) => {
   try {
     // Obtener información del proceso
     const [[proc]] = await pool.query(`
-      SELECT p.nombre_proceso, e.nombre_empresa, e.correo_empresa
+      SELECT p.nombre_proceso, e.nombre_empresa
       FROM Proceso p
       INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
       WHERE p.id_proceso = ?
@@ -1531,7 +1605,7 @@ const enviarNotificacionProcesoEnviado = async (idProceso) => {
 
     if (!proc) return;
 
-    // Obtener administradores y email principal
+    // Obtener administradores
     const [admins] = await pool.query(`
       SELECT correo, nombre_completo
       FROM Usuario
@@ -1549,10 +1623,10 @@ const enviarNotificacionProcesoEnviado = async (idProceso) => {
       }
     }
 
-    // Añadir email de la empresa si no está ya incluido
-    if (proc.correo_empresa && !emailsVistos.has(proc.correo_empresa)) {
-      emailsVistos.add(proc.correo_empresa);
-      destinatarios.push({ correo: proc.correo_empresa, nombre: proc.nombre_empresa });
+    // Añadir titular definido en config.js (auth.user)
+    if (emailConfig?.auth?.user && !emailsVistos.has(emailConfig.auth.user)) {
+      emailsVistos.add(emailConfig.auth.user);
+      destinatarios.push({ correo: emailConfig.auth.user, nombre: 'Titular CVR' });
     }
 
     // Enviar email a cada destinatario
@@ -1560,24 +1634,22 @@ const enviarNotificacionProcesoEnviado = async (idProceso) => {
       const mailOptions = {
         from: emailConfig.from,
         to: dest.correo,
-        subject: `Proceso Enviado: ${proc.nombre_proceso}`,
+        subject: `Proceso Terminado: ${proc.nombre_proceso}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <div style="text-align: center; background: #122745; padding: 20px; color: white;">
-              <h1>Proceso Enviado</h1>
+              <h1>Proceso Terminado</h1>
               <p>CVR Asesoría - Sistema de Procesos</p>
             </div>
             <div style="padding: 20px; background: #f8f9fa;">
-              <h2>Hola ${dest.nombre},</h2>
-              <p>El proceso <strong>${proc.nombre_proceso}</strong> de la empresa <strong>${proc.nombre_empresa}</strong> ha sido enviado exitosamente por la secretaria.</p>
-              <p>El proceso ha completado todas las etapas y está listo para su procesamiento final.</p>
+              <h2>Hola ${dest.nombre || ''}</h2>
+              <p>El proceso <strong>${proc.nombre_proceso}</strong> de la empresa <strong>${proc.nombre_empresa}</strong> ha sido completado al 100% y enviado por Secretaría.</p>
               <div style="text-align: center; margin: 20px 0;">
                 <div style="background: #122745; color: white; padding: 20px; border-radius: 10px; display: inline-block;">
                   <h2 style="margin: 0; font-size: 24px;">CVR ASESORÍA</h2>
                   <p style="margin: 5px 0 0 0; font-size: 14px;">Asesoría y Soluciones Óptimas</p>
                 </div>
               </div>
-              <p>Gracias por tu atención.</p>
             </div>
           </div>
         `
@@ -1586,7 +1658,7 @@ const enviarNotificacionProcesoEnviado = async (idProceso) => {
       await transporter.sendMail(mailOptions);
     }
 
-    console.log(`Notificaciones enviadas por proceso enviado ${proc.nombre_proceso}`);
+    console.log(`Notificaciones enviadas por proceso terminado ${proc.nombre_proceso}`);
   } catch (error) {
     console.error('Error enviando notificación de proceso enviado:', error);
   }
@@ -1837,21 +1909,21 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
     const params = [empleadoId];
     let whereFecha = '';
     if (from && to) {
-      // Rango explícito
+      // Rango explícito sobre fecha de creación
       whereFecha = ' AND p.fecha_creacion BETWEEN ? AND ?';
       params.push(from, to);
     } else if (month && year) {
-      // Mes + año
-      whereFecha = ' AND MONTH(p.fecha_creacion) = ? AND YEAR(p.fecha_creacion) = ?';
+      // Mes + año aplicados al "mes asignado" (fecha_creacion - 1 mes)
+      whereFecha = ' AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ? AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?';
       params.push(Number(month), Number(year));
     } else if (year) {
-      // Solo año
-      whereFecha = ' AND YEAR(p.fecha_creacion) = ?';
+      // Solo año del mes asignado
+      whereFecha = ' AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?';
       params.push(Number(year));
     } else if (month) {
-      // Solo mes (si el frontend lo manda sin año) -> asumir año actual
+      // Solo mes del mes asignado (asumir año actual)
       const currentYear = new Date().getFullYear();
-      whereFecha = ' AND MONTH(p.fecha_creacion) = ? AND YEAR(p.fecha_creacion) = ?';
+      whereFecha = ' AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ? AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?';
       params.push(Number(month), currentYear);
     }
 
@@ -2162,8 +2234,47 @@ app.post('/api/revisor/procesos/:id/aprobar', verificarToken, async (req, res) =
     // Marcar como completadas las etapas de este revisor en el proceso
     await conn.query(`UPDATE EtapaProceso SET estado = 'Completada', fecha_fin = NOW() WHERE id_proceso = ? AND id_rol IN (?)`, [id, roleIds]);
 
-    // Enviar notificación de completación de etapa al revisor
-    enviarNotificacionEtapaCompletada(id, empleadoId);
+    // Notificar al siguiente revisor (no al mismo que aprobó)
+    await enviarNotificacionEtapaCompletada(id);
+
+    // Si ya no quedan revisiones pendientes (Revisor 1-3), notificar a Encargada de Impresión
+    const [[pendRevisiones]] = await conn.query(`
+      SELECT COUNT(*) AS pendientes
+      FROM EtapaProceso ep
+      INNER JOIN Rol r ON ep.id_rol = r.id_rol
+      WHERE ep.id_proceso = ? AND r.nombre_rol LIKE 'Revisor %' AND ep.estado <> 'Completada'
+    `, [id]);
+    if (Number(pendRevisiones?.pendientes || 0) === 0) {
+      const [[pinfo]] = await conn.query(`SELECT p.id_empresa, p.nombre_proceso, e.nombre_empresa FROM Proceso p INNER JOIN Empresa e ON e.id_empresa = p.id_empresa WHERE p.id_proceso = ?`, [id]);
+      if (pinfo) {
+        const [impList] = await conn.query(`
+          SELECT DISTINCT u.correo, u.nombre_completo
+          FROM AsignacionRol ar
+          INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
+          INNER JOIN Rol r ON r.id_rol = ar.id_rol
+          WHERE ar.id_empresa = ? AND r.nombre_rol = 'Encargada de Impresión' AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
+        `, [pinfo.id_empresa]);
+        for (const imp of impList) {
+          await transporter.sendMail({
+            from: emailConfig.from,
+            to: imp.correo,
+            subject: `Proceso listo para impresión: ${pinfo.nombre_proceso}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="text-align: center; background: #122745; padding: 20px; color: white;">
+                  <h1>Impresión requerida</h1>
+                  <p>CVR Asesoría - Sistema de Procesos</p>
+                </div>
+                <div style="padding: 20px; background: #f8f9fa;">
+                  <h2>Hola ${imp.nombre_completo},</h2>
+                  <p>El proceso <strong>${pinfo.nombre_proceso}</strong> de la empresa <strong>${pinfo.nombre_empresa}</strong> completó todas las revisiones y está listo para impresión.</p>
+                </div>
+              </div>
+            `
+          });
+        }
+      }
+    }
 
     // Si todas las etapas del proceso están completadas, marcar proceso como completado y enviar notificación
     const [[compRow]] = await conn.query('SELECT COUNT(*) AS pendientes FROM EtapaProceso WHERE id_proceso = ? AND estado <> "Completada"', [id]);
@@ -2260,6 +2371,74 @@ app.put('/api/etapas-proceso/:id', verificarToken, async (req, res) => {
       `UPDATE EtapaProceso SET estado = ?${setFechaFin} WHERE id_etapa_proceso = ?`,
       [estado, id]
     );
+
+    // Notificaciones según transición a 'Completada'
+    if (estado === 'Completada') {
+      // Obtener información básica de la etapa y proceso
+      const [[infoEtapa]] = await pool.query(`
+        SELECT ep.id_proceso, r.nombre_rol
+        FROM EtapaProceso ep
+        LEFT JOIN Rol r ON r.id_rol = ep.id_rol
+        WHERE ep.id_etapa_proceso = ?
+        LIMIT 1
+      `, [id]);
+
+      if (infoEtapa && infoEtapa.id_proceso) {
+        // 1) Avisar al siguiente revisor elegible (incluye caso inicial para Revisor 1 si ya están listas las etapas previas)
+        await enviarNotificacionEtapaCompletada(infoEtapa.id_proceso);
+
+        // 2) Si la etapa pertenece a 'Encargada de Impresión' y ya no quedan pendientes de ese rol, avisar a Secretaría
+        if (String(infoEtapa.nombre_rol || '').toLowerCase().includes('impresi')) {
+          const [[pendImp]] = await pool.query(`
+            SELECT COUNT(*) AS pendientes
+            FROM EtapaProceso ep
+            INNER JOIN Rol r ON r.id_rol = ep.id_rol
+            WHERE ep.id_proceso = ? AND r.nombre_rol = 'Encargada de Impresión' AND ep.estado <> 'Completada'
+          `, [infoEtapa.id_proceso]);
+
+          if (Number(pendImp?.pendientes || 0) === 0) {
+            const [[pinfo]] = await pool.query(`
+              SELECT p.nombre_proceso, e.nombre_empresa, p.id_empresa
+              FROM Proceso p
+              INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
+              WHERE p.id_proceso = ?
+            `, [infoEtapa.id_proceso]);
+
+            if (pinfo) {
+              const [secretarias] = await pool.query(`
+                SELECT DISTINCT u.correo, u.nombre_completo
+                FROM AsignacionRol ar
+                INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
+                INNER JOIN Rol r ON r.id_rol = ar.id_rol
+                WHERE ar.id_empresa = ? AND r.nombre_rol LIKE '%Secretaria%'
+                  AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
+              `, [pinfo.id_empresa]);
+
+              for (const sec of secretarias) {
+                await transporter.sendMail({
+                  from: emailConfig.from,
+                  to: sec.correo,
+                  subject: `Proceso listo para envío: ${pinfo.nombre_proceso}`,
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                      <div style="text-align: center; background: #122745; padding: 20px; color: white;">
+                        <h1>Envío requerido</h1>
+                        <p>CVR Asesoría - Sistema de Procesos</p>
+                      </div>
+                      <div style="padding: 20px; background: #f8f9fa;">
+                        <h2>Hola ${sec.nombre_completo},</h2>
+                        <p>El proceso <strong>${pinfo.nombre_proceso}</strong> de la empresa <strong>${pinfo.nombre_empresa}</strong> ha concluido la impresión y está listo para el envío.</p>
+                        <p>Por favor, ingresa al sistema y confirma el envío cuando corresponda.</p>
+                      </div>
+                    </div>
+                  `
+                });
+              }
+            }
+          }
+        }
+      }
+    }
 
     res.json({ success: true, message: 'Etapa actualizada exitosamente' });
   } catch (error) {

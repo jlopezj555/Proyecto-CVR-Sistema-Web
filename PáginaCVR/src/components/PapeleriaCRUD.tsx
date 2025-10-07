@@ -27,6 +27,8 @@ const PapeleriaCRUD: React.FC = () => {
     { key: 'fecha_entrega', label: 'Fecha Entrega' }
   ];
 
+  const token = localStorage.getItem('token') || '';
+
   const createFields = [
     { 
       key: 'id_empresa', 
@@ -43,10 +45,23 @@ const PapeleriaCRUD: React.FC = () => {
       label: 'Tipo de Papelería', 
       type: 'select' as const, 
       required: true,
-      options: [
-        { value: 'Venta', label: 'Venta' },
-        { value: 'Compra', label: 'Compra' }
-      ]
+      // Dinámico según empresa seleccionada y mes asignado
+      dynamicOptions: async (formData) => {
+        const empresaSel = formData['id_empresa'];
+        if (!empresaSel) return [];
+        try {
+          const resp = await fetch(`http://localhost:4000/api/papeleria/available-tipos?empresa=${empresaSel}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const json = await resp.json();
+          const list: string[] = json?.data || [];
+          return list.map(t => ({ value: t, label: t }));
+        } catch (_) {
+          return [];
+        }
+      },
+      dependsOnKeys: ['id_empresa'],
+      disabledWhen: (fd) => !fd['id_empresa']
     },
     { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
   ];

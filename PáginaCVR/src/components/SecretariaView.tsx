@@ -292,16 +292,31 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                   { key: 'fecha_entrega', label: 'Fecha Entrega' }
                 ]}
                 createFields={(() => {
+                  const token = localStorage.getItem('token') || ''
                   const opcionesEmpresas = (empresasAsignadas && empresasAsignadas.length > 0)
                     ? empresasAsignadas
                     : Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries())
                         .map(([value, label]) => ({ value: Number(value), label: String(label) }))
                   return [
                     { key: 'id_empresa', label: 'Empresa', type: 'select' as const, required: true, options: opcionesEmpresas },
-                    { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true, options: [
-                      { value: 'Venta', label: 'Venta' },
-                      { value: 'Compra', label: 'Compra' }
-                    ]},
+                    { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true,
+                      dynamicOptions: async (formData) => {
+                        const empresaSel = formData['id_empresa']
+                        if (!empresaSel) return []
+                        try {
+                          const resp = await fetch(`http://localhost:4000/api/papeleria/available-tipos?empresa=${empresaSel}`, {
+                            headers: { Authorization: `Bearer ${token}` }
+                          })
+                          const json = await resp.json()
+                          const list = json?.data || []
+                          return list.map((t: string) => ({ value: t, label: t }))
+                        } catch (_) {
+                          return []
+                        }
+                      },
+                      dependsOnKeys: ['id_empresa'],
+                      disabledWhen: (fd) => !fd['id_empresa']
+                    },
                     { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
                   ]
                 })()}

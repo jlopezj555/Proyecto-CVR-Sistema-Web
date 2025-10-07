@@ -15,6 +15,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
   const [dialogMessage, setDialogMessage] = useState("");
   const [revealPwd, setRevealPwd] = useState(false);
   const [revealPwd2, setRevealPwd2] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showLoadingDialog, setShowLoadingDialog] = useState(false);
   const onDown1 = () => setRevealPwd(true);
   const onUp1 = () => setRevealPwd(false);
   const onDown2 = () => setRevealPwd2(true);
@@ -45,6 +47,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
       return;
     }
 
+    setLoading(true);
+    setShowLoadingDialog(true);
     try {
       const response = await axios.post("http://localhost:4000/api/register", {
         nombre,
@@ -55,7 +59,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
       if (response.data.success) {
         setDialogMessage(`Bienvenido ${response.data.nombre}`);
         setShowSuccessDialog(true);
-        
         // Guardar sesión en cliente pero forzar rol/tipo como usuario normal (cliente)
         // para evitar que un registro público se convierta automáticamente en empleado.
         if (onLoginSuccess && response.data.token) {
@@ -73,9 +76,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
             foto: response.data.foto || ''
           });
         }
-        
         setTimeout(() => {
           setShowSuccessDialog(false);
+          setShowLoadingDialog(false);
+          setLoading(false);
           onClose();
         }, 2000);
       }
@@ -86,6 +90,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
         setDialogMessage("Hubo un error al registrar el usuario.");
       }
       setShowErrorDialog(true);
+    } finally {
+      setShowLoadingDialog(false);
+      setLoading(false);
     }
   };
 
@@ -108,12 +115,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
               Nombre completo:
               <input type="text" name="nombre" required />
             </label>
-
             <label>
               Correo electrónico:
               <input type="email" name="correo" required />
             </label>
-
             <label>
               Contraseña:
               <div className="password-input-wrap" style={{ position: 'relative' }}>
@@ -126,9 +131,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
                   onMouseDown={onDown1}
                   onMouseUp={onUp1}
                   onMouseLeave={onUp1}
-                  onTouchStart={(e) => { e.preventDefault(); onDown1(); }}
+                  onTouchStart={e => { e.preventDefault(); onDown1(); }}
                   onTouchEnd={onUp1}
-                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', opacity: 0.6, cursor: 'pointer', fontSize: 16, color: '#000' }}
+                  style={{ position: 'absolute', right: 8, top: '50%', background: 'transparent', border: 'none', opacity: 0.6, cursor: 'pointer', fontSize: 16, color: '#000' }}
                 >
                   {revealPwd ? (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -144,7 +149,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
                 </button>
               </div>
             </label>
-
             <label>
               Confirmar contraseña:
               <div className="password-input-wrap" style={{ position: 'relative' }}>
@@ -157,9 +161,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
                   onMouseDown={onDown2}
                   onMouseUp={onUp2}
                   onMouseLeave={onUp2}
-                  onTouchStart={(e) => { e.preventDefault(); onDown2(); }}
+                  onTouchStart={e => { e.preventDefault(); onDown2(); }}
                   onTouchEnd={onUp2}
-                  style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', opacity: 0.6, cursor: 'pointer', fontSize: 16, color: '#000' }}
+                  style={{ position: 'absolute', right: 8, top: '50%', background: 'transparent', border: 'none', opacity: 0.6, cursor: 'pointer', fontSize: 16, color: '#000' }}
                 >
                   {revealPwd2 ? (
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -175,9 +179,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
                 </button>
               </div>
             </label>
-
-            <button type="submit" className="register-btn">
-              Registrarse
+            <button type="submit" className="register-btn" disabled={loading}>
+              {loading ? 'Registrando...' : 'Registrarse'}
             </button>
           </form>
           <button className="register-close-btn" onClick={handleClose}>
@@ -185,7 +188,15 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
           </button>
         </div>
       </div>
-
+      {/* Loading dialog */}
+      {showLoadingDialog && (
+        <div className="register-dialog-overlay">
+          <div className="register-dialog loading-dialog">
+            <div className="dialog-icon loading-icon" style={{ fontSize: 32, color: '#2563eb' }}>⏳</div>
+            <div className="dialog-message">Iniciando sesión...</div>
+          </div>
+        </div>
+      )}
       {showSuccessDialog && (
         <div className="register-dialog-overlay">
           <div className="register-dialog success-dialog">
@@ -197,7 +208,6 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
           </div>
         </div>
       )}
-
       {showErrorDialog && (
         <div className="register-dialog-overlay">
           <div className="register-dialog error-dialog">
@@ -213,5 +223,4 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
   );
 };
 
-export default RegisterModal;
-
+  export default RegisterModal;

@@ -21,6 +21,7 @@ import iconEtapasCatalogo from '../assets/admin-etapas-catalogo-white.svg'
 import iconEtapasProceso from '../assets/admin-etapas-proceso-white.svg'
 import iconAsignaciones from '../assets/admin-asignaciones-white.svg'
 import iconRolEtapas from '../assets/admin-rol-etapas-white.svg'
+import Card from './Card'
 
 interface AdminViewProps {
   nombre: string
@@ -42,7 +43,7 @@ type AdminSection =
   | 'rol-etapas'
 
 const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, onSectionChange }) => {
-  const [activeSection, setActiveSection] = useState<AdminSection>('empleados')
+  const [activeSection, setActiveSection] = useState<AdminSection>('dashboard')
 
   // Sincronizar con el header si se provee externalSection
   useEffect(() => {
@@ -101,9 +102,32 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                 </div>
               </div>
               <div className="welcome-content">
-                <p className="welcome-description">
-                  Usa el menú de la izquierda para abrir los módulos de administración.
+                <p className="welcome-description" style={{ fontSize: 20, fontWeight: 500, marginBottom: 24, textAlign: 'center' }}>
+                  Selecciona un módulo para gestionar el sistema.<br />
+                  <span style={{ fontSize: 22, color: '#2563eb', fontWeight: 700 }}>Guía rápida de cada pestaña:</span>
                 </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 12, justifyItems: 'center' }}>
+                  {[
+                    { icon: iconUsuarios, title: 'Usuarios', desc: 'Gestión de usuarios del sistema. Crear, editar, activar.' },
+                    { icon: iconEmpleados, title: 'Empleados', desc: 'Alta y mantenimiento de empleados vinculados a Usuarios.' },
+                    { icon: iconEmpresas, title: 'Empresas', desc: 'Empresas clientes para asignación de roles y procesos.' },
+                    { icon: iconRoles, title: 'Roles', desc: 'Definición de roles y permisos funcionales.' },
+                    { icon: iconProcesos, title: 'Procesos', desc: 'Listado de procesos por empresa y filtros por mes asignado.' },
+                    { icon: iconPapeleria, title: 'Papelería', desc: 'Registro de papelería por mes. Auto-genera proceso (Venta/Compra).' },
+                    { icon: iconEtapasCatalogo, title: 'Etapas Catálogo', desc: 'Definición del catálogo de etapas disponibles.' },
+                    { icon: iconEtapasProceso, title: 'Etapas Proceso', desc: 'Visualización de etapas instanciadas por proceso y progreso.' },
+                    { icon: iconAsignaciones, title: 'Asignaciones', desc: 'Asignar roles a empleados por empresa.' },
+                    { icon: iconRolEtapas, title: 'Etapas por Rol', desc: 'Orden y asociación de etapas a cada rol.' }
+                  ].map((c, idx) => (
+                    <Card
+                      key={idx}
+                      title={c.title}
+                      text={<span style={{ fontSize: 16 }}>{c.desc}</span>}
+                      image={c.icon}
+                      imageAlt={c.title}
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           </div>
