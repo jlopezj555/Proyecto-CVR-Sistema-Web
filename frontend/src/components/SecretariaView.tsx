@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
+import API_CONFIG from '../config/api'
 import './AdminView.css'
 import './EtapasCuentaView.css'
 import iconProcesos from '../assets/admin-procesos-white.svg'
@@ -50,7 +51,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
       if (year) params.year = year
       if (month) params.month = month
 
-      const { data } = await axios.get<any>('http://localhost:4000/api/mis-procesos', {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       })
@@ -65,7 +66,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const cargarProgreso = async (id: number) => {
     setLoadingProgreso(prev => ({ ...prev, [id]: true }))
     try {
-      const { data } = await axios.get<any>(`http://localhost:4000/api/procesos/${id}/progreso`, {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos/${id}/progreso`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       const payload = data?.data || { porcentaje: 0, total: 0, completadas: 0 }
@@ -87,7 +88,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
   const cargarMisEmpresas = async () => {
     try {
-      const { data } = await axios.get<any>('http://localhost:4000/api/mis-empresas', {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-empresas`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       const opts = (data?.data || []).map((e: any) => ({ value: e.id_empresa, label: e.nombre_empresa }))
@@ -252,7 +253,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                                           // TODO: implement confirm envio
                                           if (window.confirm('¿Confirmar envío del proceso?')) {
                                             // call endpoint
-                                            axios.post(`http://localhost:4000/api/procesos/${p.id_proceso}/confirmar-envio`, {}, { headers: { Authorization: `Bearer ${token}` } })
+                                            axios.post(`${API_CONFIG.BASE_URL}/api/procesos/${p.id_proceso}/confirmar-envio`, {}, { headers: { Authorization: `Bearer ${token}` } })
                                               .then(() => { cargarProcesos(); cargarProgreso(p.id_proceso); })
                                               .catch(err => console.error('Error confirmando envío:', err))
                                           }
@@ -306,7 +307,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                         const empresaSel = formData['id_empresa']
                         if (!empresaSel) return []
                         try {
-                          const resp = await fetch(`http://localhost:4000/api/papeleria/available-tipos?empresa=${empresaSel}`, {
+                          const resp = await fetch(`${API_CONFIG.BASE_URL}/api/papeleria/available-tipos?empresa=${empresaSel}`, {
                             headers: { Authorization: `Bearer ${token}` }
                           })
                           const json = await resp.json()

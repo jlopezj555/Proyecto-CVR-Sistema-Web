@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import CRUDTable from './CRUDTable';
+import API_CONFIG from '../config/api';
 
 const AsignacionesCRUD: React.FC = () => {
   const [empleados, setEmpleados] = useState<any[]>([]);
@@ -14,7 +15,7 @@ const AsignacionesCRUD: React.FC = () => {
     const token = localStorage.getItem('token');
     
     // Cargar empleados
-    fetch('http://localhost:4000/api/empleados', {
+    fetch(`${API_CONFIG.BASE_URL}/api/empleados`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -22,7 +23,7 @@ const AsignacionesCRUD: React.FC = () => {
       .catch(console.error);
 
     // Cargar roles
-    fetch('http://localhost:4000/api/roles', {
+    fetch(`${API_CONFIG.BASE_URL}/api/roles`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -30,7 +31,7 @@ const AsignacionesCRUD: React.FC = () => {
       .catch(console.error);
 
     // Cargar empresas
-    fetch('http://localhost:4000/api/empresas', {
+    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())

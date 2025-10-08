@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import CRUDTable from './CRUDTable';
+import API_CONFIG from '../config/api'
 
 const RolEtapasCRUD: React.FC = () => {
   const [roles, setRoles] = useState<any[]>([]);
@@ -8,10 +9,10 @@ const RolEtapasCRUD: React.FC = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     Promise.all([
-      fetch('http://localhost:4000/api/roles', {
+      fetch(`${API_CONFIG.BASE_URL}/api/roles`, {
         headers: { Authorization: `Bearer ${token}` }
       }).then(r => r.json()).catch(() => ({ data: [] })),
-      fetch('http://localhost:4000/api/etapas-catalogo', {
+      fetch(`${API_CONFIG.BASE_URL}/api/etapas-catalogo`, {
         headers: { Authorization: `Bearer ${token}` }
       }).then(r => r.json()).catch(() => ({ data: [] }))
     ]).then(([r1, r2]) => {

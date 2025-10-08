@@ -19,6 +19,7 @@ import UserView from './components/UserView';
 import SecretariaView from './components/SecretariaView';
 import RevisorView from './components/RevisorView';
 import axios from 'axios';
+import API_CONFIG from './config/api';
 
 
 function App() {
@@ -155,7 +156,7 @@ function App() {
     const overlay = showLoadingDialog('Iniciando sesión...');
 
     try {
-      const response = await axios.post<any>('http://localhost:4000/api/login', {
+      const response = await axios.post<any>(`${API_CONFIG.BASE_URL}/api/login`, {
         correo: email,
         contrasena: password,
       });
@@ -232,7 +233,7 @@ function App() {
 
     const overlay = showLoadingDialog('Enviando mensaje...');
     try {
-  await axios.post<any>('http://localhost:4000/api/contact', payload);
+  await axios.post<any>(`${API_CONFIG.BASE_URL}/api/contact`, payload);
       // Feedback de éxito
       alert('Mensaje enviado. Gracias por contactarnos.');
       form.reset();

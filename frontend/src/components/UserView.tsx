@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
+import API_CONFIG from '../config/api'
 import './AdminView.css'
 import PasswordVerificationModal from './PasswordVerificationModal'
 import iconProcesos from '../assets/admin-procesos-white.svg'
@@ -80,7 +81,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
         params.month = mesFiltro
         params.year = anioFiltro
       }
-      const { data } = await axios.get<any>('http://localhost:4000/api/mis-procesos', {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       })
@@ -96,7 +97,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
   const cargarEtapas = async (procesoId: number) => {
     setLoadingEtapas(prev => ({ ...prev, [procesoId]: true }))
     try {
-      const { data } = await axios.get<any>(`http://localhost:4000/api/mis-procesos/${procesoId}/etapas`, {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos/${procesoId}/etapas`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setEtapasPorProceso(prev => ({ ...prev, [procesoId]: data.data || [] }))
@@ -131,7 +132,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     if (!pendingEtapaId) return false
     try {
       const resp = await axios.put<any>(
-        `http://localhost:4000/api/etapas-proceso/${pendingEtapaId}`,
+        `${API_CONFIG.BASE_URL}/api/etapas-proceso/${pendingEtapaId}`,
         { estado: 'Completada', contrasena: password },
         { headers: { Authorization: `Bearer ${token}` } }
       );

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import API_CONFIG from '../config/api';
 import './EtapasCuentaView.css';
 
 interface ProcesoItem {
@@ -61,7 +62,7 @@ const EtapasProcesoView: React.FC = () => {
       if (empresaFiltro) params.empresa = empresaFiltro;
       if (anioFiltro) params.year = anioFiltro;
       if (mesFiltro) params.month = mesFiltro;
-      const response = await axios.get<any>('http://localhost:4000/api/procesos', {
+      const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       });
@@ -73,7 +74,7 @@ const EtapasProcesoView: React.FC = () => {
 
   const fetchCatalogo = async () => {
     try {
-      const response = await axios.get<any>('http://localhost:4000/api/etapas-catalogo', {
+      const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/etapas-catalogo`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const list: EtapaCatalogoItem[] = ((response.data as any)?.data || []).map((e: any) => ({
@@ -93,7 +94,7 @@ const EtapasProcesoView: React.FC = () => {
 
   const fetchEtapasDeProceso = async (id_proceso: number) => {
     try {
-      const response = await axios.get<any>(`http://localhost:4000/api/procesos/${id_proceso}/etapas`, {
+      const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos/${id_proceso}/etapas`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setEtapasPorProceso(prev => ({ ...prev, [id_proceso]: (response.data as any).data || [] }));

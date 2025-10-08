@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import CRUDTable from './CRUDTable';
 import type { Column } from './CRUDTable';
+import API_CONFIG from '../config/api'
 
 const EmpleadosCRUD: React.FC = () => {
   const [empresas, setEmpresas] = useState<any[]>([]);
@@ -11,7 +12,7 @@ const EmpleadosCRUD: React.FC = () => {
     const token = localStorage.getItem('token');
     
     // Cargar empresas
-    fetch('http://localhost:4000/api/empresas', {
+    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -19,7 +20,7 @@ const EmpleadosCRUD: React.FC = () => {
       .catch(console.error);
 
     // Cargar roles
-    fetch('http://localhost:4000/api/roles', {
+    fetch(`${API_CONFIG.BASE_URL}/api/roles`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())

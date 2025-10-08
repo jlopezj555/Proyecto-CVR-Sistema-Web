@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import CRUDTable from './CRUDTable';
+import API_CONFIG from '../config/api';
 
 const ClientesCRUD: React.FC = () => {
   const [empresas, setEmpresas] = useState<any[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    fetch('http://localhost:4000/api/empresas', {
+    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())

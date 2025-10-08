@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import API_CONFIG from '../config/api';
 import './CRUDTable.css';
 import PasswordVerificationModal from './PasswordVerificationModal';
 
@@ -74,7 +75,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get<any>(`http://localhost:4000/api/${endpoint}`, {
+      const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/${endpoint}`, {
         headers: { Authorization: `Bearer ${token}` },
         params: queryParams || {}
       });
@@ -147,37 +148,37 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   const handleAdminVerify = async (password: string): Promise<boolean> => {
     try {
       if (pendingAction === 'create') {
-        const payload = { ...formData };
-        (payload as any).adminContrasena = password;
-        const resp = await axios.post<any>(`http://localhost:4000/api/${endpoint}`,
-          payload,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const payload = { ...(formData || {}) } as any;
+        payload.adminContrasena = password;
+        const resp = await axios.post<any>(`${API_CONFIG.BASE_URL}/api/${endpoint}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
         setSuccess('Registro creado exitosamente');
         setShowCreateModal(false);
         setFormData({});
         try {
           await afterCreate?.((resp?.data as any)?.data ?? null, formData);
-        } catch (_) {}
+        } catch (_) { }
       } else if (pendingAction === 'update') {
         if (!selectedItem) return false;
-        const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
-        const payload = { ...formData } as any;
-        (payload as any).adminContrasena = password;
-        await axios.put<any>(`http://localhost:4000/api/${endpoint}/${id}`,
-          payload,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const idKey = `id_${endpoint.slice(0, -1)}`;
+        const id = selectedItem[idKey];
+        const payload = { ...(formData || {}) } as any;
+        payload.adminContrasena = password;
+        await axios.put<any>(`${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
 
         setSuccess('Registro actualizado exitosamente');
         setShowEditModal(false);
         setSelectedItem(null);
       } else if (pendingAction === 'delete') {
         if (!selectedItem) return false;
-        const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
+        const idKey = `id_${endpoint.slice(0, -1)}`;
+        const id = selectedItem[idKey];
         await axios.request({
-          url: `http://localhost:4000/api/${endpoint}/${id}`,
+          url: `${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`,
           method: 'delete',
           data: { adminContrasena: password },
           headers: { Authorization: `Bearer ${token}` }
@@ -194,7 +195,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       setTimeout(() => setSuccess(''), 3000);
       return true;
     } catch (error: any) {
-      const msg = error.response?.data?.message || 'Error en la operación';
+      const msg = error?.response?.data?.message || 'Error en la operación';
       setError(msg);
       setPasswordModalError(msg);
       return false;

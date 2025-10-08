@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import API_CONFIG from '../config/api';
 import "./RegisterModal.css";
 
 interface RegisterModalProps {
@@ -46,7 +47,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
     }
 
     try {
-      const response = await axios.post<any>("http://localhost:4000/api/register", {
+  const response = await axios.post<any>(`${API_CONFIG.BASE_URL}/api/register`, {
         nombre,
         correo,
         password,

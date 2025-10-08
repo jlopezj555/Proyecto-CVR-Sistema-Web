@@ -1,6 +1,7 @@
 import React from 'react';
 import axios from 'axios';
 import CRUDTable from './CRUDTable';
+import API_CONFIG from '../config/api'
 
 const UsuariosCRUD: React.FC = () => {
   const columns = [
@@ -31,7 +32,7 @@ const UsuariosCRUD: React.FC = () => {
     const onClick = async () => {
       if (disabled) return;
       try {
-        await axios.post(`http://localhost:4000/api/usuarios/${item.id_usuario}/convertir-empleado`, {}, {
+        await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}/convertir-empleado`, {}, {
           headers: { Authorization: `Bearer ${token}` }
         });
         refresh();
