@@ -2799,4 +2799,7 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor CVR ejecutándose en puerto ${PORT}`);
   console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
+  if (process.env.PORT && process.env.PORT === '8080') {
+    console.warn('Advertencia: se detectó PORT=8080 en el entorno. En Railway deje que el sistema asigne el PORT dinámicamente (no establezca PORT manualmente).');
+  }
 });
