@@ -8,12 +8,18 @@ import nodemailer from "nodemailer";
 import crypto from "crypto";
 import dotenv from "dotenv";
 import { emailConfig } from "./config.js";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
 
 dotenv.config(); // carga .env en desarrollo
 
 const app = express();
-app.use(cors());
 app.use(express.json());
+
+// __dirname for ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Helper
 const toNumber = (v, fallback) => (v ? Number(v) : fallback);
@@ -2758,10 +2764,26 @@ app.post('/api/contact', async (req, res) => {
 
 // Hook: si en crear/editar etapa se envía id_rol, registrar/actualizar en RolEtapaCatalogo
 
-// Root route
-app.get('/', (req, res) => {
-  res.status(200).send('CVR Sistema Web - Backend');
-});
+// Static frontend (if built) and root route
+const distDir = path.resolve(__dirname, "..", "frontend", "dist");
+if (fs.existsSync(distDir)) {
+  app.use(express.static(distDir));
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+  // For client-side routing, serve index.html for unknown non-API routes
+  app.get(/^(?!\/api\/).+/, (req, res, next) => {
+    const accept = String(req.headers.accept || '');
+    if (accept.includes('text/html')) {
+      return res.sendFile(path.join(distDir, 'index.html'));
+    }
+    next();
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.status(200).send('CVR Sistema Web - Backend');
+  });
+}
 
 // Health check endpoint para Railway
 app.get('/api/health', async (req, res) => {
