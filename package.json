@@ -3,15 +3,14 @@
   "version": "1.0.0",
   "description": "Sistema Web CVR - Frontend React + Backend Express",
   "main": "backend/server.js",
-  "scripts": {
-  "install:all": "npm install && cd frontend && npm install && cd backend && npm install",
-  "build": "cd frontend && npm run build",
+"scripts": {
+  "install:all": "npm install && npm --prefix frontend install && npm --prefix backend install",
+  "build": "npm --prefix frontend run build",
   "start": "node backend/server.js",
   "start:prod": "node backend/server.js",
-  "dev": "cd frontend && npm run dev",
+  "dev": "npm --prefix frontend run dev",
   "test": "echo \"Error: no test specified\" && exit 1"
 }
-
 ,
   "keywords": ["cvr", "sistema", "web", "react", "express"],
   "author": "CVR Asesoría",
