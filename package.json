@@ -11,6 +11,7 @@
   "dev": "cd frontend && npm run dev",
   "test": "echo \"Error: no test specified\" && exit 1"
 }
+
 ,
   "keywords": ["cvr", "sistema", "web", "react", "express"],
   "author": "CVR Asesoría",
