@@ -2776,9 +2776,12 @@ app.get('/api/health', async (req, res) => {
   res.status(200).json(info);
 });
 
-// Configurar CORS para producción
+// Normalize FRONTEND_URL and configure CORS for production
+const FRONTEND_URL_RAW = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = String(FRONTEND_URL_RAW).replace(/\/+$/g, ''); // remove trailing slashes
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: FRONTEND_URL,
   credentials: true,
   optionsSuccessStatus: 200
 };
@@ -2787,7 +2790,7 @@ app.use(cors(corsOptions));
 
 // Startup diagnostics (no secrets printed)
 console.log('--- Startup diagnostics ---');
-console.log('FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
+console.log('FRONTEND_URL:', FRONTEND_URL || '(not set)');
 console.log('DATABASE_URL present:', !!process.env.DATABASE_URL);
 console.log('JWT_SECRET present:', !!process.env.JWT_SECRET);
 console.log('EMAIL_ENABLED (transporter configured):', EMAIL_ENABLED);
@@ -2799,7 +2802,9 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor CVR ejecutándose en puerto ${PORT}`);
   console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
-  if (process.env.PORT && process.env.PORT === '8080') {
-    console.warn('Advertencia: se detectó PORT=8080 en el entorno. En Railway deje que el sistema asigne el PORT dinámicamente (no establezca PORT manualmente).');
+  if (process.env.PORT) {
+    console.log(`Usando PORT desde el entorno: ${process.env.PORT}`);
+  } else {
+    console.warn('No se encontró variable PORT en el entorno; usando el fallback 8080. En Railway, lo típico es no fijar PORT manualmente y dejar que la plataforma lo inyecte.');
   }
 });
