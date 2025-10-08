@@ -2785,6 +2785,15 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Startup diagnostics (no secrets printed)
+console.log('--- Startup diagnostics ---');
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
+console.log('DATABASE_URL present:', !!process.env.DATABASE_URL);
+console.log('JWT_SECRET present:', !!process.env.JWT_SECRET);
+console.log('EMAIL_ENABLED (transporter configured):', EMAIL_ENABLED);
+console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');
+console.log('---------------------------');
+
 // Iniciar servidor
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
