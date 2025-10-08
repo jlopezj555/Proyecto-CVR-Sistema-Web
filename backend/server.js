@@ -50,8 +50,30 @@ if (process.env.DATABASE_URL) {
 // Secret for JWT
 const JWT_SECRET = process.env.JWT_SECRET || "secreto_super_seguro";
 
-// Configuración de nodemailer para envío de correos
-const transporter = nodemailer.createTransport(emailConfig);
+// Configuración de nodemailer para envío de correos (solo si hay credenciales)
+let transporter = null;
+let EMAIL_ENABLED = false;
+try {
+  if (emailConfig.auth.user && emailConfig.auth.pass) {
+    transporter = nodemailer.createTransport(emailConfig);
+    EMAIL_ENABLED = true;
+    console.log('✉️ Email enabled: transporter configured');
+  } else {
+    console.log('✉️ Email disabled: EMAIL_USER or EMAIL_PASS not provided');
+  }
+} catch (err) {
+  transporter = null;
+  EMAIL_ENABLED = false;
+  console.warn('✉️ Error configuring transporter, emails disabled:', err.message || err);
+}
+
+const sendMailSafe = async (mailOptions) => {
+  if (!EMAIL_ENABLED || !transporter) {
+    console.log('✉️ Skipping sendMail (disabled). mailOptions:', { to: mailOptions.to, subject: mailOptions.subject });
+    return null;
+  }
+  return transporter.sendMail(mailOptions);
+};
 
 
 
@@ -193,9 +215,11 @@ const enviarCorreoBienvenida = async (correo, nombre) => {
       //  }]
     };
 
-    const result = await transporter.sendMail(mailOptions);
-    console.log(` Correo de bienvenida enviado exitosamente a: ${correo}`);
-    console.log(` Message ID: ${result.messageId}`);
+    const result = await sendMailSafe(mailOptions);
+    if (result) {
+      console.log(` Correo de bienvenida enviado exitosamente a: ${correo}`);
+      console.log(` Message ID: ${result.messageId}`);
+    }
   } catch (error) {
     console.error(' Error enviando correo de bienvenida:', error);
   }
@@ -243,9 +267,11 @@ const enviarNotificacionLogin = async (correo, nombre, tipoUsuario) => {
       // }]
     };
 
-    const result = await transporter.sendMail(mailOptions);
-    console.log(` Notificación de login enviada exitosamente a: ${correo}`);
-    console.log(` Message ID: ${result.messageId}`);
+    const result = await sendMailSafe(mailOptions);
+    if (result) {
+      console.log(` Notificación de login enviada exitosamente a: ${correo}`);
+      console.log(` Message ID: ${result.messageId}`);
+    }
   } catch (error) {
     console.error(' Error enviando notificación de login:', error);
   }

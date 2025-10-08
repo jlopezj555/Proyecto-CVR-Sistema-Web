@@ -2,15 +2,15 @@
 export const emailConfig = {
   // Configuración de Stackmail
   host: process.env.EMAIL_HOST || 'mx.stackmail.com',
-  port: parseInt(process.env.EMAIL_PORT) || 465,
-  secure: process.env.EMAIL_SECURE === 'true' || true,
+  port: process.env.EMAIL_PORT ? parseInt(process.env.EMAIL_PORT, 10) : 465,
+  secure: (typeof process.env.EMAIL_SECURE !== 'undefined') ? (process.env.EMAIL_SECURE === 'true') : true,
   auth: {
-    user: process.env.EMAIL_USER || 'impuestos@cvrasesoria.com.gt',
-    pass: process.env.EMAIL_PASS || 'Puesto2025!'
+    user: process.env.EMAIL_USER || '',
+    pass: process.env.EMAIL_PASS || ''
   },
 
   // Configuración de la empresa
-  from: `CVR Asesoría <${process.env.EMAIL_USER || 'impuestos@cvrasesoria.com.gt'}>`,
+  from: process.env.EMAIL_FROM || `CVR Asesoría <${process.env.EMAIL_USER || ''}>`,
 
   // Dominios de correo considerados "reales"
   realEmailDomains: [
