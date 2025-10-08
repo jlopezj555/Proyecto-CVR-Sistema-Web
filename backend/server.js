@@ -12,13 +12,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',  
-  password: process.env.DB_PASSWORD || '1234',  
-  database: process.env.DB_NAME || 'CVR_LDD',
-  port: process.env.DB_PORT || 3306
-});
+const pool = mysql.createPool(process.env.DATABASE_URL);
+
 
 // Secret for JWT
 const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro';
