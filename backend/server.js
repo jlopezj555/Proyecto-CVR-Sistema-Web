@@ -1,4 +1,4 @@
-// server.js
+// server.js (inicio actualizado)
 import express from "express";
 import mysql from "mysql2/promise";
 import cors from "cors";
@@ -6,20 +6,54 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
+import dotenv from "dotenv";
 import { emailConfig } from "./config.js";
+
+dotenv.config(); // carga .env en desarrollo
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const pool = mysql.createPool(process.env.DATABASE_URL);
+// Helper
+const toNumber = (v, fallback) => (v ? Number(v) : fallback);
 
+// Crear pool: usar DATABASE_URL si existe (Railway), si no, usar variables por piezas (local)
+let pool;
+if (process.env.DATABASE_URL) {
+  console.log("🔌 Conectando a MySQL usando DATABASE_URL");
+  pool = mysql.createPool(process.env.DATABASE_URL);
+} else {
+  console.log("🔧 DATABASE_URL no encontrada — usando configuración local por piezas");
+  pool = mysql.createPool({
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.DB_PASSWORD || "1234",
+    database: process.env.DB_NAME || "CVR_LDD",
+    port: toNumber(process.env.DB_PORT, 3306),
+    waitForConnections: true,
+    connectionLimit: toNumber(process.env.DB_CONN_LIMIT, 10),
+    queueLimit: 0
+  });
+}
+
+// Comprobar conexión (no aborta el proceso si falla)
+(async () => {
+  try {
+    await pool.query("SELECT 1");
+    console.log("✅ Conexión inicial a MySQL: OK");
+  } catch (err) {
+    console.error("⚠️ Error inicial al conectar a MySQL (se seguirá ejecutando la app):", err.message);
+  }
+})();
 
 // Secret for JWT
-const JWT_SECRET = process.env.JWT_SECRET || 'secreto_super_seguro';
+const JWT_SECRET = process.env.JWT_SECRET || "secreto_super_seguro";
 
 // Configuración de nodemailer para envío de correos
 const transporter = nodemailer.createTransport(emailConfig);
+
+
 
 // Función para generar URL de Gravatar
 const getGravatarUrl = (email) => {
