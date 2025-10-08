@@ -56,7 +56,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
     setLoading(true)
     try {
       // endpoint acepta query param nivel para filtrar según regla solicitada
-      const { data } = await axios.get('http://localhost:4000/api/revisor/procesos-terminados', {
+      const { data } = await axios.get<any>('http://localhost:4000/api/revisor/procesos-terminados', {
         headers: { Authorization: `Bearer ${token}` }
       })
       setProcesos(data.data || [])
@@ -70,7 +70,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const loadEtapas = async (id: number) => {
     setLoadingEtapas(prev => ({ ...prev, [id]: true }))
     try {
-      const { data } = await axios.get(`http://localhost:4000/api/revisor/procesos/${id}/etapas`, {
+      const { data } = await axios.get<any>(`http://localhost:4000/api/revisor/procesos/${id}/etapas`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setEtapas(prev => ({ ...prev, [id]: data.data || [] }))
@@ -110,7 +110,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
         etapasFallidas,
         contrasena: pwd
       };
-      const { data } = await axios.post(`http://localhost:4000/api/revisor/procesos/${procesoId}/rechazar`, payload, {
+      const { data } = await axios.post<any>(`http://localhost:4000/api/revisor/procesos/${procesoId}/rechazar`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (data.success !== false) {
@@ -127,7 +127,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const aprobar = async (procesoId: number, pwd: string) => {
     try {
       const payload = { contrasena: pwd };
-      const { data } = await axios.post(`http://localhost:4000/api/revisor/procesos/${procesoId}/aprobar`, payload, {
+      const { data } = await axios.post<any>(`http://localhost:4000/api/revisor/procesos/${procesoId}/aprobar`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (data.success !== false) {

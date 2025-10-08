@@ -46,13 +46,13 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
     }
 
     try {
-      const response = await axios.post("http://localhost:4000/api/register", {
+      const response = await axios.post<any>("http://localhost:4000/api/register", {
         nombre,
         correo,
         password,
       });
 
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         setDialogMessage(`Bienvenido ${response.data.nombre}`);
         setShowSuccessDialog(true);
         
@@ -80,8 +80,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
         }, 2000);
       }
     } catch (error: any) {
-      if (error.response && error.response.data) {
-        setDialogMessage(error.response.data.message);
+      const err = error as any
+      if (err && err.response && err.response.data) {
+        setDialogMessage(err.response.data.message || 'Error en el registro');
       } else {
         setDialogMessage("Hubo un error al registrar el usuario.");
       }

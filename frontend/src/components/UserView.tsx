@@ -80,13 +80,14 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
         params.month = mesFiltro
         params.year = anioFiltro
       }
-      const { data } = await axios.get('http://localhost:4000/api/mis-procesos', {
+      const { data } = await axios.get<any>('http://localhost:4000/api/mis-procesos', {
         headers: { Authorization: `Bearer ${token}` },
         params
       })
       setProcesos(data.data || [])
     } catch (error) {
-      console.error('Error cargando procesos del usuario:', error)
+      const err = error as any
+      console.error('Error cargando procesos del usuario:', err)
     } finally {
       setLoadingProcesos(false)
     }
@@ -95,12 +96,13 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
   const cargarEtapas = async (procesoId: number) => {
     setLoadingEtapas(prev => ({ ...prev, [procesoId]: true }))
     try {
-      const { data } = await axios.get(`http://localhost:4000/api/mis-procesos/${procesoId}/etapas`, {
+      const { data } = await axios.get<any>(`http://localhost:4000/api/mis-procesos/${procesoId}/etapas`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setEtapasPorProceso(prev => ({ ...prev, [procesoId]: data.data || [] }))
     } catch (error) {
-      console.error('Error cargando etapas del proceso:', error)
+      const err = error as any
+      console.error('Error cargando etapas del proceso:', err)
     } finally {
       setLoadingEtapas(prev => ({ ...prev, [procesoId]: false }))
     }
@@ -128,12 +130,12 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
   const onVerifyAndUpdate = async (password: string) => {
     if (!pendingEtapaId) return false
     try {
-      const resp = await axios.put(
+      const resp = await axios.put<any>(
         `http://localhost:4000/api/etapas-proceso/${pendingEtapaId}`,
         { estado: 'Completada', contrasena: password },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (resp.data?.success) {
+      if (resp.data && resp.data.success) {
         if (expandedProcesoId) await cargarEtapas(expandedProcesoId)
         return true
       }

@@ -50,7 +50,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
       if (year) params.year = year
       if (month) params.month = month
 
-      const { data } = await axios.get('http://localhost:4000/api/mis-procesos', {
+      const { data } = await axios.get<any>('http://localhost:4000/api/mis-procesos', {
         headers: { Authorization: `Bearer ${token}` },
         params
       })
@@ -65,7 +65,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const cargarProgreso = async (id: number) => {
     setLoadingProgreso(prev => ({ ...prev, [id]: true }))
     try {
-      const { data } = await axios.get(`http://localhost:4000/api/procesos/${id}/progreso`, {
+      const { data } = await axios.get<any>(`http://localhost:4000/api/procesos/${id}/progreso`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       const payload = data?.data || { porcentaje: 0, total: 0, completadas: 0 }
@@ -87,13 +87,15 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
   const cargarMisEmpresas = async () => {
     try {
-      const { data } = await axios.get('http://localhost:4000/api/mis-empresas', {
+      const { data } = await axios.get<any>('http://localhost:4000/api/mis-empresas', {
         headers: { Authorization: `Bearer ${token}` }
       })
       const opts = (data?.data || []).map((e: any) => ({ value: e.id_empresa, label: e.nombre_empresa }))
       setEmpresasAsignadas(opts)
     } catch (e) {
       // Fallback: derivar desde procesos si el endpoint no existe
+      const _err = e as any
+      console.warn('Error cargando mis empresas, usando fallback:', _err)
       const fallback = Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries())
         .map(([value, label]) => ({ value: Number(value), label: String(label) }))
       setEmpresasAsignadas(fallback)
