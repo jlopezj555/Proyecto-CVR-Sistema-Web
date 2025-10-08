@@ -15,6 +15,12 @@ export default defineConfig({
       }
     }
   },
+  // Allow preview to accept requests for the Railway-generated host.
+  // Add any other frontend hostnames you configure in Railway here.
+  preview: {
+    // Replace or extend this list with your production frontend host if needed
+    allowedHosts: ['cvr-asesoria-legal-y-contable-production.up.railway.app']
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,

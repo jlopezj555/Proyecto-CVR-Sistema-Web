@@ -1,6 +1,7 @@
 // Configuración de la API
-// Si VITE_API_URL no está definido, usamos path relativo para que el frontend haga requests al mismo host
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+// Preferimos VITE_API_URL, si no existe, aceptamos VITE_API_GET (tu variable personalizada),
+// y finalmente fallback a path relativo para que el frontend haga requests al mismo host
+const API_BASE_URL = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_GET || '';
 
 export const API_CONFIG = {
   BASE_URL: API_BASE_URL,
