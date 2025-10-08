@@ -1859,8 +1859,6 @@ app.delete('/api/asignaciones/:id', verificarToken, verificarAdmin, verificarPas
   }
 });
 
-app.listen(4000, () => console.log('Servidor corriendo en http://localhost:4000'));
- 
 // ============================================
 // ENDPOINTS PARA USUARIOS AUTENTICADOS (EMPLEADOS)
 // ============================================
