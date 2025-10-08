@@ -61,11 +61,11 @@ const EtapasProcesoView: React.FC = () => {
       if (empresaFiltro) params.empresa = empresaFiltro;
       if (anioFiltro) params.year = anioFiltro;
       if (mesFiltro) params.month = mesFiltro;
-      const response = await axios.get('http://localhost:4000/api/procesos', {
+      const response = await axios.get<any>('http://localhost:4000/api/procesos', {
         headers: { Authorization: `Bearer ${token}` },
         params
       });
-      setProcesos(response.data.data || []);
+      setProcesos((response.data as any).data || []);
     } catch (error) {
       console.error('Error cargando procesos:', error);
     }
@@ -73,10 +73,10 @@ const EtapasProcesoView: React.FC = () => {
 
   const fetchCatalogo = async () => {
     try {
-      const response = await axios.get('http://localhost:4000/api/etapas-catalogo', {
+      const response = await axios.get<any>('http://localhost:4000/api/etapas-catalogo', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const list: EtapaCatalogoItem[] = (response.data?.data || []).map((e: any) => ({
+      const list: EtapaCatalogoItem[] = ((response.data as any)?.data || []).map((e: any) => ({
         id_etapa: e.id_etapa,
         nombre_etapa: e.nombre_etapa,
         descripcion: e.descripcion,
@@ -93,10 +93,10 @@ const EtapasProcesoView: React.FC = () => {
 
   const fetchEtapasDeProceso = async (id_proceso: number) => {
     try {
-      const response = await axios.get(`http://localhost:4000/api/procesos/${id_proceso}/etapas`, {
+      const response = await axios.get<any>(`http://localhost:4000/api/procesos/${id_proceso}/etapas`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setEtapasPorProceso(prev => ({ ...prev, [id_proceso]: response.data.data || [] }));
+      setEtapasPorProceso(prev => ({ ...prev, [id_proceso]: (response.data as any).data || [] }));
     } catch (error) {
       console.error(`Error cargando etapas del proceso ${id_proceso}:`, error);
       setEtapasPorProceso(prev => ({ ...prev, [id_proceso]: [] }));

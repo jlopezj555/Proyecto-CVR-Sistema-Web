@@ -74,11 +74,11 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:4000/api/${endpoint}`, {
+      const response = await axios.get<any>(`http://localhost:4000/api/${endpoint}`, {
         headers: { Authorization: `Bearer ${token}` },
         params: queryParams || {}
       });
-      setData(response.data.data);
+      setData((response.data as any).data);
     } catch (error: any) {
       setError(error.response?.data?.message || 'Error al cargar los datos');
     } finally {
@@ -149,7 +149,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       if (pendingAction === 'create') {
         const payload = { ...formData };
         (payload as any).adminContrasena = password;
-        const resp = await axios.post(`http://localhost:4000/api/${endpoint}`,
+        const resp = await axios.post<any>(`http://localhost:4000/api/${endpoint}`,
           payload,
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -158,14 +158,14 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
         setShowCreateModal(false);
         setFormData({});
         try {
-          await afterCreate?.(resp?.data?.data ?? null, formData);
+          await afterCreate?.((resp?.data as any)?.data ?? null, formData);
         } catch (_) {}
       } else if (pendingAction === 'update') {
         if (!selectedItem) return false;
         const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
         const payload = { ...formData } as any;
         (payload as any).adminContrasena = password;
-        await axios.put(`http://localhost:4000/api/${endpoint}/${id}`,
+        await axios.put<any>(`http://localhost:4000/api/${endpoint}/${id}`,
           payload,
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -176,7 +176,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       } else if (pendingAction === 'delete') {
         if (!selectedItem) return false;
         const id = selectedItem[`id_${endpoint.slice(0, -1)}`];
-        await axios.delete(`http://localhost:4000/api/${endpoint}/${id}`, {
+        await axios.request({
+          url: `http://localhost:4000/api/${endpoint}/${id}`,
+          method: 'delete',
           data: { adminContrasena: password },
           headers: { Authorization: `Bearer ${token}` }
         });

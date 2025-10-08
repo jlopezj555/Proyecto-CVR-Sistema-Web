@@ -155,13 +155,13 @@ function App() {
     const overlay = showLoadingDialog('Iniciando sesión...');
 
     try {
-      const response = await axios.post('http://localhost:4000/api/login', {
+      const response = await axios.post<any>('http://localhost:4000/api/login', {
         correo: email,
         contrasena: password,
       });
 
-      if (response.data.success) {
-        const { nombre, rol, token, tipo, foto } = response.data;
+      if ((response.data as any).success) {
+        const { nombre, rol, token, tipo, foto } = (response.data as any);
 
         // Store token and user data
         localStorage.setItem('token', token);
@@ -178,11 +178,11 @@ function App() {
         // Registrar actividad inicial al iniciar sesión
         localStorage.setItem('lastActivity', Date.now().toString());
       } else {
-        showErrorDialog(response.data.message || 'Credenciales incorrectas');
+  showErrorDialog((response.data as any).message || 'Credenciales incorrectas');
       }
     } catch (error: any) {
       console.error('Error al iniciar sesión:', error);
-      const errorMessage = error.response?.data?.message || 'Usuario o contraseña inválidos';
+  const errorMessage = (error.response?.data as any)?.message || 'Usuario o contraseña inválidos';
       showErrorDialog(errorMessage);
     } finally {
       setTimeout(() => document.body.removeChild(overlay), 2500);
@@ -232,13 +232,13 @@ function App() {
 
     const overlay = showLoadingDialog('Enviando mensaje...');
     try {
-      await axios.post('http://localhost:4000/api/contact', payload);
+  await axios.post<any>('http://localhost:4000/api/contact', payload);
       // Feedback de éxito
       alert('Mensaje enviado. Gracias por contactarnos.');
       form.reset();
     } catch (error: any) {
       console.error('Error enviando contacto:', error);
-      const errorMessage = error?.response?.data?.message || 'No se pudo enviar el mensaje, intenta nuevamente.';
+  const errorMessage = (error?.response?.data as any)?.message || 'No se pudo enviar el mensaje, intenta nuevamente.';
       showErrorDialog(errorMessage);
     } finally {
       setTimeout(() => document.body.removeChild(overlay), 800);
