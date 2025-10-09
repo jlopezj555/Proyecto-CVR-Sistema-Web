@@ -13,6 +13,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [showErrorDialog, setShowErrorDialog] = useState(false);
   const [dialogMessage, setDialogMessage] = useState("");
+  const [loading, setLoading] = useState(false);
   const [revealPwd, setRevealPwd] = useState(false);
   const [revealPwd2, setRevealPwd2] = useState(false);
   const onDown1 = () => setRevealPwd(true);
@@ -32,6 +33,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
 
   const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
+    setLoading(true);
 
     const formData = new FormData(event.target as HTMLFormElement);
     const nombre = formData.get("nombre") as string;
@@ -76,6 +78,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
         
         setTimeout(() => {
           setShowSuccessDialog(false);
+          setLoading(false);
           onClose();
         }, 2000);
       }
@@ -86,6 +89,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
         setDialogMessage("Hubo un error al registrar el usuario.");
       }
       setShowErrorDialog(true);
+      setLoading(false);
     }
   };
 
@@ -177,7 +181,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
             </label>
 
             <button type="submit" className="register-btn">
-              Registrarse
+                {loading ? 'Registrando...' : 'Registrarse'}
             </button>
           </form>
           <button className="register-close-btn" onClick={handleClose}>
@@ -206,6 +210,18 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
             <button className="dialog-close-btn" onClick={closeErrorDialog}>
               Cerrar
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Overlay de carga — usar misma estructura visual que LoginModal */}
+      {loading && (
+        <div className={`modal-overlay`}> 
+          <div className={`login-modal`}>
+            <div className="register-loading">
+              <div className="spinner" aria-hidden="true" />
+              <div>Iniciando sesión...</div>
+            </div>
           </div>
         </div>
       )}

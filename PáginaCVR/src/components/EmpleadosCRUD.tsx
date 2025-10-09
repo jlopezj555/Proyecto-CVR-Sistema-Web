@@ -1,30 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import CRUDTable from './CRUDTable';
 
 const EmpleadosCRUD: React.FC = () => {
-  const [empresas, setEmpresas] = useState<any[]>([]);
-  const [roles, setRoles] = useState<any[]>([]);
-
-  useEffect(() => {
-    // Cargar datos de referencia para los selects
-    const token = localStorage.getItem('token');
-    
-    // Cargar empresas
-    fetch('http://localhost:4000/api/empresas', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setEmpresas(data.data || []))
-      .catch(console.error);
-
-    // Cargar roles
-    fetch('http://localhost:4000/api/roles', {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(res => res.json())
-      .then(data => setRoles(data.data || []))
-      .catch(console.error);
-  }, []);
+  
 
   const columns = [
     { key: 'id_empleado', label: 'ID' },
@@ -56,6 +34,7 @@ const EmpleadosCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
+      allowEdit={false}
     />
   );
 };
