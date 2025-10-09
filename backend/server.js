@@ -18,22 +18,27 @@ const app = express();
 app.use(express.json());
 
 // Configuración CORS
-const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+const allowedOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
 
 const corsOptions = {
   origin(origin, cb) {
-    if (!origin) return cb(null, true); // permite curl/Postman
+    if (!origin) return cb(null, true);
     if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return cb(null, true);
     return cb(new Error('Not allowed by CORS'));
   },
-  credentials: process.env.CORS_CREDENTIALS === 'true', // true SOLO si usas cookies
+  credentials: process.env.CORS_CREDENTIALS === 'true',
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+  optionsSuccessStatus: 204,
   maxAge: 86400,
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // responde preflight con headers CORS
+// IMPORTANTE: en Express 5 no uses '*' — usa '(.*)'
+app.options('(.*)', cors(corsOptions));
 
 // __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
