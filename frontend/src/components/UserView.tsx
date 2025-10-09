@@ -78,8 +78,11 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
       if (empresaFiltro) params.empresa = empresaFiltro
       if (rolFiltro) params.rol = rolFiltro
       if (mesFiltro && anioFiltro) {
-        params.month = mesFiltro
-        params.year = anioFiltro
+        // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
+        const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro
+        params.month = mesAnterior
+        params.year = anioAnterior
       }
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos`, {
         headers: { Authorization: `Bearer ${token}` },

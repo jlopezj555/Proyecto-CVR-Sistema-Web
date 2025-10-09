@@ -1,4 +1,7 @@
 // server.js (inicio actualizado)
+import dotenv from "dotenv";
+dotenv.config(); // carga .env ANTES de importar otros módulos
+
 import express from "express";
 import mysql from "mysql2/promise";
 import cors from "cors";
@@ -6,13 +9,10 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-import dotenv from "dotenv";
-import { emailConfig } from "./config.js";
+import { emailConfig, checkEmailConfig } from "./config.js";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-
-dotenv.config(); // carga .env en desarrollo
 
 const app = express();
 app.use(express.json());
@@ -59,11 +59,34 @@ const JWT_SECRET = process.env.JWT_SECRET || "secreto_super_seguro";
 // Configuración de nodemailer para envío de correos (solo si hay credenciales)
 let transporter = null;
 let EMAIL_ENABLED = false;
+
+// Log de variables de entorno para debug
+console.log('--- Startup diagnostics ---');
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL || 'not set');
+console.log('DATABASE_URL present:', !!process.env.DATABASE_URL);
+console.log('JWT_SECRET present:', !!process.env.JWT_SECRET);
+console.log('EMAIL_USER present:', !!process.env.EMAIL_USER);
+console.log('EMAIL_PASS present:', !!process.env.EMAIL_PASS);
+console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');
+
+// Verificar configuración de correo
+const hasEmailCredentials = checkEmailConfig();
+
 try {
-  if (emailConfig.auth.user && emailConfig.auth.pass) {
+  if (hasEmailCredentials && emailConfig.auth.user && emailConfig.auth.pass) {
     transporter = nodemailer.createTransport(emailConfig);
     EMAIL_ENABLED = true;
-    console.log('✉️ Email enabled: transporter configured');
+    console.log('✉️ Email enabled: transporter configured successfully');
+    
+    // Verificar la conexión
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error('✉️ Error verifying email connection:', error);
+        EMAIL_ENABLED = false;
+      } else {
+        console.log('✉️ Email server connection verified successfully');
+      }
+    });
   } else {
     console.log('✉️ Email disabled: EMAIL_USER or EMAIL_PASS not provided');
   }
@@ -73,12 +96,23 @@ try {
   console.warn('✉️ Error configuring transporter, emails disabled:', err.message || err);
 }
 
+console.log('EMAIL_ENABLED (transporter configured):', EMAIL_ENABLED);
+
 const sendMailSafe = async (mailOptions) => {
   if (!EMAIL_ENABLED || !transporter) {
     console.log('✉️ Skipping sendMail (disabled). mailOptions:', { to: mailOptions.to, subject: mailOptions.subject });
     return null;
   }
-  return transporter.sendMail(mailOptions);
+  
+  try {
+    console.log(`✉️ Enviando correo a: ${mailOptions.to}`);
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✉️ Correo enviado exitosamente. Message ID: ${result.messageId}`);
+    return result;
+  } catch (error) {
+    console.error('✉️ Error enviando correo:', error);
+    throw error;
+  }
 };
 
 
@@ -1450,7 +1484,7 @@ const enviarNotificacionNuevoProceso = async (idProceso, idEmpresa) => {
         `
       };
 
-      await transporter.sendMail(mailOptions);
+      await sendMailSafe(mailOptions);
     }
 
     console.log(`Notificaciones enviadas para nuevo proceso ${proc.nombre_proceso}`);
@@ -1559,7 +1593,7 @@ const enviarNotificacionEtapaCompletada = async (idProceso) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendMailSafe(mailOptions);
     console.log(`Notificación enviada al siguiente revisor (${siguienteRevisor}) -> ${emp.correo}`);
   } catch (error) {
     console.error('Error enviando notificación al siguiente revisor:', error);
@@ -1647,7 +1681,7 @@ const enviarNotificacionProcesocompletado = async (idProceso) => {
         `
       };
 
-      await transporter.sendMail(mailOptions);
+      await sendMailSafe(mailOptions);
     }
 
     console.log(`Notificaciones enviadas por proceso completado ${proc.nombre_proceso}`);
@@ -1720,7 +1754,7 @@ const enviarNotificacionProcesoEnviado = async (idProceso) => {
         `
       };
 
-      await transporter.sendMail(mailOptions);
+      await sendMailSafe(mailOptions);
     }
 
     console.log(`Notificaciones enviadas por proceso terminado ${proc.nombre_proceso}`);
@@ -2318,7 +2352,7 @@ app.post('/api/revisor/procesos/:id/aprobar', verificarToken, async (req, res) =
           WHERE ar.id_empresa = ? AND r.nombre_rol = 'Encargada de Impresión' AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
         `, [pinfo.id_empresa]);
         for (const imp of impList) {
-          await transporter.sendMail({
+          await sendMailSafe({
             from: emailConfig.from,
             to: imp.correo,
             subject: `Proceso listo para impresión: ${pinfo.nombre_proceso}`,
@@ -2478,7 +2512,7 @@ app.put('/api/etapas-proceso/:id', verificarToken, async (req, res) => {
               `, [pinfo.id_empresa]);
 
               for (const sec of secretarias) {
-                await transporter.sendMail({
+                await sendMailSafe({
                   from: emailConfig.from,
                   to: sec.correo,
                   subject: `Proceso listo para envío: ${pinfo.nombre_proceso}`,
@@ -2747,7 +2781,7 @@ app.post('/api/contact', async (req, res) => {
       </div>
     `;
 
-    await transporter.sendMail({
+                await sendMailSafe({
       from: emailConfig.from,
       to: destinatario,
       subject: asunto,

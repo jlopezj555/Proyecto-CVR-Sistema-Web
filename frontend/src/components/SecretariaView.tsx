@@ -41,15 +41,23 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const cargarProcesos = async () => {
     setLoadingProc(true)
     try {
-      // Usar los mismos nombres de params que en EtapasProcesoView (`year`, `month`)
       const params: any = {}
       if (empresaFiltro) params.empresa = empresaFiltro
-      const month = mesFiltro
-      const year = anioFiltro
-      // si se seleccionó mes pero no año, asumir año actual (comportamiento previo)
-      if (month && !year) params.year = String(new Date().getFullYear())
-      if (year) params.year = year
-      if (month) params.month = month
+      if (mesFiltro && anioFiltro) {
+        // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
+        const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro
+        params.month = mesAnterior
+        params.year = anioAnterior
+      } else if (mesFiltro) {
+        // Si solo se selecciona mes sin año, usar año actual
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
+        const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear())
+        params.month = mesAnterior
+        params.year = anioAnterior
+      } else if (anioFiltro) {
+        params.year = anioFiltro
+      }
 
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos`, {
         headers: { Authorization: `Bearer ${token}` },

@@ -28,6 +28,7 @@ interface CRUDTableProps {
   afterCreate?: (createdItem: any, submittedData: any) => Promise<void> | void;
   extraActionsForItem?: (item: TableData, refresh: () => void) => React.ReactNode;
   queryParams?: Record<string, any>;
+  allowEdit?: boolean;
 }
 
 export interface TableData {
@@ -43,7 +44,8 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   onDataChange,
   afterCreate,
   extraActionsForItem,
-  queryParams
+  queryParams,
+  allowEdit = true
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -527,13 +529,15 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                   ))}
                   <td>
                     <div className="crud-actions">
-                      <button 
-                        onClick={() => handleEdit(item)}
-                        className="crud-btn-edit"
-                        title="Editar"
-                      >
-                        ✏️
-                      </button>
+                      {allowEdit && (
+                        <button 
+                          onClick={() => handleEdit(item)}
+                          className="crud-btn-edit"
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleDelete(item)}
                         className="crud-btn-delete"
