@@ -17,23 +17,26 @@ import { fileURLToPath } from "url";
 const app = express();
 app.use(express.json());
 
-// Configuración CORS
-const allowedOrigins = (process.env.CORS_ORIGIN || '')
+
+const FRONTEND_URL = (process.env.FRONTEND_URL || '').trim();
+const extraOrigins = (process.env.CORS_ORIGIN || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
+
+// Configuración CORS
+const allowedOrigins = Array.from(new Set([FRONTEND_URL, ...extraOrigins].filter(Boolean)));
+const useCredentials = process.env.CORS_CREDENTIALS === 'true';
 
 const corsOptions = {
   origin(origin, cb) {
     if (!origin) return cb(null, true);
     if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error('Not allowed by CORS'));
+    return cb(null, false); // no lances error para no romper preflight
   },
-  credentials: process.env.CORS_CREDENTIALS === 'true',
-  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+  credentials: useCredentials,
   optionsSuccessStatus: 204,
-  maxAge: 86400,
+  maxAge: 86400
 };
 
 app.use(cors(corsOptions));           // middleware general
@@ -144,6 +147,7 @@ const getGravatarUrl = (email) => {
   const hash = crypto.createHash('md5').update(email.toLowerCase().trim()).digest('hex');
   return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200`;
 };
+
 
 // Función para verificar si un correo es real
 const isRealEmail = (email) => {
