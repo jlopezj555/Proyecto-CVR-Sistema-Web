@@ -17,6 +17,24 @@ import { fileURLToPath } from "url";
 const app = express();
 app.use(express.json());
 
+// Configuración CORS
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+
+const corsOptions = {
+  origin(origin, cb) {
+    if (!origin) return cb(null, true); // permite curl/Postman
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('Not allowed by CORS'));
+  },
+  credentials: process.env.CORS_CREDENTIALS === 'true', // true SOLO si usas cookies
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization','X-Requested-With'],
+  maxAge: 86400,
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // responde preflight con headers CORS
+
 // __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2832,17 +2850,7 @@ app.get('/api/health', async (req, res) => {
   res.status(200).json(info);
 });
 
-// Normalize FRONTEND_URL and configure CORS for production
-const FRONTEND_URL_RAW = process.env.FRONTEND_URL || 'http://localhost:5173';
-const FRONTEND_URL = String(FRONTEND_URL_RAW).replace(/\/+$/g, ''); // remove trailing slashes
-
-const corsOptions = {
-  origin: FRONTEND_URL,
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
+// Production diagnostics
 
 // Startup diagnostics (no secrets printed)
 console.log('--- Startup diagnostics ---');
