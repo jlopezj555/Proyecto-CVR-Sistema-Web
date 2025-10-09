@@ -36,9 +36,8 @@ const corsOptions = {
   maxAge: 86400,
 };
 
-app.use(cors(corsOptions));
-// IMPORTANTE: en Express 5 no uses '*' — usa '(.*)'
-app.options('(.*)', cors(corsOptions));
+app.use(cors(corsOptions));           // middleware general
+app.options(/.*/, cors(corsOptions)); // preflight con RegExp (no string)
 
 // __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
