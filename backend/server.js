@@ -12,14 +12,22 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
-dotenv.config(); // carga .env en desarrollo
-
-const app = express();
-app.use(express.json());
-
 // __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Load env from backend/.env regardless of CWD, then allow CWD overrides
+dotenv.config({ path: path.resolve(__dirname, ".env") });
+dotenv.config();
+
+const app = express();
+app.use(express.json());
+// Enable permissive CORS early only in local/dev so preflights succeed
+const isDevelopment = (process.env.NODE_ENV || 'development') !== 'production';
+if (isDevelopment) {
+  app.use(cors());
+  app.options('*', cors());
+}
 
 // Helper
 const toNumber = (v, fallback) => (v ? Number(v) : fallback);
@@ -2798,21 +2806,21 @@ app.get('/api/health', async (req, res) => {
   res.status(200).json(info);
 });
 
-// Normalize FRONTEND_URL and configure CORS for production
-const FRONTEND_URL_RAW = process.env.FRONTEND_URL || 'http://localhost:5173';
-const FRONTEND_URL = String(FRONTEND_URL_RAW).replace(/\/+$/g, ''); // remove trailing slashes
-
-const corsOptions = {
-  origin: FRONTEND_URL,
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
+// Normalize FRONTEND_URL and configure CORS for production only
+if (!isDevelopment) {
+  const FRONTEND_URL_RAW = process.env.FRONTEND_URL || '';
+  const FRONTEND_URL = String(FRONTEND_URL_RAW).replace(/\/+$/g, ''); // remove trailing slashes
+  const corsOptions = {
+    origin: FRONTEND_URL || undefined,
+    credentials: true,
+    optionsSuccessStatus: 200
+  };
+  app.use(cors(corsOptions));
+}
 
 // Startup diagnostics (no secrets printed)
 console.log('--- Startup diagnostics ---');
-console.log('FRONTEND_URL:', FRONTEND_URL || '(not set)');
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
 console.log('DATABASE_URL present:', !!process.env.DATABASE_URL);
 console.log('JWT_SECRET present:', !!process.env.JWT_SECRET);
 console.log('EMAIL_ENABLED (transporter configured):', EMAIL_ENABLED);
