@@ -1,37 +1,51 @@
--- DROP DATABASE CVR_LDD;
-CREATE DATABASE CVR_LDD;
-USE  CVR_LDD;
+-- ============================================
+-- CONFIGURACIÓN INICIAL
+-- ============================================
+DROP DATABASE IF EXISTS railway;
+CREATE DATABASE railway CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE railway;
 
- -- Tabla de empleados
-CREATE TABLE Empleado (
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- ============================================
+-- TABLA DE EMPLEADOS
+-- ============================================
+CREATE TABLE IF NOT EXISTS Empleado (
     id_empleado INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-   apellido VARCHAR(100)NOT NULL,
+    apellido VARCHAR(100) NOT NULL,
     correo VARCHAR(120) UNIQUE NOT NULL,
-    contrasena VARCHAR(255) NOT NULL -- hash bcrypt
- );
+    contrasena VARCHAR(255) NOT NULL, -- hash bcrypt
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Tabla de roles
-CREATE TABLE Rol (
+-- ============================================
+-- TABLA DE ROLES
+-- ============================================
+CREATE TABLE IF NOT EXISTS Rol (
     id_rol INT AUTO_INCREMENT PRIMARY KEY,
-    nombre_rol VARCHAR(50) NOT NULL,
+    nombre_rol VARCHAR(100) NOT NULL UNIQUE,
     descripcion VARCHAR(200)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Tabla de empresas
-CREATE TABLE Empresa (
+-- ============================================
+-- TABLA DE EMPRESAS
+-- ============================================
+CREATE TABLE IF NOT EXISTS Empresa (
     id_empresa INT AUTO_INCREMENT PRIMARY KEY,
     nombre_empresa VARCHAR(120) NOT NULL,
-    direccion_empresa VARCHAR(120)NOT NULL,
-    telefono_empresa VARCHAR(20)NOT NULL,
-    correo_empresa VARCHAR(120) UNIQUE NOT NULL
-);
+    direccion_empresa VARCHAR(120) NOT NULL,
+    telefono_empresa VARCHAR(20) NOT NULL,
+    correo_empresa VARCHAR(120) UNIQUE NOT NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Eliminada tabla Cliente y referencias
--- CREATE TABLE Cliente (...)  -- Eliminado
-
--- Tabla de procesos (sin cliente)
-CREATE TABLE Proceso (
+-- ============================================
+-- TABLA DE PROCESOS
+-- ============================================
+CREATE TABLE IF NOT EXISTS Proceso (
     id_proceso INT AUTO_INCREMENT PRIMARY KEY,
     id_empresa INT NOT NULL,
     nombre_proceso VARCHAR(100) NOT NULL,
@@ -40,12 +54,13 @@ CREATE TABLE Proceso (
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_completado TIMESTAMP NULL,
     FOREIGN KEY (id_empresa) REFERENCES Empresa(id_empresa)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE
-);
+        ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Tabla de asignaciones (relación Empleado - Rol - Empresa)
-CREATE TABLE AsignacionRol (
+-- ============================================
+-- TABLA DE ASIGNACIONES (Empleado–Rol–Empresa)
+-- ============================================
+CREATE TABLE IF NOT EXISTS AsignacionRol (
     id_asignacion INT AUTO_INCREMENT PRIMARY KEY,
     id_empleado INT NOT NULL,
     id_rol INT NOT NULL,
@@ -53,28 +68,28 @@ CREATE TABLE AsignacionRol (
     fecha_asignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     estado ENUM('Activo','Inactivo') DEFAULT 'Activo',
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
+        ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (id_rol) REFERENCES Rol(id_rol)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
+        ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (id_empresa) REFERENCES Empresa(id_empresa)
-        ON DELETE CASCADE
-        ON UPDATE CASCADE,
-    UNIQUE (id_empleado, id_rol, id_empresa) -- evita duplicados
-);
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE (id_empleado, id_rol, id_empresa)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE EtapaCatalogo (
+-- ============================================
+-- TABLA DE ETAPAS CATÁLOGO
+-- ============================================
+CREATE TABLE IF NOT EXISTS EtapaCatalogo (
     id_etapa INT AUTO_INCREMENT PRIMARY KEY,
     nombre_etapa VARCHAR(100) NOT NULL,
     descripcion VARCHAR(200),
-    es_revision BOOLEAN DEFAULT FALSE -- para distinguir revisiones de otras etapas
-);
+    es_revision BOOLEAN DEFAULT FALSE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-
-
--- Relación de etapas por rol (plantillas por rol con orden)
-CREATE TABLE RolEtapaCatalogo (
+-- ============================================
+-- TABLA DE RELACIÓN DE ETAPAS POR ROL
+-- ============================================
+CREATE TABLE IF NOT EXISTS RolEtapaCatalogo (
     id_rol INT NOT NULL,
     id_etapa INT NOT NULL,
     orden INT NOT NULL,
@@ -83,17 +98,19 @@ CREATE TABLE RolEtapaCatalogo (
         ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (id_etapa) REFERENCES EtapaCatalogo(id_etapa)
         ON DELETE CASCADE ON UPDATE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Etapas del proceso instanciadas para cada proceso por rol
-CREATE TABLE EtapaProceso (
+-- ============================================
+-- TABLA DE ETAPAS DE PROCESO
+-- ============================================
+CREATE TABLE IF NOT EXISTS EtapaProceso (
     id_etapa_proceso INT AUTO_INCREMENT PRIMARY KEY,
     id_proceso INT NOT NULL,
-    id_rol INT NOT NULL, 
+    id_rol INT NOT NULL,
     id_etapa INT NOT NULL,
     estado ENUM('Pendiente','En progreso','Completada','Rechazada') DEFAULT 'Pendiente',
-    motivo_rechazo VARCHAR(300), -- si aplica
-    etapa_origen_error INT,      -- id_etapa donde se detectó el error
+    motivo_rechazo VARCHAR(300),
+    etapa_origen_error INT,
     fecha_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_fin TIMESTAMP NULL,
     FOREIGN KEY (id_proceso) REFERENCES Proceso(id_proceso)
@@ -103,30 +120,29 @@ CREATE TABLE EtapaProceso (
     FOREIGN KEY (id_etapa) REFERENCES EtapaCatalogo(id_etapa)
         ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (etapa_origen_error) REFERENCES EtapaCatalogo(id_etapa)
-);
-
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
--- TABLA UNIFICADA DE USUARIOS
+-- TABLA DE USUARIOS
 -- ============================================
-CREATE TABLE Usuario (
+CREATE TABLE IF NOT EXISTS Usuario (
     id_usuario INT AUTO_INCREMENT PRIMARY KEY,
     nombre_completo VARCHAR(150) NOT NULL,
-    correo VARCHAR(120) UNIQUE NOT NULL,
-    contrasena VARCHAR(255) NOT NULL, -- hash bcrypt
+    correo VARCHAR(255) UNIQUE NOT NULL,
+    contrasena VARCHAR(255) NOT NULL,
     tipo_usuario ENUM('administrador', 'empleado', 'cliente') NOT NULL,
-    id_empleado INT NULL, -- Referencia si es empleado
-    foto_perfil VARCHAR(255) NULL, -- URL de la foto de perfil
-    activo BOOLEAN DEFAULT TRUE,
+    id_empleado INT NULL,
+    foto_perfil VARCHAR(255) NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
     fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_empleado) REFERENCES Empleado(id_empleado)
         ON DELETE CASCADE ON UPDATE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
--- TABLA DE PAPELERIA (documentación contable)
+-- TABLA DE PAPELERÍA
 -- ============================================
-CREATE TABLE Papeleria (
+CREATE TABLE IF NOT EXISTS Papeleria (
     id_papeleria INT AUTO_INCREMENT PRIMARY KEY,
     id_empresa INT NOT NULL,
     descripcion VARCHAR(200) NOT NULL,
@@ -134,11 +150,9 @@ CREATE TABLE Papeleria (
     fecha_recepcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     fecha_entrega TIMESTAMP NULL,
     estado ENUM('Recibida','En proceso','Entregada') DEFAULT 'Recibida',
-    id_proceso INT NULL, -- Se asigna cuando se crea el proceso
+    id_proceso INT NULL,
     FOREIGN KEY (id_empresa) REFERENCES Empresa(id_empresa)
         ON DELETE CASCADE ON UPDATE CASCADE,
     FOREIGN KEY (id_proceso) REFERENCES Proceso(id_proceso)
         ON DELETE SET NULL ON UPDATE CASCADE
-);
-
-ALTER TABLE Usuario MODIFY COLUMN tipo_usuario ENUM('administrador', 'empleado', 'cliente') NOT NULL;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -94,6 +94,7 @@ const EmpleadosCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
+        allowEdit={false}
     />
   );
 };

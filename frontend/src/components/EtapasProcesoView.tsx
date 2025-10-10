@@ -60,8 +60,21 @@ const EtapasProcesoView: React.FC = () => {
     try {
       const params: any = {};
       if (empresaFiltro) params.empresa = empresaFiltro;
-      if (anioFiltro) params.year = anioFiltro;
-      if (mesFiltro) params.month = mesFiltro;
+      if (mesFiltro && anioFiltro) {
+        // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
+        const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro;
+        params.month = mesAnterior;
+        params.year = anioAnterior;
+      } else if (mesFiltro) {
+        // Si solo se selecciona mes sin año, usar año actual
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
+        const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear());
+        params.month = mesAnterior;
+        params.year = anioAnterior;
+      } else if (anioFiltro) {
+        params.year = anioFiltro;
+      }
       const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params

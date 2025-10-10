@@ -21,8 +21,25 @@ export const emailConfig = {
     'live.com', 
     'msn.com',
     'icloud.com',
-    'protonmail.com'
+    'protonmail.com',
+    'cvrasesoria.com.gt' // Agregar el dominio de la empresa
   ]
+};
+
+// Función para verificar la configuración de correo
+export const checkEmailConfig = () => {
+  console.log('📧 Verificando configuración de correo:');
+  console.log(`  - EMAIL_HOST: ${process.env.EMAIL_HOST || 'mx.stackmail.com (default)'}`);
+  console.log(`  - EMAIL_PORT: ${process.env.EMAIL_PORT || '465 (default)'}`);
+  console.log(`  - EMAIL_SECURE: ${process.env.EMAIL_SECURE || 'true (default)'}`);
+  console.log(`  - EMAIL_USER: ${process.env.EMAIL_USER ? '***configurado***' : 'NO CONFIGURADO'}`);
+  console.log(`  - EMAIL_PASS: ${process.env.EMAIL_PASS ? '***configurado***' : 'NO CONFIGURADO'}`);
+  console.log(`  - EMAIL_FROM: ${process.env.EMAIL_FROM || 'usando EMAIL_USER'}`);
+  
+  const hasCredentials = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+  console.log(`  - Estado: ${hasCredentials ? '✅ LISTO PARA ENVIAR' : '❌ FALTAN CREDENCIALES'}`);
+  
+  return hasCredentials;
 };
 
 /*

@@ -97,8 +97,21 @@ const ProcesosCRUD: React.FC = () => {
 
   const queryParams: Record<string, any> = {};
   if (empresaFiltro) queryParams.empresa = empresaFiltro;
-  if (anioFiltro) queryParams.year = anioFiltro;
-  if (mesFiltro) queryParams.month = mesFiltro;
+  if (mesFiltro && anioFiltro) {
+    // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
+    const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
+    const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro;
+    queryParams.month = mesAnterior;
+    queryParams.year = anioAnterior;
+  } else if (mesFiltro) {
+    // Si solo se selecciona mes sin año, usar año actual
+    const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
+    const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear());
+    queryParams.month = mesAnterior;
+    queryParams.year = anioAnterior;
+  } else if (anioFiltro) {
+    queryParams.year = anioFiltro;
+  }
 
   return (
     <div>

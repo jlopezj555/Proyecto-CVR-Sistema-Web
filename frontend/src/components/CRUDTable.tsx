@@ -556,13 +556,15 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                   ))}
                   <td>
                     <div className="crud-actions">
-                      <button 
-                        onClick={() => handleEdit(item)}
-                        className="crud-btn-edit"
-                        title="Editar"
-                      >
-                        ✏️
-                      </button>
+                      {allowEdit && (
+                        <button 
+                          onClick={() => handleEdit(item)}
+                          className="crud-btn-edit"
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                      )}
                       <button 
                         onClick={() => handleDelete(item)}
                         className="crud-btn-delete"

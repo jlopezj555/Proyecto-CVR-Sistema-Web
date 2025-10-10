@@ -1,4 +1,7 @@
 // server.js (inicio actualizado)
+import dotenv from "dotenv";
+dotenv.config(); // carga .env ANTES de importar otros módulos
+
 import express from "express";
 import mysql from "mysql2/promise";
 import cors from "cors";
@@ -6,16 +9,38 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
-import dotenv from "dotenv";
-import { emailConfig } from "./config.js";
+import { emailConfig, checkEmailConfig } from "./config.js";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
-dotenv.config(); // carga .env en desarrollo
-
 const app = express();
 app.use(express.json());
+
+
+const FRONTEND_URL = (process.env.FRONTEND_URL || '').trim();
+const extraOrigins = (process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+// Configuración CORS
+const allowedOrigins = Array.from(new Set([FRONTEND_URL, ...extraOrigins].filter(Boolean)));
+const useCredentials = process.env.CORS_CREDENTIALS === 'true';
+
+const corsOptions = {
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);
+    if (allowedOrigins.length === 0 || allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(null, false); // no lances error para no romper preflight
+  },
+  credentials: useCredentials,
+  optionsSuccessStatus: 204,
+  maxAge: 86400
+};
+
+app.use(cors(corsOptions));           // middleware general
+app.options(/.*/, cors(corsOptions)); // preflight con RegExp (no string)
 
 // __dirname for ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -59,11 +84,34 @@ const JWT_SECRET = process.env.JWT_SECRET || "secreto_super_seguro";
 // Configuración de nodemailer para envío de correos (solo si hay credenciales)
 let transporter = null;
 let EMAIL_ENABLED = false;
+
+// Log de variables de entorno para debug
+console.log('--- Startup diagnostics ---');
+console.log('FRONTEND_URL:', process.env.FRONTEND_URL || 'not set');
+console.log('DATABASE_URL present:', !!process.env.DATABASE_URL);
+console.log('JWT_SECRET present:', !!process.env.JWT_SECRET);
+console.log('EMAIL_USER present:', !!process.env.EMAIL_USER);
+console.log('EMAIL_PASS present:', !!process.env.EMAIL_PASS);
+console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');
+
+// Verificar configuración de correo
+const hasEmailCredentials = checkEmailConfig();
+
 try {
-  if (emailConfig.auth.user && emailConfig.auth.pass) {
+  if (hasEmailCredentials && emailConfig.auth.user && emailConfig.auth.pass) {
     transporter = nodemailer.createTransport(emailConfig);
     EMAIL_ENABLED = true;
-    console.log('✉️ Email enabled: transporter configured');
+    console.log('✉️ Email enabled: transporter configured successfully');
+    
+    // Verificar la conexión
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error('✉️ Error verifying email connection:', error);
+        EMAIL_ENABLED = false;
+      } else {
+        console.log('✉️ Email server connection verified successfully');
+      }
+    });
   } else {
     console.log('✉️ Email disabled: EMAIL_USER or EMAIL_PASS not provided');
   }
@@ -73,12 +121,23 @@ try {
   console.warn('✉️ Error configuring transporter, emails disabled:', err.message || err);
 }
 
+console.log('EMAIL_ENABLED (transporter configured):', EMAIL_ENABLED);
+
 const sendMailSafe = async (mailOptions) => {
   if (!EMAIL_ENABLED || !transporter) {
     console.log('✉️ Skipping sendMail (disabled). mailOptions:', { to: mailOptions.to, subject: mailOptions.subject });
     return null;
   }
-  return transporter.sendMail(mailOptions);
+  
+  try {
+    console.log(`✉️ Enviando correo a: ${mailOptions.to}`);
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✉️ Correo enviado exitosamente. Message ID: ${result.messageId}`);
+    return result;
+  } catch (error) {
+    console.error('✉️ Error enviando correo:', error);
+    throw error;
+  }
 };
 
 
@@ -88,6 +147,7 @@ const getGravatarUrl = (email) => {
   const hash = crypto.createHash('md5').update(email.toLowerCase().trim()).digest('hex');
   return `https://www.gravatar.com/avatar/${hash}?d=identicon&s=200`;
 };
+
 
 // Función para verificar si un correo es real
 const isRealEmail = (email) => {
@@ -285,9 +345,19 @@ const enviarNotificacionLogin = async (correo, nombre, tipoUsuario) => {
 
 // Ruta de registro de clientes
 app.post('/api/register', async (req, res) => {
-  const { nombre, correo, usuario, password } = req.body;
+  const { nombre, correo, usuario, password, contrasena } = req.body;
+const pass = (password ?? contrasena ?? '').toString().trim();
+const name = (nombre ?? '').toString().trim();
+const mail = (correo ?? '').toString().trim();
 
   try {
+    if (!name || !mail || !pass) {
+      return res.status(400).json({
+        success: false,
+        message: 'Todos los campos son requeridos (nombre, correo, contrasena)'
+      });
+    }
+
     // Verificar si el correo ya existe en Usuario o Empleado
     const [existingUser] = await pool.query(
       `SELECT correo FROM Usuario WHERE correo = ? 
@@ -304,12 +374,12 @@ app.post('/api/register', async (req, res) => {
     }
 
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(pass, saltRounds);
 
     // Usuario unificado tipo empleado por omisión si se requiere auto-registro, o limitar a admin más adelante
     const [usuarioResult] = await pool.query(
       `INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario) VALUES (?, ?, ?, 'cliente')`,
-      [nombre, correo, hashedPassword]
+      [name, mail, hashedPassword]
     );
 
     let fotoPerfil = null;
@@ -318,9 +388,14 @@ app.post('/api/register', async (req, res) => {
       await pool.query('UPDATE Usuario SET foto_perfil = ? WHERE id_usuario = ?', [fotoPerfil, usuarioResult.insertId]);
     }
 
-    await enviarCorreoBienvenida(correo, nombre);
-    // También notificar un primer acceso/creación
-    await enviarNotificacionLogin(correo, nombre, 'Cliente');
+    try {
+      await enviarCorreoBienvenida(correo, nombre);
+      // También notificar un primer acceso/creación
+      await enviarNotificacionLogin(correo, nombre, 'Cliente');
+    } catch (error) {
+      console.error('Error al enviar correos de bienvenida:', error);
+      // Continuar con el registro aunque falle el envío de correos
+    }
 
     const token = jwt.sign(
       { 
@@ -329,15 +404,18 @@ app.post('/api/register', async (req, res) => {
         tipo: 'cliente',
         foto: fotoPerfil
       },
-      'secreto_super_seguro',
+      process.env.JWT_SECRET || 'secreto_super_seguro',
       { expiresIn: '2h' }
     );
 
     res.status(201).json({
       success: true,
       message: 'Usuario registrado exitosamente.',
-      id: usuarioResult.insertId,
+      token,
       nombre,
+      rol: 'Cliente',
+      tipo: 'cliente',
+      foto: fotoPerfil,
       token,
       rol: 'Cliente',
       tipo: 'cliente',
@@ -1450,7 +1528,7 @@ const enviarNotificacionNuevoProceso = async (idProceso, idEmpresa) => {
         `
       };
 
-      await transporter.sendMail(mailOptions);
+      await sendMailSafe(mailOptions);
     }
 
     console.log(`Notificaciones enviadas para nuevo proceso ${proc.nombre_proceso}`);
@@ -1559,7 +1637,7 @@ const enviarNotificacionEtapaCompletada = async (idProceso) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
+    await sendMailSafe(mailOptions);
     console.log(`Notificación enviada al siguiente revisor (${siguienteRevisor}) -> ${emp.correo}`);
   } catch (error) {
     console.error('Error enviando notificación al siguiente revisor:', error);
@@ -1647,7 +1725,7 @@ const enviarNotificacionProcesocompletado = async (idProceso) => {
         `
       };
 
-      await transporter.sendMail(mailOptions);
+      await sendMailSafe(mailOptions);
     }
 
     console.log(`Notificaciones enviadas por proceso completado ${proc.nombre_proceso}`);
@@ -1720,7 +1798,7 @@ const enviarNotificacionProcesoEnviado = async (idProceso) => {
         `
       };
 
-      await transporter.sendMail(mailOptions);
+      await sendMailSafe(mailOptions);
     }
 
     console.log(`Notificaciones enviadas por proceso terminado ${proc.nombre_proceso}`);
@@ -2318,7 +2396,7 @@ app.post('/api/revisor/procesos/:id/aprobar', verificarToken, async (req, res) =
           WHERE ar.id_empresa = ? AND r.nombre_rol = 'Encargada de Impresión' AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
         `, [pinfo.id_empresa]);
         for (const imp of impList) {
-          await transporter.sendMail({
+          await sendMailSafe({
             from: emailConfig.from,
             to: imp.correo,
             subject: `Proceso listo para impresión: ${pinfo.nombre_proceso}`,
@@ -2478,7 +2556,7 @@ app.put('/api/etapas-proceso/:id', verificarToken, async (req, res) => {
               `, [pinfo.id_empresa]);
 
               for (const sec of secretarias) {
-                await transporter.sendMail({
+                await sendMailSafe({
                   from: emailConfig.from,
                   to: sec.correo,
                   subject: `Proceso listo para envío: ${pinfo.nombre_proceso}`,
@@ -2747,7 +2825,7 @@ app.post('/api/contact', async (req, res) => {
       </div>
     `;
 
-    await transporter.sendMail({
+                await sendMailSafe({
       from: emailConfig.from,
       to: destinatario,
       subject: asunto,
@@ -2798,17 +2876,7 @@ app.get('/api/health', async (req, res) => {
   res.status(200).json(info);
 });
 
-// Normalize FRONTEND_URL and configure CORS for production
-const FRONTEND_URL_RAW = process.env.FRONTEND_URL || 'http://localhost:5173';
-const FRONTEND_URL = String(FRONTEND_URL_RAW).replace(/\/+$/g, ''); // remove trailing slashes
-
-const corsOptions = {
-  origin: FRONTEND_URL,
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
+// Production diagnostics
 
 // Startup diagnostics (no secrets printed)
 console.log('--- Startup diagnostics ---');

@@ -41,6 +41,11 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const [loading, setLoading] = useState(false)
   const [loadingEtapas, setLoadingEtapas] = useState<Record<number, boolean>>({})
 
+  // Filtros
+  const [empresaFiltro, setEmpresaFiltro] = useState<string>('')
+  const [anioFiltro, setAnioFiltro] = useState<string>('')
+  const [mesFiltro, setMesFiltro] = useState<string>('')
+
   // rechazo: { [procesoId]: { etapas: { [id_etapa_proceso]: motivo }, seleccionadas: number[] } }
   const [rechazo, setRechazo] = useState<{ [procesoId: number]: { etapas: Record<number, string>, seleccionadas: number[] } }>({})
   // Eliminados: password, errorMsg, showPasswordModal
@@ -56,9 +61,27 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const loadProcesos = async () => {
     setLoading(true)
     try {
-      // endpoint acepta query param nivel para filtrar según regla solicitada
+      const params: any = {}
+      if (empresaFiltro) params.empresa = empresaFiltro
+      if (mesFiltro && anioFiltro) {
+        // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
+        const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro
+        params.month = mesAnterior
+        params.year = anioAnterior
+      } else if (mesFiltro) {
+        // Si solo se selecciona mes sin año, usar año actual
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
+        const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear())
+        params.month = mesAnterior
+        params.year = anioAnterior
+      } else if (anioFiltro) {
+        params.year = anioFiltro
+      }
+
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/revisor/procesos-terminados`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params
       })
       setProcesos(data.data || [])
     } catch (e) {
@@ -82,7 +105,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
     }
   }
 
-  useEffect(() => { loadProcesos() }, [])
+  useEffect(() => { loadProcesos() }, [empresaFiltro, mesFiltro, anioFiltro])
 
   const toggleExpand = (id: number) => {
     const n = expanded === id ? null : id
@@ -166,7 +189,50 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
         </div>
 
         <div className="admin-content-body">
-          {/* Eliminado el top de contraseña y nivel */}
+          {/* Filtros */}
+          <div style={{
+            background: 'white',
+            border: '1px solid #e9ecef',
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 12
+          }}>
+            <div>
+              <label style={{ fontWeight: 600, color: '#000' }}>Empresa</label>
+              <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
+                <option value="">Todas</option>
+                {Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries()).map(([id, nombre]) => (
+                  <option key={id} value={String(id)}>{nombre}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, color: '#000' }}>Mes</label>
+              <select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
+                <option value="">Todos</option>
+                {[
+                  { value: 1, label: 'Enero' }, { value: 2, label: 'Febrero' }, { value: 3, label: 'Marzo' },
+                  { value: 4, label: 'Abril' }, { value: 5, label: 'Mayo' }, { value: 6, label: 'Junio' },
+                  { value: 7, label: 'Julio' }, { value: 8, label: 'Agosto' }, { value: 9, label: 'Septiembre' },
+                  { value: 10, label: 'Octubre' }, { value: 11, label: 'Noviembre' }, { value: 12, label: 'Diciembre' }
+                ].map(m => (
+                  <option key={m.value} value={String(m.value)}>{m.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, color: '#000' }}>Año</label>
+              <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
+                <option value="">Todos</option>
+                {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           {loading ? (
             <div className="crud-loading">Cargando procesos...</div>
