@@ -6,7 +6,7 @@ USE  CVR_LDD;
 CREATE TABLE Empleado (
     id_empleado INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
-   apellido VARCHAR(100)NOT NULL,
+    apellido VARCHAR(100)NOT NULL,
     correo VARCHAR(120) UNIQUE NOT NULL,
     contrasena VARCHAR(255) NOT NULL -- hash bcrypt
  );

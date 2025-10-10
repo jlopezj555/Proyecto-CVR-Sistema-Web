@@ -345,9 +345,16 @@ const enviarNotificacionLogin = async (correo, nombre, tipoUsuario) => {
 
 // Ruta de registro de clientes
 app.post('/api/register', async (req, res) => {
-  const { nombre, correo, usuario, password } = req.body;
+  const { nombre, correo, contrasena } = req.body;
 
   try {
+    if (!nombre || !correo || !contrasena) {
+      return res.status(400).json({
+        success: false,
+        message: 'Todos los campos son requeridos (nombre, correo, contrasena)'
+      });
+    }
+
     // Verificar si el correo ya existe en Usuario o Empleado
     const [existingUser] = await pool.query(
       `SELECT correo FROM Usuario WHERE correo = ? 
@@ -364,7 +371,7 @@ app.post('/api/register', async (req, res) => {
     }
 
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(contrasena, saltRounds);
 
     // Usuario unificado tipo empleado por omisión si se requiere auto-registro, o limitar a admin más adelante
     const [usuarioResult] = await pool.query(
@@ -378,9 +385,14 @@ app.post('/api/register', async (req, res) => {
       await pool.query('UPDATE Usuario SET foto_perfil = ? WHERE id_usuario = ?', [fotoPerfil, usuarioResult.insertId]);
     }
 
-    await enviarCorreoBienvenida(correo, nombre);
-    // También notificar un primer acceso/creación
-    await enviarNotificacionLogin(correo, nombre, 'Cliente');
+    try {
+      await enviarCorreoBienvenida(correo, nombre);
+      // También notificar un primer acceso/creación
+      await enviarNotificacionLogin(correo, nombre, 'Cliente');
+    } catch (error) {
+      console.error('Error al enviar correos de bienvenida:', error);
+      // Continuar con el registro aunque falle el envío de correos
+    }
 
     const token = jwt.sign(
       { 
@@ -389,15 +401,18 @@ app.post('/api/register', async (req, res) => {
         tipo: 'cliente',
         foto: fotoPerfil
       },
-      'secreto_super_seguro',
+      process.env.JWT_SECRET || 'secreto_super_seguro',
       { expiresIn: '2h' }
     );
 
     res.status(201).json({
       success: true,
       message: 'Usuario registrado exitosamente.',
-      id: usuarioResult.insertId,
+      token,
       nombre,
+      rol: 'Cliente',
+      tipo: 'cliente',
+      foto: fotoPerfil,
       token,
       rol: 'Cliente',
       tipo: 'cliente',
