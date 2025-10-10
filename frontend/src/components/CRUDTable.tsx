@@ -439,7 +439,6 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
 
   const renderModal = (isEdit: boolean) => {
     const fields = isEdit ? editFields : createFields;
-    const valid = isFormValid(fields);
     const isOpen = isEdit ? showEditModal : showCreateModal;
     const onClose = () => {
       if (isEdit) {
@@ -566,7 +565,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                   ))}
                   <td>
                     <div className="crud-actions">
-                      {allowEdit && (
+                      
                         <button 
                           onClick={() => handleEdit(item)}
                           className="crud-btn-edit"
@@ -574,7 +573,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                         >
                           ✏️
                         </button>
-                      )}
+                      
                       <button 
                         onClick={() => handleDelete(item)}
                         className="crud-btn-delete"

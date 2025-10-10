@@ -11,6 +11,8 @@ body {
 
 /* En modo administrador/empleado, no fijar el fondo para evitar congelamiento en móviles */
 body.admin-mode {
+  background-image: none !important;
+  background-color: #f8f9fa;
   background-attachment: scroll;
 }
 
