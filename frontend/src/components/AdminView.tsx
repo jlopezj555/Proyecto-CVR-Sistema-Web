@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import EmpleadosCRUD from './EmpleadosCRUD'
 import EmpresasCRUD from './EmpresasCRUD'
 import RolesCRUD from './RolesCRUD'
 import RolEtapasCRUD from './RolEtapasCRUD'
@@ -15,8 +14,7 @@ import iconUsuarios from '../assets/admin-usuarios-white.svg'
 import iconEmpleados from '../assets/admin-empleados-white.svg'
 import iconEmpresas from '../assets/admin-empresas-white.svg'
 import iconRoles from '../assets/admin-roles-white.svg'
-import iconProcesos from '../assets/admin-procesos-white.svg'
-import iconPapeleria from '../assets/admin-papeleria-white.svg'
+import iconProcesos from '../assets/admin-etapas-proceso-white.svg'
 import iconEtapasCatalogo from '../assets/admin-etapas-catalogo-white.svg'
 import iconEtapasProceso from '../assets/admin-etapas-proceso-white.svg'
 import iconAsignaciones from '../assets/admin-asignaciones-white.svg'
@@ -54,11 +52,10 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
   const menuItems = [
     { id: 'dashboard' as AdminSection, label: 'Administración', icon: iconDashboard },
     { id: 'usuarios' as AdminSection, label: 'Usuarios', icon: iconUsuarios },
-    { id: 'empleados' as AdminSection, label: 'Empleados', icon: iconEmpleados },
+    // Empleados eliminado a solicitud
     { id: 'empresas' as AdminSection, label: 'Empresas', icon: iconEmpresas },
     { id: 'roles' as AdminSection, label: 'Roles', icon: iconRoles },
-    { id: 'procesos' as AdminSection, label: 'Procesos', icon: iconProcesos },
-    { id: 'papeleria' as AdminSection, label: 'Papelería', icon: iconPapeleria },
+    { id: 'procesos' as AdminSection, label: 'Cuadernillos', icon: iconProcesos },
     { id: 'etapas-catalogo' as AdminSection, label: 'Etapas Catálogo', icon: iconEtapasCatalogo },
     { id: 'etapas-proceso' as AdminSection, label: 'Etapas Proceso', icon: iconEtapasProceso },
     { id: 'asignaciones' as AdminSection, label: 'Asignaciones', icon: iconAsignaciones },
@@ -67,8 +64,8 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'empleados':
-        return <EmpleadosCRUD />
+      // case 'empleados':
+      //   return <EmpleadosCRUD />
       case 'usuarios':
         return <UsuariosCRUD />
       case 'empresas':
@@ -77,8 +74,8 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
         return <RolesCRUD />
             case 'procesos':
         return <ProcesosCRUD />
-      case 'papeleria':
-        return <PapeleriaCRUD />
+      // case 'papeleria':
+      //   return <PapeleriaCRUD />
       case 'etapas-catalogo':
         return <EtapasCatalogoCRUD />
       case 'etapas-proceso':
@@ -140,8 +137,31 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
             <h3>Panel Admin</h3>
             <p>Hola, {nombre}</p>
           </div>
-          
-          <nav className="admin-nav">
+
+          {/* Mobile collapsible menu */}
+          <details className="only-mobile" style={{ padding: '0 8px' }}>
+            <summary>
+              <button className="admin-mobile-menu-toggle" aria-label="Abrir menú de secciones">
+                Secciones
+                <span style={{ fontSize: 18, marginLeft: 8 }}>▾</span>
+              </button>
+            </summary>
+            <div className="admin-mobile-nav">
+              {menuItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id)}
+                  className={`admin-nav-item ${activeSection === item.id ? 'active' : ''}`}
+                >
+                  <span className="nav-icon"><img src={item.icon} alt={item.label} className="nav-icon-img" /></span>
+                  <span className="nav-label">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </details>
+
+          {/* Desktop/Tablet horizontal nav */}
+          <nav className="admin-nav only-desktop">
             {menuItems.map(item => (
               <button
                 key={item.id}

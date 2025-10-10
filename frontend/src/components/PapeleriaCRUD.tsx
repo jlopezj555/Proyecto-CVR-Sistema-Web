@@ -7,11 +7,7 @@ const PapeleriaCRUD: React.FC = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-
-    // Cargar empresas
-    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => res.json())
       .then(data => setEmpresas(data.data || []))
       .catch(console.error);
@@ -36,29 +32,37 @@ const PapeleriaCRUD: React.FC = () => {
       label: 'Empresa', 
       type: 'select' as const, 
       required: true,
-      options: empresas.map(empresa => ({
-        value: empresa.id_empresa,
-        label: empresa.nombre_empresa
-      }))
+      options: empresas.map(empresa => ({ value: empresa.id_empresa, label: empresa.nombre_empresa }))
     },
     { 
       key: 'tipo_papeleria', 
       label: 'Tipo de Papelería', 
       type: 'select' as const, 
       required: true,
-      // Dinámico según empresa seleccionada y mes asignado
       dynamicOptions: async (formData: Record<string, any>) => {
         const empresaSel = formData['id_empresa'];
         if (!empresaSel) return [];
         try {
-          const resp = await fetch(`${API_CONFIG.BASE_URL}/api/papeleria/available-tipos?empresa=${empresaSel}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          // Usar procesos admin para saber si ya existen Venta/Compra para la empresa en el mes asignado
+          const params = new URLSearchParams({ empresa: String(empresaSel) });
+          const resp = await fetch(`${API_CONFIG.BASE_URL}/api/procesos?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
           const json = await resp.json();
-          const list: string[] = json?.data || [];
-          return list.map(t => ({ value: t, label: t }));
+          const rows: any[] = json?.data || [];
+          const tieneVenta = rows.some(p => String(p.tipo_proceso).toLowerCase() === 'venta');
+          const tieneCompra = rows.some(p => String(p.tipo_proceso).toLowerCase() === 'compra');
+          if (tieneVenta && tieneCompra) {
+            alert('Esta empresa ya presentó su papelería completa (Venta y Compra).');
+            return [];
+          }
+          const opts: string[] = [];
+          if (!tieneVenta) opts.push('Venta');
+          if (!tieneCompra) opts.push('Compra');
+          return opts.map(t => ({ value: t, label: t }));
         } catch (_) {
-          return [];
+          return [
+            { value: 'Venta', label: 'Venta' },
+            { value: 'Compra', label: 'Compra' }
+          ];
         }
       },
       dependsOnKeys: ['id_empresa'],
@@ -69,27 +73,15 @@ const PapeleriaCRUD: React.FC = () => {
 
   const editFields = [
     { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true },
-    { 
-      key: 'tipo_papeleria', 
-      label: 'Tipo de Papelería', 
-      type: 'select' as const, 
-      required: true,
-      options: [
-        { value: 'Venta', label: 'Venta' },
-        { value: 'Compra', label: 'Compra' }
-      ]
-    },
-    { 
-      key: 'estado', 
-      label: 'Estado', 
-      type: 'select' as const, 
-      required: true,
-      options: [
-        { value: 'Recibida', label: 'Recibida' },
-        { value: 'En proceso', label: 'En proceso' },
-        { value: 'Entregada', label: 'Entregada' }
-      ]
-    },
+    { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true, options: [
+      { value: 'Venta', label: 'Venta' },
+      { value: 'Compra', label: 'Compra' }
+    ]},
+    { key: 'estado', label: 'Estado', type: 'select' as const, required: true, options: [
+      { value: 'Recibida', label: 'Recibida' },
+      { value: 'En proceso', label: 'En proceso' },
+      { value: 'Entregada', label: 'Entregada' }
+    ]},
     { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date' as const, required: false }
   ];
 
