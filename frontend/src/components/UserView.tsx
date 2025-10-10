@@ -262,6 +262,12 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
               {procesos.map(proceso => {
                 const tieneRechazada = (etapasPorProceso[proceso.id_proceso] || []).some(et => et.estado === 'Rechazada');
+                const isEntregado = !!proceso.fecha_completado || proceso.estado === 'Completado';
+                const headerBg = tieneRechazada
+                  ? 'linear-gradient(135deg, #8B1E1E 0%, #C62828 100%)'
+                  : (isEntregado
+                    ? 'linear-gradient(135deg, #1f5d32 0%, #2e7d32 100%)'
+                    : 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)');
                 return (
                   <div key={proceso.id_proceso} style={{
                     background: 'white',
@@ -271,7 +277,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
                   }}>
                   <button onClick={() => toggleExpand(proceso.id_proceso)} style={{
                     width: '100%',
-                    background: 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)',
+                    background: headerBg,
                     color: 'white',
                     border: 'none',
                     padding: '16px 18px',
@@ -285,7 +291,15 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
                         <div style={{ fontWeight: 700 }}>{proceso.nombre_proceso}</div>
                         <div style={{ opacity: 0.85, fontSize: 12 }}>{proceso.nombre_empresa} • {proceso.tipo_proceso}</div>
                       </div>
-                      <div style={{ fontSize: 18 }}>{expandedProcesoId === proceso.id_proceso ? '▴' : '▾'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <div style={{ fontSize: 11, opacity: 0.9 }}>Creado: {formatDate(proceso.fecha_creacion)}</div>
+                          {proceso.fecha_completado && (
+                            <div style={{ fontSize: 11, opacity: 0.9 }}>Entregado: {formatDate(proceso.fecha_completado)}</div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 18 }}>{expandedProcesoId === proceso.id_proceso ? '▴' : '▾'}</div>
+                      </div>
               </div>
                   </button>
 

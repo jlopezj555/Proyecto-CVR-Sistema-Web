@@ -6,6 +6,10 @@
   padding-top: 90px;
 }
 
+/* Visibility helpers */
+.only-mobile { display: none; }
+.only-desktop { display: block; }
+
 /* Sidebar */
 .admin-sidebar {
   width: 280px;
@@ -454,9 +458,11 @@
   .admin-sidebar {
     width: 100%;
     height: auto;
-    position: relative;
+    position: sticky;
+    top: 90px;
+    z-index: 100;
     flex-direction: column;
-    overflow-x: hidden;
+    overflow-x: auto;
   }
   
   /* Ocultar cabecera/Panel Admin en móviles, solo dejar navegación tipo tabs horizontales */

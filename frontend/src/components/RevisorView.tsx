@@ -240,10 +240,15 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
             <div className="crud-error">No hay procesos completados.</div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-              {procesos.map(p => (
+              {procesos.map(p => {
+                const isEntregado = !!p.fecha_completado || p.estado === 'Completado';
+                const headerBg = isEntregado
+                  ? 'linear-gradient(135deg, #1f5d32 0%, #2e7d32 100%)'
+                  : 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)';
+                return (
                 <div key={p.id_proceso} style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12 }}>
                   <button onClick={() => toggleExpand(p.id_proceso)} style={{
-                    width: '100%', background: 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)', color: 'white',
+                    width: '100%', background: headerBg, color: 'white',
                     border: 'none', padding: '16px 18px', borderTopLeftRadius: 12, borderTopRightRadius: 12, cursor: 'pointer', textAlign: 'left'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
@@ -251,7 +256,15 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
                         <div style={{ fontWeight: 700 }}>{p.nombre_proceso}</div>
                         <div style={{ opacity: 0.85, fontSize: 12 }}>{p.nombre_empresa} • {p.tipo_proceso}</div>
                       </div>
-                      <div style={{ fontSize: 18 }}>{expanded === p.id_proceso ? '▴' : '▾'}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <div style={{ fontSize: 11, opacity: 0.9 }}>Creado: {formatDate(p.fecha_creacion)}</div>
+                          {p.fecha_completado && (
+                            <div style={{ fontSize: 11, opacity: 0.9 }}>Entregado: {formatDate(p.fecha_completado)}</div>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 18 }}>{expanded === p.id_proceso ? '▴' : '▾'}</div>
+                      </div>
                     </div>
                   </button>
 
@@ -380,7 +393,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
                     </div>
                   )}
                 </div>
-              ))}
+              )})
             </div>
           )}
         </div>
