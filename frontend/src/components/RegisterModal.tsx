@@ -48,10 +48,11 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
 
     try {
   const response = await axios.post<any>(`${API_CONFIG.BASE_URL}/api/register`, {
-        nombre,
-        correo,
-        password,
-      });
+  nombre,
+  correo,
+  contrasena: password, // añade esto
+  password,             // y deja este por compatibilidad
+});
 
       if (response.data && response.data.success) {
         setDialogMessage(`Bienvenido ${response.data.nombre}`);

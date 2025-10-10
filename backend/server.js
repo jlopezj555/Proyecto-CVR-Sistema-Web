@@ -345,10 +345,13 @@ const enviarNotificacionLogin = async (correo, nombre, tipoUsuario) => {
 
 // Ruta de registro de clientes
 app.post('/api/register', async (req, res) => {
-  const { nombre, correo, contrasena } = req.body;
+  const { nombre, correo, usuario, password, contrasena } = req.body;
+const pass = (password ?? contrasena ?? '').toString().trim();
+const name = (nombre ?? '').toString().trim();
+const mail = (correo ?? '').toString().trim();
 
   try {
-    if (!nombre || !correo || !contrasena) {
+    if (!name || !mail || !pass) {
       return res.status(400).json({
         success: false,
         message: 'Todos los campos son requeridos (nombre, correo, contrasena)'
@@ -371,12 +374,12 @@ app.post('/api/register', async (req, res) => {
     }
 
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(contrasena, saltRounds);
+    const hashedPassword = await bcrypt.hash(pass, saltRounds);
 
     // Usuario unificado tipo empleado por omisión si se requiere auto-registro, o limitar a admin más adelante
     const [usuarioResult] = await pool.query(
       `INSERT INTO Usuario (nombre_completo, correo, contrasena, tipo_usuario) VALUES (?, ?, ?, 'cliente')`,
-      [nombre, correo, hashedPassword]
+      [name, mail, hashedPassword]
     );
 
     let fotoPerfil = null;
