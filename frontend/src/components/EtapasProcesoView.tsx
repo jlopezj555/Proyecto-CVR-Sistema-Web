@@ -253,7 +253,7 @@ const EtapasProcesoView: React.FC = () => {
                 {expandedProcesoId === proceso.id_proceso && (
                 <div style={{ padding: 12 }}>
                   {/* Línea de etapas horizontal construida desde catálogo */}
-                  <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+                  <div className="h-scroll" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', paddingBottom: 8, minWidth: 'max-content' }}>
                       {catalogo.map((cat) => {
                       const etapa = etapasInstanciadas.find(e => e.id_etapa === cat.id_etapa);

@@ -140,8 +140,31 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
             <h3>Panel Admin</h3>
             <p>Hola, {nombre}</p>
           </div>
-          
-          <nav className="admin-nav">
+
+          {/* Mobile collapsible menu */}
+          <details className="only-mobile" style={{ padding: '0 8px' }}>
+            <summary>
+              <button className="admin-mobile-menu-toggle" aria-label="Abrir menú de secciones">
+                Secciones
+                <span style={{ fontSize: 18, marginLeft: 8 }}>▾</span>
+              </button>
+            </summary>
+            <div className="admin-mobile-nav">
+              {menuItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveSection(item.id)}
+                  className={`admin-nav-item ${activeSection === item.id ? 'active' : ''}`}
+                >
+                  <span className="nav-icon"><img src={item.icon} alt={item.label} className="nav-icon-img" /></span>
+                  <span className="nav-label">{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </details>
+
+          {/* Desktop/Tablet horizontal nav */}
+          <nav className="admin-nav only-desktop">
             {menuItems.map(item => (
               <button
                 key={item.id}

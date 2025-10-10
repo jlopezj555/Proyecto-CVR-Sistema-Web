@@ -226,7 +226,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                       </button>
 
                       {expandedProcesoId === p.id_proceso && (
-                        <div style={{ padding: 12 }}>
+                        <div className="v-scroll v-scroll-60vh" style={{ padding: 12 }}>
                           {/* Solo barra de progreso y porcentaje */}
                           {loadingProgreso[p.id_proceso] ? (
                             <div className="loading">Calculando progreso...</div>
