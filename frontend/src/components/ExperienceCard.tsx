@@ -18,6 +18,10 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ image, imageAlt, title,
   </div>
   <div className="experience-content">
     <h3 className="experience-title">{title}</h3>
+    {/* Tooltip inline para móvil/tablet (debajo de la imagen, encima del subtitulo) */}
+    <div className="experience-tooltip-inline">
+      {text}
+    </div>
     <h4 className="experience-subtitle">{subtitle}</h4>
 
     {/* Tooltip/burbuja */}

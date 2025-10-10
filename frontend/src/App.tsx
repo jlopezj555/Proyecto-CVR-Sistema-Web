@@ -42,7 +42,13 @@ function App() {
       setUserFoto(localStorage.getItem('foto'))
     }
     window.addEventListener('storage', storageListener)
-    return () => window.removeEventListener('storage', storageListener)
+    //Sincronizar al enfocar (iOS/Android no dispara 'storage' de forma confiable)
+    const onFocus = () => storageListener()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.removeEventListener('storage', storageListener)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [])
 
   // Inactividad: cerrar sesión automáticamente después de 10 minutos (persistente entre pestañas/cierres)
@@ -85,6 +91,7 @@ function App() {
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('focus', checkIdleAndLogout)
 
     // Al montar (o cuando cambie userRole), validar inactividad de inmediato
     checkIdleAndLogout()
@@ -93,6 +100,7 @@ function App() {
       activityEvents.forEach(evt => window.removeEventListener(evt, updateActivity))
       window.clearInterval(intervalId)
       document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('focus', checkIdleAndLogout)
     }
   }, [userRole])
 

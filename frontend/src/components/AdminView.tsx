@@ -3,7 +3,7 @@ import EmpresasCRUD from './EmpresasCRUD'
 import RolesCRUD from './RolesCRUD'
 import RolEtapasCRUD from './RolEtapasCRUD'
 import ProcesosCRUD from './ProcesosCRUD'
-import PapeleriaCRUD from './PapeleriaCRUD'
+//import PapeleriaCRUD from './PapeleriaCRUD'
 import EtapasCatalogoCRUD from './EtapasCatalogoCRUD'
 import UsuariosCRUD from './UsuariosCRUD'
 import EtapasProcesoView from './EtapasProcesoView'
@@ -106,7 +106,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                     { icon: iconEmpresas, title: 'Empresas', desc: 'Empresas clientes para asignación de roles y procesos.' },
                     { icon: iconRoles, title: 'Roles', desc: 'Definición de roles y permisos funcionales.' },
                     { icon: iconProcesos, title: 'Procesos', desc: 'Listado de procesos por empresa y filtros por mes asignado.' },
-                    { icon: iconPapeleria, title: 'Papelería', desc: 'Registro de papelería por mes. Auto-genera proceso (Venta/Compra).' },
+                   // { icon: iconPapeleria, title: 'Papelería', desc: 'Registro de papelería por mes. Auto-genera proceso (Venta/Compra).' },
                     { icon: iconEtapasCatalogo, title: 'Etapas Catálogo', desc: 'Definición del catálogo de etapas disponibles.' },
                     { icon: iconEtapasProceso, title: 'Etapas Proceso', desc: 'Visualización de etapas instanciadas por proceso y progreso.' },
                     { icon: iconAsignaciones, title: 'Asignaciones', desc: 'Asignar roles a empleados por empresa.' },

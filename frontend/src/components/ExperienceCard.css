@@ -44,6 +44,10 @@
   color: #555;
 }
 
+.experience-tooltip-inline{
+  display: none;
+}
+
 .experience-text {
   font-size: 2rem;
   color: red;
@@ -70,6 +74,20 @@
   .experience-subtitle {
     font-size: 1rem;
   }
+}
+
+/* En móvil: mostrar texto como subtitulo pequeño y negrita debajo de la imagen*/
+.experience-tooltip-inline{
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #333;
+  margin-top: 6px 0 8px;
+}
+
+/*ocultar burbuja flotante en móvil/tablet */
+.experience-tooltip{
+  display: none;
 }
 
 /* Contenedor tooltip oculto por defecto */
