@@ -306,8 +306,15 @@ html, body, #root {
   grid-template-columns: 1fr 1fr;
   gap: 30px;
   width: 100%;
-  max-width: 900px;
+  max-width: 1100px;
   margin: 0 auto;
+}
+
+@media (max-width: 1024px) {
+  .contact-container {
+    grid-template-columns: 1fr;
+    max-width: 720px;
+  }
 }
 
 .contact-form {
@@ -373,7 +380,7 @@ html, body, #root {
 .contact-cards {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 1rem;
 }
 

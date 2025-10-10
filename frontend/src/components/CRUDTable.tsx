@@ -28,6 +28,7 @@ interface CRUDTableProps {
   afterCreate?: (createdItem: any, submittedData: any) => Promise<void> | void;
   extraActionsForItem?: (item: TableData, refresh: () => void) => React.ReactNode;
   queryParams?: Record<string, any>;
+  filterFunction?: (row: TableData) => boolean;
 }
 
 export interface TableData {
@@ -43,7 +44,8 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   onDataChange,
   afterCreate,
   extraActionsForItem,
-  queryParams
+  queryParams,
+  filterFunction
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -227,6 +229,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     // búsqueda global
     const matchesSearch = !searchQuery || Object.keys(row).some(k => normalized(row[k]).includes(searchQuery.toLowerCase()));
     if (!matchesSearch) return false;
+    if (typeof filterFunction === 'function' && !filterFunction(row)) return false;
     return true;
   }).sort((a, b) => {
     if (!sortBy) return 0;

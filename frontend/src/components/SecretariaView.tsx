@@ -3,8 +3,7 @@ import axios from 'axios'
 import API_CONFIG from '../config/api'
 import './AdminView.css'
 import './EtapasCuentaView.css'
-import iconProcesos from '../assets/admin-procesos-white.svg'
-import iconPapeleria from '../assets/admin-papeleria-white.svg'
+import iconProcesos from '../assets/admin-clientes-white.svg'
 import CRUDTable from './CRUDTable'
 
 interface ProcesoItem {
@@ -22,7 +21,7 @@ interface ProcesoItem {
 
 
 const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
-  const [activeTab, setActiveTab] = useState<'procesos' | 'papeleria'>('procesos')
+  const [activeTab, setActiveTab] = useState<'cuadernillos'>('cuadernillos')
   const token = localStorage.getItem('token')
 
   // Filtros de procesos
@@ -146,29 +145,25 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
           <p>Hola, {nombre}</p>
         </div>
         <nav className="admin-nav">
-          <button className={`admin-nav-item ${activeTab === 'procesos' ? 'active' : ''}`} onClick={() => setActiveTab('procesos')}>
-            <span className="nav-icon"><img src={iconProcesos} alt="Procesos" className="nav-icon-img" /></span>
-            <span className="nav-label">Procesos</span>
-          </button>
-          <button className={`admin-nav-item ${activeTab === 'papeleria' ? 'active' : ''}`} onClick={() => setActiveTab('papeleria')}>
-            <span className="nav-icon"><img src={iconPapeleria} alt="Papelería" className="nav-icon-img" /></span>
-            <span className="nav-label">Papelería</span>
+          <button className={`admin-nav-item ${activeTab === 'cuadernillos' ? 'active' : ''}`} onClick={() => setActiveTab('cuadernillos')}>
+            <span className="nav-icon"><img src={iconProcesos} alt="Cuadernillos" className="nav-icon-img" /></span>
+            <span className="nav-label">Cuadernillos</span>
           </button>
         </nav>
       </div>
 
       <div className="admin-main-content">
         <div className="admin-content-header">
-          <h2>{activeTab === 'procesos' ? 'Procesos' : 'Papelería'}</h2>
-          <p>{activeTab === 'procesos' ? 'Etapas de ingreso/envío de papelería' : 'Registrar, editar, y entregar papelería'}</p>
+          <h2>Cuadernillos</h2>
+          <p>Etapas de ingreso/envío de papelería</p>
         </div>
 
         <div className="admin-content-body">
-          {activeTab === 'procesos' && (
+          {activeTab === 'cuadernillos' && (
             <div className="etapas-cuenta-container">
-              <h2>Gestión de Etapas de Procesos</h2>
+              <h2>Gestión de Cuadernillos</h2>
 
-              <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
                 <div>
                   <label>Empresa</label>
                   <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
@@ -277,68 +272,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
             </div>
           )}
 
-          {activeTab === 'papeleria' && (
-            <>
-              {/* Cargar empresas asignadas a la secretaria a partir de mis-procesos */}
-              {/* Deriva empresas únicas para el select de creación */}
-              <CRUDTable
-                title="Papelería"
-                endpoint="papeleria"
-                columns={[
-                  { key: 'id_papeleria', label: 'ID' },
-                  { key: 'nombre_empresa', label: 'Empresa' },
-                  { key: 'tipo_papeleria', label: 'Tipo' },
-                  { key: 'descripcion', label: 'Descripción' },
-                  { key: 'estado', label: 'Estado' },
-                  { key: 'nombre_proceso', label: 'Proceso' },
-                  { key: 'fecha_recepcion', label: 'Fecha Recepción' },
-                  { key: 'fecha_entrega', label: 'Fecha Entrega' }
-                ]}
-                createFields={(() => {
-                  const token = localStorage.getItem('token') || ''
-                  const opcionesEmpresas = (empresasAsignadas && empresasAsignadas.length > 0)
-                    ? empresasAsignadas
-                    : Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries())
-                        .map(([value, label]) => ({ value: Number(value), label: String(label) }))
-                  return [
-                    { key: 'id_empresa', label: 'Empresa', type: 'select' as const, required: true, options: opcionesEmpresas },
-                    { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true,
-                      dynamicOptions: async (formData) => {
-                        const empresaSel = formData['id_empresa']
-                        if (!empresaSel) return []
-                        try {
-                          const resp = await fetch(`${API_CONFIG.BASE_URL}/api/papeleria/available-tipos?empresa=${empresaSel}`, {
-                            headers: { Authorization: `Bearer ${token}` }
-                          })
-                          const json = await resp.json()
-                          const list = json?.data || []
-                          return list.map((t: string) => ({ value: t, label: t }))
-                        } catch (_) {
-                          return []
-                        }
-                      },
-                      dependsOnKeys: ['id_empresa'],
-                      disabledWhen: (fd) => !fd['id_empresa']
-                    },
-                    { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
-                  ]
-                })()}
-                editFields={[
-                  { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true },
-                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true, options: [
-                    { value: 'Venta', label: 'Venta' },
-                    { value: 'Compra', label: 'Compra' }
-                  ]},
-                  { key: 'estado', label: 'Estado', type: 'select' as const, required: true, options: [
-                    { value: 'Recibida', label: 'Recibida' },
-                    { value: 'En proceso', label: 'En proceso' },
-                    { value: 'Entregada', label: 'Entregada' }
-                  ]},
-                  { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date' as const, required: false }
-                ]}
-              />
-            </>
-          )}
+          {/* Se eliminó vista de Papelería */}
         </div>
       </div>
     </div>

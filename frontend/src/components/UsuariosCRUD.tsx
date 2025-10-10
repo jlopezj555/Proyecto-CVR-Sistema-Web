@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import axios from 'axios';
 import CRUDTable from './CRUDTable';
 import API_CONFIG from '../config/api'
@@ -31,8 +31,12 @@ const UsuariosCRUD: React.FC = () => {
     const disabled = item.tipo_usuario === 'empleado';
     const onClick = async () => {
       if (disabled) return;
+      const ok = window.confirm('Esta acción requiere autorización. ¿Deseas proceder para convertir a empleado?');
+      if (!ok) return;
       try {
-        await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}/convertir-empleado`, {}, {
+        // Abrimos modal de verificación de admin mediante endpoint que ya valida adminContrasena si el backend lo requiere
+        const adminPwd = window.prompt('Ingresa tu contraseña de administrador para confirmar:') || '';
+        await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}/convertir-empleado`, { adminContrasena: adminPwd }, {
           headers: { Authorization: `Bearer ${token}` }
         });
         refresh();
@@ -47,15 +51,34 @@ const UsuariosCRUD: React.FC = () => {
     );
   };
 
+  // Filtro de tipo_usuario
+  const [tipoFiltro, setTipoFiltro] = useState<string>('');
+  const filterFunction = useMemo(() => {
+    if (!tipoFiltro) return undefined;
+    return (row: any) => String(row?.tipo_usuario || '').toLowerCase() === tipoFiltro.toLowerCase();
+  }, [tipoFiltro]);
+
   return (
-    <CRUDTable
+    <>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+        <label style={{ fontWeight: 600, color: '#000' }}>Tipo de usuario:</label>
+        <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, border: '2px solid #e9ecef' }}>
+          <option value="">Todos</option>
+          <option value="administrador">Administrador</option>
+          <option value="empleado">Empleado</option>
+          <option value="cliente">Cliente</option>
+        </select>
+      </div>
+      <CRUDTable
       title="Usuarios"
       endpoint="usuarios"
       columns={columns}
       createFields={createFields}
       editFields={editFields}
       extraActionsForItem={convertirAccion}
-          />
+      filterFunction={filterFunction}
+      />
+    </>
   );
 };
 
