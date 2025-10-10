@@ -58,6 +58,8 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [passwordModalError, setPasswordModalError] = useState('');
+  // Mostrar mensajes de validación solo después de presionar Guardar
+  const [showValidationErrors, setShowValidationErrors] = useState(false);
   // Visibilidad de contraseñas por campo (mantener presionado el ojo)
   const [revealMap, setRevealMap] = useState<Record<string, boolean>>({});
   const revealOn = (key: string) => setRevealMap(prev => ({ ...prev, [key]: true }));
@@ -130,6 +132,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     setFormData({});
     setShowCreateModal(true);
     setError('');
+    setShowValidationErrors(false);
   };
 
   const handleEdit = (item: TableData) => {
@@ -137,6 +140,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     setFormData({ ...item });
     setShowEditModal(true);
     setError('');
+    setShowValidationErrors(false);
   };
 
   const handleDelete = (item: TableData) => {
@@ -446,6 +450,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       }
       setFormData({});
       setError('');
+      setShowValidationErrors(false);
     };
 
     return (
@@ -457,10 +462,11 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
           </div>
           
           <div className="crud-modal-body">
-            <form className="crud-form">
+            <form className="crud-form" onSubmit={(e) => e.preventDefault()}>
               {fields.map(field => {
                 const err = getFieldError(field);
-                const showErr = !!err && (showEditModal || showCreateModal);
+                // Mostrar error solo después de presionar Guardar con campos vacíos
+                const showErr = !!err && showValidationErrors;
                 return (
                   <div key={field.key} className="crud-form-group">
                     <label>
@@ -484,11 +490,15 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                 <button 
                   type="button" 
                   onClick={() => {
+                    // Si hay campos requeridos vacíos, mostrar advertencias pero no abrir modal
+                    if (!isFormValid(fields)) {
+                      setShowValidationErrors(true);
+                      return;
+                    }
                     setPendingAction(isEdit ? 'update' : 'create');
                     setShowPasswordModal(true);
                   }}
                   className="crud-btn-save"
-                  disabled={!valid}
                 >
                   {isEdit ? 'Actualizar' : 'Crear'}
                 </button>

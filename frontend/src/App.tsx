@@ -116,6 +116,19 @@ function App() {
     }
   }, [userType, userRole]);
 
+  // Modo admin/empleado: desactivar fondo hero fijo para evitar superposición
+  useEffect(() => {
+    const adminMode = !!userRole && userType !== 'cliente';
+    if (adminMode) {
+      document.body.classList.add('admin-mode');
+    } else {
+      document.body.classList.remove('admin-mode');
+    }
+    return () => {
+      document.body.classList.remove('admin-mode');
+    };
+  }, [userRole, userType]);
+
   const showLoadingDialog = (message: string) => {
     const overlay = document.createElement('div');
     overlay.style.position = 'fixed';
@@ -285,9 +298,11 @@ function App() {
         onLoginSuccess={handleRegisterSuccess}
       />
       
-      <div className="hero-image-container">
-        <h1 className="hero-text typing">Asesoría y Soluciones Óptimas para tus Finanzas</h1>
-      </div>
+      {(!userRole || userType === 'cliente') && (
+        <div className="hero-image-container">
+          <h1 className="hero-text typing">Asesoría y Soluciones Óptimas para tus Finanzas</h1>
+        </div>
+      )}
 
       {/* Mensaje de bienvenida para clientes */}
       {showWelcomeMessage && (

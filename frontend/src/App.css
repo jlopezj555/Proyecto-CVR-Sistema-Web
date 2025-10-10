@@ -9,6 +9,11 @@ body {
   background-position: center; /* Centrado */
 }
 
+/* En modo administrador/empleado, no fijar el fondo para evitar congelamiento en móviles */
+body.admin-mode {
+  background-attachment: scroll;
+}
+
 /* Mensaje de bienvenida */
 .welcome-message {
   position: fixed;
