@@ -9,8 +9,10 @@ body {
   background-position: center; /* Centrado */
 }
 
-/* En modo administrador/empleado, no fijar el fondo para evitar congelamiento en móviles */
+/* En modo admin/empleado/rol interno, quitar completamente el hero de fondo */
 body.admin-mode {
+  background-image: none !important;
+  background-color: #f8f9fa;
   background-attachment: scroll;
 }
 
