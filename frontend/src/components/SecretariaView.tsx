@@ -3,9 +3,9 @@ import axios from 'axios'
 import API_CONFIG from '../config/api'
 import './AdminView.css'
 import './EtapasCuentaView.css'
-import iconProcesos from '../assets/admin-procesos-white.svg'
-import iconPapeleria from '../assets/admin-papeleria-white.svg'
+import iconProcesos from '../assets/admin-etapas-proceso-white.svg'
 import CRUDTable from './CRUDTable'
+import PasswordVerificationModal from './PasswordVerificationModal'
 
 interface ProcesoItem {
   id_proceso: number
@@ -22,7 +22,7 @@ interface ProcesoItem {
 
 
 const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
-  const [activeTab, setActiveTab] = useState<'procesos' | 'papeleria'>('procesos')
+  const [activeTab, setActiveTab] = useState<'cuadernillos'>('cuadernillos')
   const token = localStorage.getItem('token')
 
   // Filtros de procesos
@@ -37,6 +37,8 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const [loadingProgreso, setLoadingProgreso] = useState<Record<number, boolean>>({})
   const [empresasAsignadas, setEmpresasAsignadas] = useState<{ value: number, label: string }[]>([])
   const [expandedProcesoId, setExpandedProcesoId] = useState<number | null>(null)
+  const [confirmPwdOpenForProceso, setConfirmPwdOpenForProceso] = useState<number | null>(null)
+  const [confirmPwdError, setConfirmPwdError] = useState<string>('')
 
   const cargarProcesos = async () => {
     setLoadingProc(true)
@@ -154,29 +156,25 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
           <p>Hola, {nombre}</p>
         </div>
         <nav className="admin-nav">
-          <button className={`admin-nav-item ${activeTab === 'procesos' ? 'active' : ''}`} onClick={() => setActiveTab('procesos')}>
-            <span className="nav-icon"><img src={iconProcesos} alt="Procesos" className="nav-icon-img" /></span>
-            <span className="nav-label">Procesos</span>
-          </button>
-          <button className={`admin-nav-item ${activeTab === 'papeleria' ? 'active' : ''}`} onClick={() => setActiveTab('papeleria')}>
-            <span className="nav-icon"><img src={iconPapeleria} alt="Papelería" className="nav-icon-img" /></span>
-            <span className="nav-label">Papelería</span>
+          <button className={`admin-nav-item ${activeTab === 'cuadernillos' ? 'active' : ''}`} onClick={() => setActiveTab('cuadernillos')}>
+            <span className="nav-icon"><img src={iconProcesos} alt="Cuadernillos" className="nav-icon-img" /></span>
+            <span className="nav-label">Cuadernillos</span>
           </button>
         </nav>
       </div>
 
       <div className="admin-main-content">
         <div className="admin-content-header">
-          <h2>{activeTab === 'procesos' ? 'Procesos' : 'Papelería'}</h2>
-          <p>{activeTab === 'procesos' ? 'Etapas de ingreso/envío de papelería' : 'Registrar, editar, y entregar papelería'}</p>
+          <h2>Cuadernillos</h2>
+          <p>Etapas de ingreso/envío de papelería</p>
         </div>
 
         <div className="admin-content-body">
-          {activeTab === 'procesos' && (
+          {activeTab === 'cuadernillos' && (
             <div className="etapas-cuenta-container">
-              <h2>Gestión de Etapas de Procesos</h2>
+              <h2>Gestión de Cuadernillos</h2>
 
-              <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
                 <div>
                   <label>Empresa</label>
                   <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
@@ -234,7 +232,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                       </button>
 
                       {expandedProcesoId === p.id_proceso && (
-                        <div style={{ padding: 12 }}>
+                        <div className="v-scroll v-scroll-60vh" style={{ padding: 12 }}>
                           {/* Solo barra de progreso y porcentaje */}
                           {loadingProgreso[p.id_proceso] ? (
                             <div className="loading">Calculando progreso...</div>
@@ -257,15 +255,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                                   {isAlmostComplete && (
                                     <div style={{ marginTop: 12 }}>
                                       <button
-                                        onClick={() => {
-                                          // TODO: implement confirm envio
-                                          if (window.confirm('¿Confirmar envío del proceso?')) {
-                                            // call endpoint
-                                            axios.post(`${API_CONFIG.BASE_URL}/api/procesos/${p.id_proceso}/confirmar-envio`, {}, { headers: { Authorization: `Bearer ${token}` } })
-                                              .then(() => { cargarProcesos(); cargarProgreso(p.id_proceso); })
-                                              .catch(err => console.error('Error confirmando envío:', err))
-                                          }
-                                        }}
+                                        onClick={() => { setConfirmPwdError(''); setConfirmPwdOpenForProceso(p.id_proceso); }}
                                         style={{ background: '#28a745', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}
                                       >
                                         Confirmar envío
@@ -285,67 +275,30 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
             </div>
           )}
 
-          {activeTab === 'papeleria' && (
-            <>
-              {/* Cargar empresas asignadas a la secretaria a partir de mis-procesos */}
-              {/* Deriva empresas únicas para el select de creación */}
-              <CRUDTable
-                title="Papelería"
-                endpoint="papeleria"
-                columns={[
-                  { key: 'id_papeleria', label: 'ID' },
-                  { key: 'nombre_empresa', label: 'Empresa' },
-                  { key: 'tipo_papeleria', label: 'Tipo' },
-                  { key: 'descripcion', label: 'Descripción' },
-                  { key: 'estado', label: 'Estado' },
-                  { key: 'nombre_proceso', label: 'Proceso' },
-                  { key: 'fecha_recepcion', label: 'Fecha Recepción' },
-                  { key: 'fecha_entrega', label: 'Fecha Entrega' }
-                ]}
-                createFields={(() => {
-                  const token = localStorage.getItem('token') || ''
-                  const opcionesEmpresas = (empresasAsignadas && empresasAsignadas.length > 0)
-                    ? empresasAsignadas
-                    : Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries())
-                        .map(([value, label]) => ({ value: Number(value), label: String(label) }))
-                  return [
-                    { key: 'id_empresa', label: 'Empresa', type: 'select' as const, required: true, options: opcionesEmpresas },
-                    { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true,
-                      dynamicOptions: async (formData) => {
-                        const empresaSel = formData['id_empresa']
-                        if (!empresaSel) return []
-                        try {
-                          const resp = await fetch(`${API_CONFIG.BASE_URL}/api/papeleria/available-tipos?empresa=${empresaSel}`, {
-                            headers: { Authorization: `Bearer ${token}` }
-                          })
-                          const json = await resp.json()
-                          const list = json?.data || []
-                          return list.map((t: string) => ({ value: t, label: t }))
-                        } catch (_) {
-                          return []
-                        }
-                      },
-                      dependsOnKeys: ['id_empresa'],
-                      disabledWhen: (fd) => !fd['id_empresa']
-                    },
-                    { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
-                  ]
-                })()}
-                editFields={[
-                  { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true },
-                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true, options: [
-                    { value: 'Venta', label: 'Venta' },
-                    { value: 'Compra', label: 'Compra' }
-                  ]},
-                  { key: 'estado', label: 'Estado', type: 'select' as const, required: true, options: [
-                    { value: 'Recibida', label: 'Recibida' },
-                    { value: 'En proceso', label: 'En proceso' },
-                    { value: 'Entregada', label: 'Entregada' }
-                  ]},
-                  { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date' as const, required: false }
-                ]}
-              />
-            </>
+          {/* Modal de verificación para confirmar envío */}
+          {confirmPwdOpenForProceso !== null && (
+            <PasswordVerificationModal
+              isOpen={confirmPwdOpenForProceso !== null}
+              onClose={() => { setConfirmPwdOpenForProceso(null); setConfirmPwdError(''); }}
+              onVerify={async (pwd: string) => {
+                try {
+                  await axios.post(`${API_CONFIG.BASE_URL}/api/procesos/${confirmPwdOpenForProceso}/confirmar-envio`, { contrasena: pwd }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                  });
+                  setConfirmPwdOpenForProceso(null);
+                  setConfirmPwdError('');
+                  await cargarProcesos();
+                  return true;
+                } catch (e: any) {
+                  const msg = e?.response?.data?.message || 'Error al confirmar envío';
+                  setConfirmPwdError(msg);
+                  return false;
+                }
+              }}
+              title="Confirmar envío"
+              message="Ingresa tu contraseña para confirmar el envío de este cuadernillo."
+              errorMessage={confirmPwdError}
+            />
           )}
         </div>
       </div>

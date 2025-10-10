@@ -290,7 +290,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
                   </button>
 
 {expandedProcesoId === proceso.id_proceso && (
-  <div style={{ padding: 16 }}>
+  <div className="v-scroll v-scroll-60vh" style={{ padding: 16 }}>
     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10, color: '#495057' }}>
       <span><strong>Estado:</strong> {proceso.estado || 'Activo'}</span>
       <span><strong>Creado:</strong> {formatDate(proceso.fecha_creacion)}</span>
@@ -306,8 +306,8 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     <div>
       <h4 style={{ margin: '8px 0 12px 0', color: '#2c3e50' }}>Etapas asignadas</h4>
 
-      {etapasPorProceso[proceso.id_proceso] && etapasPorProceso[proceso.id_proceso].length > 0 && (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, overflowX: 'auto' }}>
+            {etapasPorProceso[proceso.id_proceso] && etapasPorProceso[proceso.id_proceso].length > 0 && (
+        <div className="h-scroll" style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
           {etapasPorProceso[proceso.id_proceso]!.map((et) => {
             const estado = et.estado
             const color =

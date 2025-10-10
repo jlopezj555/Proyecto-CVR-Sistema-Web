@@ -1,0 +1,50 @@
+/* Global responsive utilities and helpers */
+
+:root {
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+}
+
+/* Horizontal scroll container with momentum scrolling on touch */
+.h-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Vertical scroll container locked to a max height */
+.v-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.v-scroll-60vh { max-height: 60vh; }
+.v-scroll-65vh { max-height: 65vh; }
+.v-scroll-70vh { max-height: 70vh; }
+
+/* Stack utilities */
+.stack-sm > * + * { margin-top: 8px; }
+.stack-md > * + * { margin-top: 12px; }
+.stack-lg > * + * { margin-top: 16px; }
+
+/* Container width helpers */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Hide on desktop, show on mobile */
+.only-mobile { display: none; }
+@media (max-width: 768px) {
+  .only-mobile { display: block; }
+}
+
+/* Hide on mobile, show on desktop */
+.only-desktop { display: block; }
+@media (max-width: 768px) {
+  .only-desktop { display: none; }
+}

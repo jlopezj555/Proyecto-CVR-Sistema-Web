@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import axios from 'axios';
 import CRUDTable from './CRUDTable';
+import PasswordVerificationModal from './PasswordVerificationModal';
 import API_CONFIG from '../config/api'
 
 const UsuariosCRUD: React.FC = () => {
@@ -26,19 +27,16 @@ const UsuariosCRUD: React.FC = () => {
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
 
+  const [pwOpenForUserId, setPwOpenForUserId] = useState<number | null>(null);
+  const [pwError, setPwError] = useState<string>('');
+
   const convertirAccion = (item: any, refresh: () => void) => {
     const token = localStorage.getItem('token');
     const disabled = item.tipo_usuario === 'empleado';
     const onClick = async () => {
       if (disabled) return;
-      try {
-        await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}/convertir-empleado`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        refresh();
-      } catch (e) {
-        // Ignorar: UI base
-      }
+      setPwError('');
+      setPwOpenForUserId(item.id_usuario);
     };
     return (
       <button className="crud-btn-edit" onClick={onClick} disabled={disabled} title={disabled ? 'Ya es empleado' : 'Convertir a empleado'}>
@@ -47,15 +45,61 @@ const UsuariosCRUD: React.FC = () => {
     );
   };
 
+  // Filtro de tipo_usuario
+  const [tipoFiltro, setTipoFiltro] = useState<string>('');
+  const filterFunction = useMemo(() => {
+    if (!tipoFiltro) return undefined;
+    return (row: any) => String(row?.tipo_usuario || '').toLowerCase() === tipoFiltro.toLowerCase();
+  }, [tipoFiltro]);
+
   return (
-    <CRUDTable
+    <>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+        <label style={{ fontWeight: 600, color: '#000' }}>Tipo de usuario:</label>
+        <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, border: '2px solid #e9ecef' }}>
+          <option value="">Todos</option>
+          <option value="administrador">Administrador</option>
+          <option value="empleado">Empleado</option>
+          <option value="cliente">Cliente</option>
+        </select>
+      </div>
+      <CRUDTable
       title="Usuarios"
       endpoint="usuarios"
       columns={columns}
       createFields={createFields}
       editFields={editFields}
       extraActionsForItem={convertirAccion}
-          />
+      filterFunction={filterFunction}
+      />
+
+      {/* Modal de verificación para convertir a empleado */}
+      {pwOpenForUserId !== null && (
+        <PasswordVerificationModal
+          isOpen={pwOpenForUserId !== null}
+          onClose={() => { setPwOpenForUserId(null); setPwError(''); }}
+          onVerify={async (pwd: string) => {
+            try {
+              await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${pwOpenForUserId}/convertir-empleado`, { adminContrasena: pwd }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+              });
+              setPwOpenForUserId(null);
+              setPwError('');
+              // Forzar refresh visual: simple estrategia es recargar la página de tabla
+              window.setTimeout(() => window.location.reload(), 250);
+              return true;
+            } catch (e: any) {
+              const msg = e?.response?.data?.message || 'Error de autorización';
+              setPwError(msg);
+              return false;
+            }
+          }}
+          title="Confirmar conversión a empleado"
+          message="Ingresa tu contraseña de administrador para confirmar."
+          errorMessage={pwError}
+        />
+      )}
+    </>
   );
 };
 

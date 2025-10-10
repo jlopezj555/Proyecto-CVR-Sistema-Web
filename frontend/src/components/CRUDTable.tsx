@@ -28,7 +28,7 @@ interface CRUDTableProps {
   afterCreate?: (createdItem: any, submittedData: any) => Promise<void> | void;
   extraActionsForItem?: (item: TableData, refresh: () => void) => React.ReactNode;
   queryParams?: Record<string, any>;
-  allowEdit?: boolean;
+  filterFunction?: (row: TableData) => boolean;
 }
 
 export interface TableData {
@@ -45,7 +45,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   afterCreate,
   extraActionsForItem,
   queryParams,
-  allowEdit = true
+  filterFunction
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -229,6 +229,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     // búsqueda global
     const matchesSearch = !searchQuery || Object.keys(row).some(k => normalized(row[k]).includes(searchQuery.toLowerCase()));
     if (!matchesSearch) return false;
+    if (typeof filterFunction === 'function' && !filterFunction(row)) return false;
     return true;
   }).sort((a, b) => {
     if (!sortBy) return 0;
@@ -413,6 +414,25 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     });
   };
 
+  const getFieldError = (field: Column): string => {
+    const val = formData[field.key];
+    if (field.required) {
+      if (field.type === 'multiselect' && (!Array.isArray(val) || val.length === 0)) return 'Este campo es requerido';
+      if (field.type === 'boolean' && typeof val !== 'boolean') return 'Selecciona una opción';
+      if (val === undefined || val === null || String(val).trim() === '') return 'Este campo es requerido';
+    }
+    if (field.type === 'email' && val) {
+      const ok = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(val));
+      if (!ok) return 'Correo inválido';
+    }
+    if (field.type === 'date' && val) {
+      const d = new Date(String(val));
+      if (isNaN(d.getTime())) return 'Fecha inválida';
+    }
+    if (field.type === 'text' && val && String(val).length > 1024) return 'Texto demasiado largo';
+    return '';
+  };
+
   const renderModal = (isEdit: boolean) => {
     const fields = isEdit ? editFields : createFields;
     const valid = isFormValid(fields);
@@ -438,15 +458,22 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
           
           <div className="crud-modal-body">
             <form className="crud-form">
-              {fields.map(field => (
-                <div key={field.key} className="crud-form-group">
-                  <label>
-                    {field.label}:
-                    {field.required && <span className="required">*</span>}
-                  </label>
-                  {renderFormField(field)}
-                </div>
-              ))}
+              {fields.map(field => {
+                const err = getFieldError(field);
+                const showErr = !!err && (showEditModal || showCreateModal);
+                return (
+                  <div key={field.key} className="crud-form-group">
+                    <label>
+                      {field.label}:
+                      {field.required && <span className="required">*</span>}
+                    </label>
+                    {renderFormField(field)}
+                    {showErr && (
+                      <div className="crud-error" style={{ marginTop: 6, padding: '8px 12px' }}>{err}</div>
+                    )}
+                  </div>
+                );
+              })}
               
               {error && <div className="crud-error">{error}</div>}
               

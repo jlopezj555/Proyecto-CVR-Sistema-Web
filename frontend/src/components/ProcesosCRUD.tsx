@@ -156,7 +156,7 @@ const ProcesosCRUD: React.FC = () => {
       </div>
 
       <CRUDTable
-        title="Procesos"
+        title="Cuadernillos"
         endpoint="procesos"
         columns={columns}
         createFields={createFields}

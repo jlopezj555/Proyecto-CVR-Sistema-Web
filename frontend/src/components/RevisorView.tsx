@@ -256,7 +256,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
                   </button>
 
                   {expanded === p.id_proceso && (
-                    <div style={{ padding: 16 }}>
+                    <div className="v-scroll v-scroll-65vh" style={{ padding: 16 }}>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 10, color: '#495057' }}>
                         <span><strong>Estado:</strong> {p.estado}</span>
                         <span><strong>Creado:</strong> {formatDate(p.fecha_creacion)}</span>
