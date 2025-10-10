@@ -3,8 +3,9 @@ import axios from 'axios'
 import API_CONFIG from '../config/api'
 import './AdminView.css'
 import './EtapasCuentaView.css'
-import iconProcesos from '../assets/admin-clientes-white.svg'
+import iconProcesos from '../assets/admin-etapas-proceso-white.svg'
 import CRUDTable from './CRUDTable'
+import PasswordVerificationModal from './PasswordVerificationModal'
 
 interface ProcesoItem {
   id_proceso: number
@@ -36,6 +37,8 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const [loadingProgreso, setLoadingProgreso] = useState<Record<number, boolean>>({})
   const [empresasAsignadas, setEmpresasAsignadas] = useState<{ value: number, label: string }[]>([])
   const [expandedProcesoId, setExpandedProcesoId] = useState<number | null>(null)
+  const [confirmPwdOpenForProceso, setConfirmPwdOpenForProceso] = useState<number | null>(null)
+  const [confirmPwdError, setConfirmPwdError] = useState<string>('')
 
   const cargarProcesos = async () => {
     setLoadingProc(true)
@@ -244,15 +247,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                                   {isAlmostComplete && (
                                     <div style={{ marginTop: 12 }}>
                                       <button
-                                        onClick={() => {
-                                          // TODO: implement confirm envio
-                                          if (window.confirm('¿Confirmar envío del proceso?')) {
-                                            // call endpoint
-                                            axios.post(`${API_CONFIG.BASE_URL}/api/procesos/${p.id_proceso}/confirmar-envio`, {}, { headers: { Authorization: `Bearer ${token}` } })
-                                              .then(() => { cargarProcesos(); cargarProgreso(p.id_proceso); })
-                                              .catch(err => console.error('Error confirmando envío:', err))
-                                          }
-                                        }}
+                                        onClick={() => { setConfirmPwdError(''); setConfirmPwdOpenForProceso(p.id_proceso); }}
                                         style={{ background: '#28a745', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}
                                       >
                                         Confirmar envío
@@ -272,7 +267,31 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
             </div>
           )}
 
-          {/* Se eliminó vista de Papelería */}
+          {/* Modal de verificación para confirmar envío */}
+          {confirmPwdOpenForProceso !== null && (
+            <PasswordVerificationModal
+              isOpen={confirmPwdOpenForProceso !== null}
+              onClose={() => { setConfirmPwdOpenForProceso(null); setConfirmPwdError(''); }}
+              onVerify={async (pwd: string) => {
+                try {
+                  await axios.post(`${API_CONFIG.BASE_URL}/api/procesos/${confirmPwdOpenForProceso}/confirmar-envio`, { contrasena: pwd }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                  });
+                  setConfirmPwdOpenForProceso(null);
+                  setConfirmPwdError('');
+                  await cargarProcesos();
+                  return true;
+                } catch (e: any) {
+                  const msg = e?.response?.data?.message || 'Error al confirmar envío';
+                  setConfirmPwdError(msg);
+                  return false;
+                }
+              }}
+              title="Confirmar envío"
+              message="Ingresa tu contraseña para confirmar el envío de este cuadernillo."
+              errorMessage={confirmPwdError}
+            />
+          )}
         </div>
       </div>
     </div>

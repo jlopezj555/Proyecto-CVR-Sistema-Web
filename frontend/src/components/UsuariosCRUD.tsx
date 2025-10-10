@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import axios from 'axios';
 import CRUDTable from './CRUDTable';
+import PasswordVerificationModal from './PasswordVerificationModal';
 import API_CONFIG from '../config/api'
 
 const UsuariosCRUD: React.FC = () => {
@@ -26,23 +27,16 @@ const UsuariosCRUD: React.FC = () => {
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
 
+  const [pwOpenForUserId, setPwOpenForUserId] = useState<number | null>(null);
+  const [pwError, setPwError] = useState<string>('');
+
   const convertirAccion = (item: any, refresh: () => void) => {
     const token = localStorage.getItem('token');
     const disabled = item.tipo_usuario === 'empleado';
     const onClick = async () => {
       if (disabled) return;
-      const ok = window.confirm('Esta acción requiere autorización. ¿Deseas proceder para convertir a empleado?');
-      if (!ok) return;
-      try {
-        // Abrimos modal de verificación de admin mediante endpoint que ya valida adminContrasena si el backend lo requiere
-        const adminPwd = window.prompt('Ingresa tu contraseña de administrador para confirmar:') || '';
-        await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}/convertir-empleado`, { adminContrasena: adminPwd }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        refresh();
-      } catch (e) {
-        // Ignorar: UI base
-      }
+      setPwError('');
+      setPwOpenForUserId(item.id_usuario);
     };
     return (
       <button className="crud-btn-edit" onClick={onClick} disabled={disabled} title={disabled ? 'Ya es empleado' : 'Convertir a empleado'}>
@@ -78,6 +72,33 @@ const UsuariosCRUD: React.FC = () => {
       extraActionsForItem={convertirAccion}
       filterFunction={filterFunction}
       />
+
+      {/* Modal de verificación para convertir a empleado */}
+      {pwOpenForUserId !== null && (
+        <PasswordVerificationModal
+          isOpen={pwOpenForUserId !== null}
+          onClose={() => { setPwOpenForUserId(null); setPwError(''); }}
+          onVerify={async (pwd: string) => {
+            try {
+              await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${pwOpenForUserId}/convertir-empleado`, { adminContrasena: pwd }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+              });
+              setPwOpenForUserId(null);
+              setPwError('');
+              // Forzar refresh visual: simple estrategia es recargar la página de tabla
+              window.setTimeout(() => window.location.reload(), 250);
+              return true;
+            } catch (e: any) {
+              const msg = e?.response?.data?.message || 'Error de autorización';
+              setPwError(msg);
+              return false;
+            }
+          }}
+          title="Confirmar conversión a empleado"
+          message="Ingresa tu contraseña de administrador para confirmar."
+          errorMessage={pwError}
+        />
+      )}
     </>
   );
 };
