@@ -8,8 +8,7 @@ const AsignacionesCRUD: React.FC = () => {
   const [empresas, setEmpresas] = useState<any[]>([]);
 
   const [empresaFiltro, setEmpresaFiltro] = useState<string>('');
-  const [anioFiltro, setAnioFiltro] = useState<string>('');
-  const [mesFiltro, setMesFiltro] = useState<string>('');
+  // Eliminar filtros de mes y año según requerimiento
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -96,30 +95,11 @@ const AsignacionesCRUD: React.FC = () => {
     }
   ];
 
-  const meses = [
-    { value: 1, label: 'Enero' }, { value: 2, label: 'Febrero' }, { value: 3, label: 'Marzo' },
-    { value: 4, label: 'Abril' }, { value: 5, label: 'Mayo' }, { value: 6, label: 'Junio' },
-    { value: 7, label: 'Julio' }, { value: 8, label: 'Agosto' }, { value: 9, label: 'Septiembre' },
-    { value: 10, label: 'Octubre' }, { value: 11, label: 'Noviembre' }, { value: 12, label: 'Diciembre' }
-  ];
+  // meses/anio removidos
 
   const queryParams: Record<string, any> = {};
   if (empresaFiltro) queryParams.empresa = empresaFiltro;
-  if (mesFiltro && anioFiltro) {
-    // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
-    const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
-    const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro;
-    queryParams.month = mesAnterior;
-    queryParams.year = anioAnterior;
-  } else if (mesFiltro) {
-    // Si solo se selecciona mes sin año, usar año actual
-    const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
-    const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear());
-    queryParams.month = mesAnterior;
-    queryParams.year = anioAnterior;
-  } else if (anioFiltro) {
-    queryParams.year = anioFiltro;
-  }
+  // Solo enviar empresa como filtro
 
   return (
     <div>
@@ -140,24 +120,6 @@ const AsignacionesCRUD: React.FC = () => {
             <option value="">Todas</option>
             {empresas.map(emp => (
               <option key={emp.id_empresa} value={emp.id_empresa}>{emp.nombre_empresa}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label style={{ fontWeight: 600, color: '#000' }}>Mes</label>
-          <select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
-            <option value="">Todos</option>
-            {meses.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label style={{ fontWeight: 600, color: '#000' }}>Año</label>
-          <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
-            <option value="">Todos</option>
-            {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => (
-              <option key={y} value={y}>{y}</option>
             ))}
           </select>
         </div>

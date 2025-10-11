@@ -29,6 +29,10 @@ interface CRUDTableProps {
   extraActionsForItem?: (item: TableData, refresh: () => void) => React.ReactNode;
   queryParams?: Record<string, any>;
   filterFunction?: (row: TableData) => boolean;
+  // Opcional: obtener identificador personalizado para update/delete (soporta compuesto, e.g. "idRol/idEtapa")
+  getItemId?: (item: TableData) => string | number;
+  // Opcional: deshabilitar botón de editar (global o por fila)
+  disableEdit?: boolean | ((item: TableData) => boolean);
 }
 
 export interface TableData {
@@ -135,7 +139,13 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     setShowValidationErrors(false);
   };
 
+  const isEditDisabled = (item?: TableData) => {
+    if (typeof disableEdit === 'function') return !!disableEdit(item || {});
+    return !!disableEdit;
+  };
+
   const handleEdit = (item: TableData) => {
+    if (isEditDisabled(item)) return;
     setSelectedItem(item);
     setFormData({ ...item });
     setShowEditModal(true);
@@ -168,8 +178,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
         } catch (_) { }
       } else if (pendingAction === 'update') {
         if (!selectedItem) return false;
-        const idKey = `id_${endpoint.slice(0, -1)}`;
-        const id = selectedItem[idKey];
+        const id = typeof getItemId === 'function'
+          ? getItemId(selectedItem)
+          : selectedItem[`id_${endpoint.slice(0, -1)}`];
         const payload = { ...(formData || {}) } as any;
         payload.adminContrasena = password;
         await axios.put<any>(`${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`, payload, {
@@ -181,8 +192,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
         setSelectedItem(null);
       } else if (pendingAction === 'delete') {
         if (!selectedItem) return false;
-        const idKey = `id_${endpoint.slice(0, -1)}`;
-        const id = selectedItem[idKey];
+        const id = typeof getItemId === 'function'
+          ? getItemId(selectedItem)
+          : selectedItem[`id_${endpoint.slice(0, -1)}`];
         await axios.request({
           url: `${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`,
           method: 'delete',
@@ -565,15 +577,15 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                   ))}
                   <td>
                     <div className="crud-actions">
-                      
-                        <button 
+                      { !isEditDisabled(item) && (
+                        <button
                           onClick={() => handleEdit(item)}
                           className="crud-btn-edit"
                           title="Editar"
                         >
                           ✏️
                         </button>
-                      
+                      )}
                       <button 
                         onClick={() => handleDelete(item)}
                         className="crud-btn-delete"
