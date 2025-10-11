@@ -17,61 +17,60 @@ const UsuariosCRUD: React.FC = () => {
     { key: 'nombre_completo', label: 'Nombre completo', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
     { key: 'contrasena', label: 'Contraseña', type: 'text' as const, required: true },
-    // Ocultar estado al crear (no incluir el campo aquí)
+    // No mostrar campo "activo" al crear nuevo usuario
   ];
 
   const editFields = [
     { key: 'nombre_completo', label: 'Nombre completo', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
-    // No permitir cambiar contraseña desde administración para otros usuarios
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
 
   const [pwOpenForUserId, setPwOpenForUserId] = useState<number | null>(null);
+  const [pwChangeOpen, setPwChangeOpen] = useState<boolean>(false);
   const [pwError, setPwError] = useState<string>('');
-  const [changePwdUserId, setChangePwdUserId] = useState<number | null>(null);
-  const [newPwd, setNewPwd] = useState<string>('');
-  const [newPwd2, setNewPwd2] = useState<string>('');
-  const [changePwdError, setChangePwdError] = useState<string>('');
+  const [myUserId, setMyUserId] = useState<number | null>(null);
 
-  const token = localStorage.getItem('token') || '';
-  let myUserId: number | null = null;
-  let myTipo: string = String(localStorage.getItem('tipo') || '');
-  try {
-    const payload = JSON.parse(atob((token.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/')));
-    myUserId = Number(payload?.id || 0) || null;
-  } catch {}
+  // Obtener mi id de usuario para permitir cambiar solo mi propia contraseña (si soy admin)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    axios.get(`${API_CONFIG.BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => setMyUserId(res?.data?.data?.id_usuario ?? null))
+      .catch(() => setMyUserId(null));
+  }, []);
 
   const convertirAccion = (item: any, refresh: () => void) => {
+    const token = localStorage.getItem('token');
+    // Ocultar para administrador: no se puede convertir a empleado
+    const esAdmin = String(item?.tipo_usuario || '').toLowerCase() === 'administrador';
+    const showChangePwd = esAdmin && myUserId === item.id_usuario;
+    const actions: React.ReactNode[] = [];
+    if (showChangePwd) {
+      actions.push(
+        <button
+          key="change"
+          className="crud-btn-edit"
+          title="Cambiar mi contraseña"
+          onClick={() => { setPwError(''); setPwChangeOpen(true); }}
+        >
+          🔒
+        </button>
+      );
+    }
+    if (esAdmin) return <>{actions}</>;
     const disabled = item.tipo_usuario === 'empleado';
     const onClick = async () => {
       if (disabled) return;
       setPwError('');
       setPwOpenForUserId(item.id_usuario);
     };
-    const isAdmin = String(item?.tipo_usuario || '').toLowerCase() === 'administrador';
-    // No mostrar opción para administradores
-    if (isAdmin) return null;
-    const disabledConvert = disabled;
-    return (
-      <button className="crud-btn-edit" onClick={onClick} disabled={disabledConvert} title={disabledConvert ? 'No disponible' : 'Convertir a empleado'}>
-        {disabledConvert ? '✅' : '👤→💼'}
+    actions.push(
+      <button key="convert" className="crud-btn-edit" onClick={onClick} disabled={disabled} title={disabled ? 'Ya es empleado' : 'Convertir a empleado'}>
+        {disabled ? '✅' : '👤→💼'}
       </button>
     );
-  };
-
-  const cambiarContrasenaAccion = (item: any) => {
-    const isMyAdmin = (myUserId && Number(item?.id_usuario) === Number(myUserId) && String(item?.tipo_usuario || '').toLowerCase() === 'administrador');
-    if (!isMyAdmin) return null;
-    return (
-      <button
-        className="crud-btn-edit"
-        onClick={() => { setChangePwdUserId(item.id_usuario); setNewPwd(''); setNewPwd2(''); setChangePwdError(''); }}
-        title="Cambiar contraseña"
-      >
-        🔒
-      </button>
-    );
+    return <>{actions}</>;
   };
 
   // Filtro de tipo_usuario
@@ -119,10 +118,8 @@ const UsuariosCRUD: React.FC = () => {
               });
               setPwOpenForUserId(null);
               setPwError('');
-              // Forzar refresh visual: simple estrategia es recargar la página de tabla
-              // Persistir que estamos en la sección de usuarios para no volver al dashboard
-              try { localStorage.setItem('admin_active_section', 'usuarios'); } catch {}
-              window.setTimeout(() => window.location.reload(), 250);
+              // Refrescar tabla sin recargar toda la página
+              refresh();
               return true;
             } catch (e: any) {
               const msg = e?.response?.data?.message || 'Error de autorización';
@@ -136,72 +133,40 @@ const UsuariosCRUD: React.FC = () => {
         />
       )}
 
-      {/* Modal para cambiar contraseña (solo mi usuario admin) */}
-      {changePwdUserId !== null && (
-        <div className="crud-modal-overlay open">
-          <div className="crud-modal" style={{ maxWidth: 520 }}>
-            <div className="crud-modal-header">
-              <h3>Cambiar contraseña</h3>
-              <button className="crud-modal-close" onClick={() => { setChangePwdUserId(null); setChangePwdError(''); }}>✖</button>
-            </div>
-            <div className="crud-modal-body">
-              <div className="crud-form">
-                <div className="crud-form-group">
-                  <label>Nueva contraseña:</label>
-                  <input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Ingresa nueva contraseña" />
-                </div>
-                <div className="crud-form-group">
-                  <label>Confirmar contraseña:</label>
-                  <input type="password" value={newPwd2} onChange={(e) => setNewPwd2(e.target.value)} placeholder="Repite la nueva contraseña" />
-                </div>
-                {changePwdError && <div className="crud-error">{changePwdError}</div>}
-                <div className="crud-modal-actions">
-                  <button className="crud-btn-cancel" onClick={() => { setChangePwdUserId(null); setChangePwdError(''); }}>Cancelar</button>
-                  <button
-                    className="crud-btn-save"
-                    onClick={() => {
-                      if (!newPwd || newPwd !== newPwd2) {
-                        setChangePwdError('Las contraseñas no coinciden');
-                        return;
-                      }
-                      setChangePwdError('');
-                      // Abrir verificación de contraseña actual (admin)
-                      setPwError('');
-                      setPwOpenForUserId(-1); // usar -1 para distinguir acción de cambio de contraseña
-                    }}
-                  >
-                    Guardar
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reutilizar PasswordVerificationModal para confirmar cambio de contraseña */}
-      {pwOpenForUserId === -1 && changePwdUserId !== null && (
+      {/* Modal para validar contraseña actual y luego definir nueva (solo admin propio) */}
+      {pwChangeOpen && (
         <PasswordVerificationModal
-          isOpen={pwOpenForUserId === -1}
-          onClose={() => { setPwOpenForUserId(null); setChangePwdError(''); }}
-          onVerify={async (pwd: string) => {
+          isOpen={pwChangeOpen}
+          onClose={() => { setPwChangeOpen(false); setPwError(''); }}
+          onVerify={async (pwdActual: string) => {
             try {
-              await axios.put(`${API_CONFIG.BASE_URL}/api/usuarios/${changePwdUserId}`, { contrasena: newPwd, adminContrasena: pwd }, {
+              // Validar contraseña actual del usuario
+              await axios.post(`${API_CONFIG.BASE_URL}/api/verify-password`, { contrasena: pwdActual }, {
                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
               });
-              setPwOpenForUserId(null);
-              setChangePwdUserId(null);
-              setNewPwd(''); setNewPwd2('');
+              const nueva = window.prompt('Nueva contraseña:') || '';
+              if (!nueva || nueva.trim().length < 6) {
+                setPwError('La nueva contraseña debe tener al menos 6 caracteres');
+                return false;
+              }
+              await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/me/cambiar-contrasena`, {
+                contrasena_actual: pwdActual,
+                contrasena_nueva: nueva
+              }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+              });
+              setPwChangeOpen(false);
+              setPwError('');
               return true;
             } catch (e: any) {
-              const msg = e?.response?.data?.message || 'Error al actualizar contraseña';
-              setChangePwdError(msg);
+              const msg = e?.response?.data?.message || 'Error cambiando contraseña';
+              setPwError(msg);
               return false;
             }
           }}
-          title="Verificación de Administrador"
-          message="Ingresa tu contraseña actual para confirmar el cambio"
-          errorMessage={changePwdError}
+          title="Cambiar mi contraseña"
+          message="Confirma tu contraseña actual para continuar."
+          errorMessage={pwError}
         />
       )}
     </>

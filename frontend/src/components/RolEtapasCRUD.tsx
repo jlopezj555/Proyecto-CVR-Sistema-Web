@@ -30,7 +30,7 @@ const RolEtapasCRUD: React.FC = () => {
   ];
 
   const createFields = [
-    { key: 'id_rol', label: 'Rol', type: 'select' as const, required: true, options: roles.map((r: any) => ({ value: r.id_rol, label: r.nombre_rol })) },
+    { key: 'id_rol', label: 'Rol', type: 'select' as const, required: true, options: roles.filter((r: any) => r.nombre_rol.toLowerCase() !== 'administrador').map((r: any) => ({ value: r.id_rol, label: r.nombre_rol })) },
     { key: 'id_etapas', label: 'Etapas', type: 'checkboxes' as const, required: true, options: etapas.map((e: any) => ({ value: String(e.id_etapa), label: e.nombre_etapa })) },
     { key: 'orden', label: 'Orden', type: 'text' as const, required: true }
   ];
@@ -46,10 +46,10 @@ const RolEtapasCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
-      hideEditButton={true}
-      // Permitir eliminar desde UI, pero backend ya borra dependencias
-      hideDeleteButton={false}
-      deletePathBuilder={(endpoint, item) => `/api/rol-etapas/${item.id_rol}/${item.id_etapa}`}
+      // Deshabilitar botón Editar; solo permitir Eliminar
+      disableEdit={true}
+      // ID compuesto en backend: DELETE /api/rol-etapas/:idRol/:idEtapa
+      getItemId={(item) => `${item.id_rol}/${item.id_etapa}`}
       afterCreate={async () => {}}
     />
   );

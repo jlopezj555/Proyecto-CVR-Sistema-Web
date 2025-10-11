@@ -291,7 +291,6 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
           {activeTab === 'papeleria' && (
             <div>
-              <h2>Gestión de Papelería</h2>
               <CRUDTable
                 title="Papelería"
                 endpoint="papeleria"
@@ -306,38 +305,25 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                   { key: 'fecha_entrega', label: 'Fecha Entrega' }
                 ]}
                 createFields={[
-                  { 
-                    key: 'id_empresa', 
-                    label: 'Empresa', 
-                    type: 'select' as const, 
-                    required: true,
-                    dynamicOptions: async (_fd, token) => {
-                      const resp = await fetch(`${API_CONFIG.BASE_URL}/api/empresas`, { headers: { Authorization: `Bearer ${token}` } });
-                      const json = await resp.json();
-                      return (json?.data || []).map((e: any) => ({ value: e.id_empresa, label: e.nombre_empresa }));
-                    }
-                  },
-                  { 
-                    key: 'tipo_papeleria', 
-                    label: 'Tipo de Papelería', 
-                    type: 'select' as const, 
-                    required: true,
-                    options: [ { value: 'Venta', label: 'Venta' }, { value: 'Compra', label: 'Compra' } ]
-                  },
-                  { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
-                ]}
-                editFields={[
-                  { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true },
-                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true, options: [
+                  { key: 'id_empresa', label: 'Empresa', type: 'select', required: true, options: empresasAsignadas },
+                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select', required: true, options: [
                     { value: 'Venta', label: 'Venta' },
                     { value: 'Compra', label: 'Compra' }
                   ]},
-                  { key: 'estado', label: 'Estado', type: 'select' as const, required: true, options: [
+                  { key: 'descripcion', label: 'Descripción', type: 'text', required: true }
+                ]}
+                editFields={[
+                  { key: 'descripcion', label: 'Descripción', type: 'text', required: true },
+                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select', required: true, options: [
+                    { value: 'Venta', label: 'Venta' },
+                    { value: 'Compra', label: 'Compra' }
+                  ]},
+                  { key: 'estado', label: 'Estado', type: 'select', required: true, options: [
                     { value: 'Recibida', label: 'Recibida' },
                     { value: 'En proceso', label: 'En proceso' },
                     { value: 'Entregada', label: 'Entregada' }
                   ]},
-                  { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date' as const, required: false }
+                  { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date', required: false }
                 ]}
               />
             </div>

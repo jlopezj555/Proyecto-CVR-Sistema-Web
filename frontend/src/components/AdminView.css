@@ -451,6 +451,9 @@
 }
 
 @media (max-width: 768px) {
+  /* Mostrar solo en móviles */
+  .only-mobile { display: block; }
+  .only-desktop { display: none; }
   .admin-view-container {
     flex-direction: column;
   }

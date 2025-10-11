@@ -8,7 +8,7 @@ const AsignacionesCRUD: React.FC = () => {
   const [empresas, setEmpresas] = useState<any[]>([]);
 
   const [empresaFiltro, setEmpresaFiltro] = useState<string>('');
-  // Eliminar filtros de mes y año (solo empresa)
+  // Eliminar filtros de mes y año según requerimiento
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -95,11 +95,11 @@ const AsignacionesCRUD: React.FC = () => {
     }
   ];
 
-  // meses eliminados
+  // meses/anio removidos
 
   const queryParams: Record<string, any> = {};
   if (empresaFiltro) queryParams.empresa = empresaFiltro;
-  // quitar month/year del query
+  // Solo enviar empresa como filtro
 
   return (
     <div>
@@ -123,7 +123,6 @@ const AsignacionesCRUD: React.FC = () => {
             ))}
           </select>
         </div>
-        {/* Removidos filtros de Mes y Año */}
       </div>
 
       <CRUDTable
