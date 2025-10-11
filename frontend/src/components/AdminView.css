@@ -125,6 +125,7 @@
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+  overflow-x: hidden; /* Evita que el scroll horizontal afecte a toda la página */
 }
 
 /* Dashboard styles */

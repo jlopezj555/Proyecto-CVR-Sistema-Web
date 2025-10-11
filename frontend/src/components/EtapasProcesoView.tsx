@@ -276,8 +276,9 @@ const EtapasProcesoView: React.FC = () => {
 
                 {expandedProcesoId === proceso.id_proceso && (
                 <div style={{ padding: 12 }}>
-                  {/* Línea de etapas horizontal construida desde catálogo */}
-                  <div className="h-scroll" style={{ width: '100%' }}>
+                  {/* Contenedor fijo del bloque expandido: header del proceso ya define ancho; acá evitamos scroll global */}
+                  {/* Línea de etapas horizontal con scroll propio */}
+                  <div className="h-scroll" style={{ width: '100%', overflowY: 'hidden' }}>
                     <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', paddingBottom: 8, minWidth: 'max-content' }}>
                       {catalogo.map((cat) => {
                       const etapa = etapasInstanciadas.find(e => e.id_etapa === cat.id_etapa);
@@ -318,7 +319,7 @@ const EtapasProcesoView: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Barra de progreso animada basada en total catálogo */}
+                  {/* Barra de progreso: se mantiene en el ancho del contenedor del proceso, no scrollea */}
                   <div style={{ marginTop: 12 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                     <span style={{ fontWeight: 600, color: '#000', fontSize: 13 }}>Avance del proceso</span>
