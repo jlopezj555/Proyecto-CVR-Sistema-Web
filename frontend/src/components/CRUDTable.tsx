@@ -29,6 +29,9 @@ interface CRUDTableProps {
   extraActionsForItem?: (item: TableData, refresh: () => void) => React.ReactNode;
   queryParams?: Record<string, any>;
   filterFunction?: (row: TableData) => boolean;
+  // Opcional: ocultar botones por defecto
+  hideEditButton?: boolean;
+  hideDeleteButton?: boolean;
 }
 
 export interface TableData {
@@ -45,7 +48,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   afterCreate,
   extraActionsForItem,
   queryParams,
-  filterFunction
+  filterFunction,
+  hideEditButton = false,
+  hideDeleteButton = false
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -565,22 +570,24 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                   ))}
                   <td>
                     <div className="crud-actions">
-                      
-                        <button 
+                      {!hideEditButton && (
+                        <button
                           onClick={() => handleEdit(item)}
                           className="crud-btn-edit"
                           title="Editar"
                         >
                           ✏️
                         </button>
-                      
-                      <button 
-                        onClick={() => handleDelete(item)}
-                        className="crud-btn-delete"
-                        title="Eliminar"
-                      >
-                        🗑️
-                      </button>
+                      )}
+                      {!hideDeleteButton && (
+                        <button
+                          onClick={() => handleDelete(item)}
+                          className="crud-btn-delete"
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
+                      )}
                       {typeof (extraActionsForItem) === 'function' && (
                         <span>{extraActionsForItem(item, fetchData)}</span>
                       )}

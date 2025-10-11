@@ -44,10 +44,25 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
 
   // Sincronizar con el header si se provee externalSection
   useEffect(() => {
+    // Restaurar sección activa desde almacenamiento si existe
+    const stored = localStorage.getItem('admin_active_section') as AdminSection | null
+    if (stored) {
+      setActiveSection(stored)
+    }
+  }, [])
+
+  useEffect(() => {
     if (externalSection) {
       setActiveSection(externalSection)
     }
   }, [externalSection])
+
+  // Persistir sección activa para sobrevivir recargas
+  useEffect(() => {
+    if (activeSection) {
+      localStorage.setItem('admin_active_section', activeSection)
+    }
+  }, [activeSection])
 
   const menuItems = [
     { id: 'dashboard' as AdminSection, label: 'Administración', icon: iconDashboard },
