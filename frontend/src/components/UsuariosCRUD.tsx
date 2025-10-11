@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import axios from 'axios';
 import CRUDTable from './CRUDTable';
 import PasswordVerificationModal from './PasswordVerificationModal';
@@ -23,6 +23,9 @@ const UsuariosCRUD: React.FC = () => {
   const editFields = [
     { key: 'nombre_completo', label: 'Nombre completo', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
+    // Si el usuario es administrador y es su propio registro, podrá cambiar su contraseña desde aquí
+    { key: 'contrasena_actual', label: 'Contraseña actual', type: 'text' as const, required: false },
+    { key: 'contrasena', label: 'Nueva contraseña', type: 'text' as const, required: false },
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
 
@@ -46,18 +49,7 @@ const UsuariosCRUD: React.FC = () => {
     const esAdmin = String(item?.tipo_usuario || '').toLowerCase() === 'administrador';
     const showChangePwd = esAdmin && myUserId === item.id_usuario;
     const actions: React.ReactNode[] = [];
-    if (showChangePwd) {
-      actions.push(
-        <button
-          key="change"
-          className="crud-btn-edit"
-          title="Cambiar mi contraseña"
-          onClick={() => { setPwError(''); setPwChangeOpen(true); }}
-        >
-          🔒
-        </button>
-      );
-    }
+    // Ya no mostramos botón separado; el cambio de contraseña se gestiona en el modal de edición
     if (esAdmin) return <>{actions}</>;
     const disabled = item.tipo_usuario === 'empleado';
     const onClick = async () => {
@@ -100,9 +92,47 @@ const UsuariosCRUD: React.FC = () => {
       extraActionsForItem={(item, refresh) => (
         <>
           {convertirAccion(item, refresh)}
-          {cambiarContrasenaAccion(item)}
         </>
       )}
+      shouldRequirePassword={(action, item) => {
+        // Solo omitir modal si es actualización de su propia contraseña (admin propio) y hay campos de contraseña
+        if (action === 'update' && item && myUserId === item.id_usuario && String(item.tipo_usuario).toLowerCase() === 'administrador') {
+          const hasPwdFields = !!(formData?.contrasena || formData?.contrasena_actual);
+          return !hasPwdFields; // si hay campos de contraseña, NO requerir modal; de lo contrario, sí
+        }
+        return true;
+      }}
+      onUpdate={async (id, formData, token) => {
+        // Si es el propio admin y proporciona contrasena_actual + contrasena, usar flujo dedicado
+        const esPropioAdmin = myUserId === formData.id_usuario || myUserId === id;
+        if (esPropioAdmin && String(formData.tipo_usuario || '').toLowerCase() === 'administrador') {
+          const nueva = String(formData.contrasena || '').trim();
+          const actual = String(formData.contrasena_actual || '').trim();
+          if (nueva || actual) {
+            if (!actual) {
+              alert('Debes ingresar tu contraseña actual');
+              return true; // handled (no continuar con default)
+            }
+            if (!nueva || nueva.length < 6) {
+              alert('La nueva contraseña debe tener al menos 6 caracteres');
+              return true; // handled
+            }
+            // Validar actual y cambiar
+            await axios.post(`${API_CONFIG.BASE_URL}/api/verify-password`, { contrasena: actual }, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/me/cambiar-contrasena`, {
+              contrasena_actual: actual,
+              contrasena_nueva: nueva
+            }, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            });
+            alert('Contraseña actualizada');
+            return true; // handled
+          }
+        }
+        return false; // no handled, usar flujo por defecto
+      }}
       filterFunction={filterFunction}
       />
 
@@ -129,43 +159,6 @@ const UsuariosCRUD: React.FC = () => {
           }}
           title="Confirmar conversión a empleado"
           message="Ingresa tu contraseña de administrador para confirmar."
-          errorMessage={pwError}
-        />
-      )}
-
-      {/* Modal para validar contraseña actual y luego definir nueva (solo admin propio) */}
-      {pwChangeOpen && (
-        <PasswordVerificationModal
-          isOpen={pwChangeOpen}
-          onClose={() => { setPwChangeOpen(false); setPwError(''); }}
-          onVerify={async (pwdActual: string) => {
-            try {
-              // Validar contraseña actual del usuario
-              await axios.post(`${API_CONFIG.BASE_URL}/api/verify-password`, { contrasena: pwdActual }, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-              });
-              const nueva = window.prompt('Nueva contraseña:') || '';
-              if (!nueva || nueva.trim().length < 6) {
-                setPwError('La nueva contraseña debe tener al menos 6 caracteres');
-                return false;
-              }
-              await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/me/cambiar-contrasena`, {
-                contrasena_actual: pwdActual,
-                contrasena_nueva: nueva
-              }, {
-                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-              });
-              setPwChangeOpen(false);
-              setPwError('');
-              return true;
-            } catch (e: any) {
-              const msg = e?.response?.data?.message || 'Error cambiando contraseña';
-              setPwError(msg);
-              return false;
-            }
-          }}
-          title="Cambiar mi contraseña"
-          message="Confirma tu contraseña actual para continuar."
           errorMessage={pwError}
         />
       )}

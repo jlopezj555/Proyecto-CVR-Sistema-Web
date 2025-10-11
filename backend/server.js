@@ -1129,11 +1129,27 @@ app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
     }
 
+    // Validar unicidad por empresa/mes asignado/tipo (solo un proceso de Venta y uno de Compra por mes)
+    const now = new Date();
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonth = prev.getMonth() + 1; // 1-12
+    const prevYear = prev.getFullYear();
+    const [[dup]] = await pool.query(
+      `SELECT COUNT(*) AS cnt
+       FROM Proceso p
+       WHERE p.id_empresa = ? AND p.tipo_proceso = ?
+         AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?
+         AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?`,
+      [id_empresa, tipo_proceso, prevYear, prevMonth]
+    );
+    if (Number(dup?.cnt || 0) > 0) {
+      const alterno = tipo_proceso === 'Venta' ? 'Compra' : 'Venta';
+      return res.status(400).json({ success: false, message: `Ya existe un proceso de ${tipo_proceso} para este mes asignado. Solo puedes registrar ${alterno}.` });
+    }
+
     // Si no viene nombre_proceso, generar con mes anterior
     let finalNombre = nombre_proceso;
     if (!finalNombre || !String(finalNombre).trim()) {
-      const now = new Date();
-      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const mes = prev.toLocaleString('es-ES', { month: 'long' });
       const anio = prev.getFullYear();
       finalNombre = `Proceso de ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`;
@@ -1144,7 +1160,31 @@ app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin
       [id_empresa, finalNombre, tipo_proceso]
     );
 
+    // Instanciar etapas segun asignaciones activas
     await instanciarEtapasParaProceso(result.insertId, id_empresa);
+
+    // Marcar "Ingreso de papelería" como completada para este proceso
+    try {
+      await pool.query(
+        `UPDATE EtapaProceso ep
+         JOIN EtapaCatalogo ec ON ep.id_etapa = ec.id_etapa
+         SET ep.estado = 'Completada', ep.fecha_inicio = NOW(), ep.fecha_fin = NOW()
+         WHERE ep.id_proceso = ? AND ec.nombre_etapa LIKE 'Ingreso de papeler%'`,
+        [result.insertId]
+      );
+    } catch (err) {
+      console.error('Error marcando ingreso de papelería como completada (admin):', err);
+    }
+
+    // Crear registro de Papelería vinculado
+    try {
+      await pool.query(
+        'INSERT INTO Papeleria (id_empresa, descripcion, tipo_papeleria, id_proceso) VALUES (?, ?, ?, ?)',
+        [id_empresa, 'Creado automáticamente desde Proceso', tipo_proceso, result.insertId]
+      );
+    } catch (err) {
+      console.error('Error creando papelería asociada al proceso:', err);
+    }
 
     res.status(201).json({ 
       success: true, 
@@ -1202,17 +1242,25 @@ app.delete('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswor
 
   try {
     // Verificar si el proceso existe
-    const [existing] = await pool.query('SELECT id_proceso FROM Proceso WHERE id_proceso = ?', [id]);
+    const [existing] = await pool.query('SELECT id_proceso FROM Proceso WHERE id_proceso = ? LIMIT 1', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Proceso no encontrado' });
     }
 
-    // Verificar si tiene etapas asociadas
-    const [etapas] = await pool.query('SELECT COUNT(*) as count FROM EtapaProceso WHERE id_proceso = ?', [id]);
-    if (etapas[0].count > 0) {
+    // Permitir eliminación si solo se ha completado la etapa de "Ingreso de papelería" y ninguna otra etapa ha sido trabajada
+    const [[bloqueos]] = await pool.query(
+      `SELECT COUNT(*) AS cnt
+       FROM EtapaProceso ep
+       INNER JOIN EtapaCatalogo ec ON ec.id_etapa = ep.id_etapa
+       WHERE ep.id_proceso = ?
+         AND ep.estado <> 'Pendiente'
+         AND ec.nombre_etapa NOT LIKE 'Ingreso de papeler%'`,
+      [id]
+    );
+    if (Number(bloqueos?.cnt || 0) > 0) {
       return res.status(400).json({ 
         success: false, 
-        message: 'No se puede eliminar el proceso porque tiene etapas asociadas' 
+        message: 'No se puede eliminar: ya hay etapas trabajadas por otros roles.'
       });
     }
 
@@ -1236,7 +1284,9 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
   try {
     let [rows] = await pool.query(`
       SELECT ep.*, 
-             r.nombre_rol,
+             CASE WHEN et.nombre_etapa LIKE 'Ingreso de papeler%'
+                       AND ppr.descripcion = 'Creado automáticamente desde Proceso'
+                  THEN NULL ELSE r.nombre_rol END AS nombre_rol,
              et.nombre_etapa, et.descripcion as etapa_descripcion,
              eto.nombre_etapa as etapa_origen_nombre,
              (
@@ -1252,6 +1302,7 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
       LEFT JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
       LEFT JOIN EtapaCatalogo eto ON ep.etapa_origen_error = eto.id_etapa
       LEFT JOIN Proceso p ON p.id_proceso = ep.id_proceso
+      LEFT JOIN Papeleria ppr ON ppr.id_proceso = ep.id_proceso
       LEFT JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
       WHERE ep.id_proceso = ?
       ORDER BY rec.orden ASC, ep.fecha_inicio ASC, ep.id_etapa_proceso ASC
@@ -1262,7 +1313,9 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
         await instanciarEtapasParaProceso(id, proc[0].id_empresa);
         const [rows2] = await pool.query(`
           SELECT ep.*, 
-                 r.nombre_rol,
+                 CASE WHEN et.nombre_etapa LIKE 'Ingreso de papeler%'
+                           AND ppr.descripcion = 'Creado automáticamente desde Proceso'
+                      THEN NULL ELSE r.nombre_rol END AS nombre_rol,
                  et.nombre_etapa, et.descripcion as etapa_descripcion,
                  eto.nombre_etapa as etapa_origen_nombre,
                  (
@@ -1278,6 +1331,7 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
           LEFT JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
           LEFT JOIN EtapaCatalogo eto ON ep.etapa_origen_error = eto.id_etapa
           LEFT JOIN Proceso p ON p.id_proceso = ep.id_proceso
+          LEFT JOIN Papeleria ppr ON ppr.id_proceso = ep.id_proceso
           LEFT JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
           WHERE ep.id_proceso = ?
           ORDER BY rec.orden ASC, ep.fecha_inicio ASC, ep.id_etapa_proceso ASC
@@ -1456,19 +1510,47 @@ const crearProcesoDesdePapeleria = async (id_empresa, tipo_papeleria) => {
 app.delete('/api/papeleria/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
   const { id } = req.params;
 
+  const conn = await pool.getConnection();
   try {
+    await conn.beginTransaction();
+
     // Verificar si la papelería existe
-    const [existing] = await pool.query('SELECT id_papeleria FROM Papeleria WHERE id_papeleria = ?', [id]);
-    if (existing.length === 0) {
+    const [[pap]] = await conn.query('SELECT id_papeleria, id_proceso FROM Papeleria WHERE id_papeleria = ? LIMIT 1', [id]);
+    if (!pap) {
+      await conn.rollback();
       return res.status(404).json({ success: false, message: 'Papelería no encontrada' });
     }
 
-    await pool.query('DELETE FROM Papeleria WHERE id_papeleria = ?', [id]);
+    if (pap.id_proceso) {
+      // Verificar que el proceso pueda eliminarse (mismas reglas que /api/procesos/:id)
+      const [[bloqueos]] = await conn.query(
+        `SELECT COUNT(*) AS cnt
+         FROM EtapaProceso ep
+         INNER JOIN EtapaCatalogo ec ON ec.id_etapa = ep.id_etapa
+         WHERE ep.id_proceso = ?
+           AND ep.estado <> 'Pendiente'
+           AND ec.nombre_etapa NOT LIKE 'Ingreso de papeler%'`,
+        [pap.id_proceso]
+      );
+      if (Number(bloqueos?.cnt || 0) > 0) {
+        await conn.rollback();
+        return res.status(400).json({ success: false, message: 'No se puede eliminar: el proceso asociado ya tiene etapas trabajadas.' });
+      }
 
+      // Eliminar proceso (cascadeará EtapaProceso) y luego la papelería
+      await conn.query('DELETE FROM Proceso WHERE id_proceso = ?', [pap.id_proceso]);
+    }
+
+    await conn.query('DELETE FROM Papeleria WHERE id_papeleria = ?', [id]);
+
+    await conn.commit();
     res.json({ success: true, message: 'Papelería eliminada exitosamente' });
   } catch (error) {
+    await conn.rollback();
     console.error('Error eliminando papelería:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  } finally {
+    conn.release();
   }
 });
 

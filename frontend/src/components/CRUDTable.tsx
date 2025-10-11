@@ -33,6 +33,16 @@ interface CRUDTableProps {
   getItemId?: (item: TableData) => string | number;
   // Opcional: deshabilitar botón de editar (global o por fila)
   disableEdit?: boolean | ((item: TableData) => boolean);
+  // Opcional: ocultar botón de editar (global o por fila)
+  hideEditButton?: boolean | ((item: TableData) => boolean);
+  // Opcional: ocultar botón de eliminar (global o por fila)
+  hideDeleteButton?: boolean | ((item: TableData) => boolean);
+  // Opcional: construir URL de borrado personalizada
+  deletePathBuilder?: (id: string | number, item: TableData) => string;
+  // Opcional: decidir si se requiere contraseña para una acción específica
+  shouldRequirePassword?: (action: 'create' | 'update' | 'delete', item?: TableData | null) => boolean;
+  // Opcional: manejar actualización personalizada (si devuelve true, no se usa flujo por defecto)
+  onUpdate?: (id: string | number, formData: TableData, token: string) => Promise<void | boolean>;
 }
 
 export interface TableData {
@@ -52,7 +62,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   filterFunction,
   hideEditButton = false,
   hideDeleteButton = false,
-  deletePathBuilder
+  deletePathBuilder,
+  shouldRequirePassword,
+  onUpdate
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -164,6 +176,29 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     }
   };
 
+  const performDefaultUpdate = async () => {
+    if (!selectedItem) return false;
+    const id = typeof getItemId === 'function'
+      ? getItemId(selectedItem)
+      : selectedItem[`id_${endpoint.slice(0, -1)}`];
+    const payload = { ...(formData || {}) } as any;
+    // No enviar campo auxiliar de contraseña actual si existe en el formulario
+    if ('contrasena_actual' in payload) {
+      delete payload.contrasena_actual;
+    }
+    await axios.put<any>(`${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`, payload, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    setSuccess('Registro actualizado exitosamente');
+    setShowEditModal(false);
+    setSelectedItem(null);
+    fetchData();
+    onDataChange?.();
+    setTimeout(() => setSuccess(''), 3000);
+    return true;
+  };
+
   const handleAdminVerify = async (password: string): Promise<boolean> => {
     try {
       if (pendingAction === 'create') {
@@ -198,9 +233,10 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
         const id = typeof getItemId === 'function'
           ? getItemId(selectedItem)
           : selectedItem[`id_${endpoint.slice(0, -1)}`];
-        await axios.request({
-          url,
-          method: 'delete',
+        const deleteUrl = typeof deletePathBuilder === 'function'
+          ? deletePathBuilder(id, selectedItem)
+          : `${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`;
+        await axios.delete(deleteUrl, {
           data: { adminContrasena: password },
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -509,8 +545,40 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                       setShowValidationErrors(true);
                       return;
                     }
-                    setPendingAction(isEdit ? 'update' : 'create');
-                    setShowPasswordModal(true);
+                    // Decidir si requerimos contraseña para esta acción
+                    const requirePwd = typeof shouldRequirePassword === 'function'
+                      ? shouldRequirePassword(isEdit ? 'update' : 'create', selectedItem)
+                      : true;
+                    if (isEdit && !requirePwd) {
+                      // Flujo sin contraseña para actualización
+                      (async () => {
+                        try {
+                          const id = selectedItem && (typeof getItemId === 'function' ? getItemId(selectedItem) : selectedItem[`id_${endpoint.slice(0, -1)}`]);
+                          if (id !== undefined && onUpdate) {
+                            const handled = await onUpdate(id, formData, token || '');
+                            if (handled === false) {
+                              await performDefaultUpdate();
+                            } else {
+                              // onUpdate se encargó de todo; refrescar
+                              setShowEditModal(false);
+                              setSelectedItem(null);
+                              setSuccess('Registro actualizado exitosamente');
+                              fetchData();
+                              onDataChange?.();
+                              setTimeout(() => setSuccess(''), 3000);
+                            }
+                          } else {
+                            await performDefaultUpdate();
+                          }
+                        } catch (e: any) {
+                          const msg = e?.response?.data?.message || 'Error en la actualización';
+                          setError(msg);
+                        }
+                      })();
+                    } else {
+                      setPendingAction(isEdit ? 'update' : 'create');
+                      setShowPasswordModal(true);
+                    }
                   }}
                   className="crud-btn-save"
                 >
