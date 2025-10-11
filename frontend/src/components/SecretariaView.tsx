@@ -22,7 +22,7 @@ interface ProcesoItem {
 
 
 const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
-  const [activeTab, setActiveTab] = useState<'cuadernillos'>('cuadernillos')
+  const [activeTab, setActiveTab] = useState<'cuadernillos' | 'papeleria'>('cuadernillos')
   const token = localStorage.getItem('token')
 
   // Filtros de procesos
@@ -160,6 +160,10 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
             <span className="nav-icon"><img src={iconProcesos} alt="Cuadernillos" className="nav-icon-img" /></span>
             <span className="nav-label">Cuadernillos</span>
           </button>
+          <button className={`admin-nav-item ${activeTab === 'papeleria' ? 'active' : ''}`} onClick={() => setActiveTab('papeleria')}>
+            <span className="nav-icon"><img src={iconProcesos} alt="Papelería" className="nav-icon-img" /></span>
+            <span className="nav-label">Papelería</span>
+          </button>
         </nav>
       </div>
 
@@ -282,6 +286,46 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                   )})}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'papeleria' && (
+            <div>
+              <CRUDTable
+                title="Papelería"
+                endpoint="papeleria"
+                columns={[
+                  { key: 'id_papeleria', label: 'ID' },
+                  { key: 'nombre_empresa', label: 'Empresa' },
+                  { key: 'tipo_papeleria', label: 'Tipo' },
+                  { key: 'descripcion', label: 'Descripción' },
+                  { key: 'estado', label: 'Estado' },
+                  { key: 'nombre_proceso', label: 'Proceso' },
+                  { key: 'fecha_recepcion', label: 'Fecha Recepción' },
+                  { key: 'fecha_entrega', label: 'Fecha Entrega' }
+                ]}
+                createFields={[
+                  { key: 'id_empresa', label: 'Empresa', type: 'select', required: true, options: empresasAsignadas },
+                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select', required: true, options: [
+                    { value: 'Venta', label: 'Venta' },
+                    { value: 'Compra', label: 'Compra' }
+                  ]},
+                  { key: 'descripcion', label: 'Descripción', type: 'text', required: true }
+                ]}
+                editFields={[
+                  { key: 'descripcion', label: 'Descripción', type: 'text', required: true },
+                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select', required: true, options: [
+                    { value: 'Venta', label: 'Venta' },
+                    { value: 'Compra', label: 'Compra' }
+                  ]},
+                  { key: 'estado', label: 'Estado', type: 'select', required: true, options: [
+                    { value: 'Recibida', label: 'Recibida' },
+                    { value: 'En proceso', label: 'En proceso' },
+                    { value: 'Entregada', label: 'Entregada' }
+                  ]},
+                  { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date', required: false }
+                ]}
+              />
             </div>
           )}
 

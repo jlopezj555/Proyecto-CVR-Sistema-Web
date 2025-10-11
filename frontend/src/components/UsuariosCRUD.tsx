@@ -17,32 +17,60 @@ const UsuariosCRUD: React.FC = () => {
     { key: 'nombre_completo', label: 'Nombre completo', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
     { key: 'contrasena', label: 'Contraseña', type: 'text' as const, required: true },
-    { key: 'activo', label: 'Activo', type: 'boolean' as const },
+    // No mostrar campo "activo" al crear nuevo usuario
   ];
 
   const editFields = [
     { key: 'nombre_completo', label: 'Nombre completo', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
-    // No permitir cambiar contraseña desde administración
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
 
   const [pwOpenForUserId, setPwOpenForUserId] = useState<number | null>(null);
+  const [pwChangeOpen, setPwChangeOpen] = useState<boolean>(false);
   const [pwError, setPwError] = useState<string>('');
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+
+  // Obtener mi id de usuario para permitir cambiar solo mi propia contraseña (si soy admin)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    axios.get(`${API_CONFIG.BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => setMyUserId(res?.data?.data?.id_usuario ?? null))
+      .catch(() => setMyUserId(null));
+  }, []);
 
   const convertirAccion = (item: any, refresh: () => void) => {
     const token = localStorage.getItem('token');
+    // Ocultar para administrador: no se puede convertir a empleado
+    const esAdmin = String(item?.tipo_usuario || '').toLowerCase() === 'administrador';
+    const showChangePwd = esAdmin && myUserId === item.id_usuario;
+    const actions: React.ReactNode[] = [];
+    if (showChangePwd) {
+      actions.push(
+        <button
+          key="change"
+          className="crud-btn-edit"
+          title="Cambiar mi contraseña"
+          onClick={() => { setPwError(''); setPwChangeOpen(true); }}
+        >
+          🔒
+        </button>
+      );
+    }
+    if (esAdmin) return <>{actions}</>;
     const disabled = item.tipo_usuario === 'empleado';
     const onClick = async () => {
       if (disabled) return;
       setPwError('');
       setPwOpenForUserId(item.id_usuario);
     };
-    return (
-      <button className="crud-btn-edit" onClick={onClick} disabled={disabled} title={disabled ? 'Ya es empleado' : 'Convertir a empleado'}>
+    actions.push(
+      <button key="convert" className="crud-btn-edit" onClick={onClick} disabled={disabled} title={disabled ? 'Ya es empleado' : 'Convertir a empleado'}>
         {disabled ? '✅' : '👤→💼'}
       </button>
     );
+    return <>{actions}</>;
   };
 
   // Filtro de tipo_usuario
@@ -85,8 +113,8 @@ const UsuariosCRUD: React.FC = () => {
               });
               setPwOpenForUserId(null);
               setPwError('');
-              // Forzar refresh visual: simple estrategia es recargar la página de tabla
-              window.setTimeout(() => window.location.reload(), 250);
+              // Refrescar tabla sin recargar toda la página
+              refresh();
               return true;
             } catch (e: any) {
               const msg = e?.response?.data?.message || 'Error de autorización';
@@ -96,6 +124,43 @@ const UsuariosCRUD: React.FC = () => {
           }}
           title="Confirmar conversión a empleado"
           message="Ingresa tu contraseña de administrador para confirmar."
+          errorMessage={pwError}
+        />
+      )}
+
+      {/* Modal para validar contraseña actual y luego definir nueva (solo admin propio) */}
+      {pwChangeOpen && (
+        <PasswordVerificationModal
+          isOpen={pwChangeOpen}
+          onClose={() => { setPwChangeOpen(false); setPwError(''); }}
+          onVerify={async (pwdActual: string) => {
+            try {
+              // Validar contraseña actual del usuario
+              await axios.post(`${API_CONFIG.BASE_URL}/api/verify-password`, { contrasena: pwdActual }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+              });
+              const nueva = window.prompt('Nueva contraseña:') || '';
+              if (!nueva || nueva.trim().length < 6) {
+                setPwError('La nueva contraseña debe tener al menos 6 caracteres');
+                return false;
+              }
+              await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/me/cambiar-contrasena`, {
+                contrasena_actual: pwdActual,
+                contrasena_nueva: nueva
+              }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+              });
+              setPwChangeOpen(false);
+              setPwError('');
+              return true;
+            } catch (e: any) {
+              const msg = e?.response?.data?.message || 'Error cambiando contraseña';
+              setPwError(msg);
+              return false;
+            }
+          }}
+          title="Cambiar mi contraseña"
+          message="Confirma tu contraseña actual para continuar."
           errorMessage={pwError}
         />
       )}

@@ -245,6 +245,84 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Permitir al administrador cambiar su propia contraseña (con verificación de contraseña actual)
+app.post('/api/usuarios/me/cambiar-contrasena', verificarToken, async (req, res) => {
+  try {
+    const { contrasena_actual, contrasena_nueva } = req.body;
+    if (!contrasena_actual || !contrasena_nueva) {
+      return res.status(400).json({ success: false, message: 'Contraseña actual y nueva requeridas' });
+    }
+    const [[usr]] = await pool.query('SELECT id_usuario, contrasena, tipo_usuario FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    if (!usr) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    if (usr.tipo_usuario !== 'administrador') return res.status(403).json({ success: false, message: 'Solo el administrador puede cambiar su contraseña aquí' });
+    const ok = await bcrypt.compare(contrasena_actual, usr.contrasena);
+    if (!ok) return res.status(401).json({ success: false, message: 'Contraseña actual incorrecta' });
+    const hashed = await bcrypt.hash(contrasena_nueva, 10);
+    await pool.query('UPDATE Usuario SET contrasena = ? WHERE id_usuario = ?', [hashed, usr.id_usuario]);
+    return res.json({ success: true, message: 'Contraseña actualizada' });
+  } catch (error) {
+    console.error('Error cambiando contraseña propia:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// (validación de conversión se aplica directamente en el handler de conversión más abajo)
+
+// Limpieza automática de asignaciones huérfanas o inactivas
+const limpiarAsignacionesInactivas = async () => {
+  try {
+    await pool.query(`
+      DELETE ar FROM AsignacionRol ar
+      LEFT JOIN Empleado e ON e.id_empleado = ar.id_empleado
+      LEFT JOIN Usuario u ON u.id_empleado = ar.id_empleado
+      WHERE e.id_empleado IS NULL OR u.activo = 0 OR e.activo = 0 OR ar.estado = 'Inactivo'
+    `);
+  } catch (e) {
+    console.error('Error limpiando asignaciones inactivas:', e);
+  }
+};
+
+// Hook simple: limpiar antes de listar/crear/actualizar/eliminar asignaciones
+const withLimpiezaAsignaciones = (handler) => async (req, res) => {
+  await limpiarAsignacionesInactivas();
+  return handler(req, res);
+};
+
+// Reemplazar handlers de asignaciones con wrapper
+const getAsignacionesHandler = async (req, res) => {
+  try {
+    const { empresa /*year, month*/ } = req.query;
+    const params = [];
+    let where = ' WHERE 1=1';
+    if (empresa) { where += ' AND ar.id_empresa = ?'; params.push(Number(empresa)); }
+    // Eliminar filtros de mes/año y asegurar que solo activas/válidas
+    where += " AND ar.estado = 'Activo'";
+
+    const [rows] = await pool.query(
+      `SELECT ar.*, 
+              e.nombre, e.apellido, e.correo,
+              r.nombre_rol,
+              emp.nombre_empresa
+       FROM AsignacionRol ar
+       LEFT JOIN Empleado e ON ar.id_empleado = e.id_empleado
+       LEFT JOIN Rol r ON ar.id_rol = r.id_rol
+       LEFT JOIN Empresa emp ON ar.id_empresa = emp.id_empresa
+       ${where}
+       ORDER BY ar.id_asignacion ASC`,
+      params
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error obteniendo asignaciones:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+};
+
+app.get('/api/asignaciones', verificarToken, verificarAdmin, withLimpiezaAsignaciones(getAsignacionesHandler));
+
+// En crear/actualizar/eliminar mantener validaciones existentes, pero envolver limpieza
+// Nota: los handlers originales están más abajo; aquí solo creamos wrappers si aún no existen
+
 // Función para enviar correo de bienvenida
 const enviarCorreoBienvenida = async (correo, nombre) => {
   try {
@@ -645,6 +723,9 @@ app.post('/api/usuarios/:id/convertir-empleado', verificarToken, verificarAdmin,
     const [userRows] = await pool.query('SELECT * FROM Usuario WHERE id_usuario = ? LIMIT 1', [id]);
     if (userRows.length === 0) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     const user = userRows[0];
+    if (user.tipo_usuario === 'administrador') {
+      return res.status(400).json({ success: false, message: 'No se puede convertir un administrador a empleado' });
+    }
     if (user.tipo_usuario === 'empleado' && user.id_empleado) {
       return res.json({ success: true, message: 'El usuario ya es empleado' });
     }
@@ -1959,7 +2040,7 @@ const instanciarEtapasParaProceso = async (id_proceso, id_empresa) => {
       `SELECT DISTINCT rec.id_rol, rec.id_etapa, rec.orden
        FROM RolEtapaCatalogo rec
        WHERE EXISTS (
-         SELECT 1 FROM AsignacionRol ar WHERE ar.id_rol = rec.id_rol AND ar.id_empresa = ?
+         SELECT 1 FROM AsignacionRol ar WHERE ar.id_rol = rec.id_rol AND ar.id_empresa = ? AND ar.estado = 'Activo'
        )
        ORDER BY rec.id_rol, rec.orden ASC`,
       [id_empresa]
@@ -2088,6 +2169,7 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
        INNER JOIN AsignacionRol ar ON ar.id_empresa = p.id_empresa
        INNER JOIN Rol r ON ar.id_rol = r.id_rol
        WHERE ar.id_empleado = ?${whereFecha}${whereEmpresa}${whereRol}
+       AND ar.estado = 'Activo'
        AND p.estado <> 'Completado'
        ORDER BY p.fecha_creacion DESC`,
       params
@@ -2212,6 +2294,29 @@ app.get('/api/revisor/procesos-terminados', verificarToken, async (req, res) => 
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error en revisor/procesos-terminados:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Roles del empleado autenticado (útil para selector de rol al iniciar sesión)
+app.get('/api/mis-roles', verificarToken, async (req, res) => {
+  try {
+    const [[usr]] = await pool.query('SELECT id_empleado, tipo_usuario FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    if (!usr) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    if (usr.tipo_usuario !== 'empleado') {
+      return res.json({ success: true, data: [] });
+    }
+    const [rows] = await pool.query(
+      `SELECT DISTINCT r.id_rol, r.nombre_rol
+       FROM AsignacionRol ar
+       INNER JOIN Rol r ON r.id_rol = ar.id_rol
+       WHERE ar.id_empleado = ? AND ar.estado = 'Activo'
+       ORDER BY r.nombre_rol ASC`,
+      [usr.id_empleado]
+    );
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error obteniendo roles del usuario:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 });
@@ -2600,6 +2705,7 @@ app.get('/api/rol-etapas', verificarToken, verificarAdmin, async (req, res) => {
       FROM RolEtapaCatalogo rec
       INNER JOIN Rol r ON rec.id_rol = r.id_rol
       INNER JOIN EtapaCatalogo et ON rec.id_etapa = et.id_etapa
+      WHERE LOWER(r.nombre_rol) <> 'administrador'
       ORDER BY rec.id_rol ASC, rec.orden ASC
     `);
     res.json({ success: true, data: rows });

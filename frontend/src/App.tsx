@@ -32,6 +32,8 @@ function App() {
   const [userFoto, setUserFoto] = useState<string | null>(localStorage.getItem('foto'));
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+  const [rolePickerOpen, setRolePickerOpen] = useState(false);
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
   const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutos
 
   useEffect(() => {
@@ -196,6 +198,22 @@ function App() {
         setUserName(nombre);
         setUserType(tipo);
         setUserFoto(foto || '');
+        // Si empleado con roles múltiples (por ejemplo Contador/Digitador y Revisor), ofrecer selector
+        if (tipo === 'empleado') {
+          try {
+            const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-roles`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            const roles: string[] = (data?.data || []).map((r: any) => r.nombre_rol);
+            const tieneRevisor = roles.some(r => r.toLowerCase().includes('revisor'));
+            const tieneNoRevisor = roles.some(r => !r.toLowerCase().includes('revisor'));
+            if (tieneRevisor && tieneNoRevisor) {
+              setRoleOptions(roles);
+              setRolePickerOpen(true);
+            }
+          } catch (_) {}
+        }
+
         setIsLoginOpen(false);
         // Registrar actividad inicial al iniciar sesión
         localStorage.setItem('lastActivity', Date.now().toString());
@@ -290,6 +308,38 @@ function App() {
         onRegisterClick={() => setIsRegisterOpen(true)}
         onLogin={handleLogin}
       />
+
+      {/* Selector de rol al iniciar sesión, cuando corresponda */}
+      {rolePickerOpen && (
+        <div className="password-modal-overlay">
+          <div className="password-modal">
+            <div className="password-modal-header">
+              <h3>Elegir rol de sesión</h3>
+              <button className="password-modal-close" onClick={() => setRolePickerOpen(false)}>✖</button>
+            </div>
+            <div className="password-modal-body">
+              <p className="password-modal-message">Selecciona cómo deseas iniciar sesión:</p>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {roleOptions.map((r) => (
+                  <button
+                    key={r}
+                    className="password-btn-verify"
+                    onClick={() => {
+                      // Si elige un rol que contiene 'revisor' ir a RevisorView, de lo contrario UserView
+                      const isRevisor = r.toLowerCase().includes('revisor');
+                      localStorage.setItem('rol', isRevisor ? r : 'Empleado');
+                      setUserRole(isRevisor ? r : 'Empleado');
+                      setRolePickerOpen(false);
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       <RegisterModal 
