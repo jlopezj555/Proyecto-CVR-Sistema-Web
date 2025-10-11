@@ -5,7 +5,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRegisterClick: () => void;
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string) => Promise<any> | void;
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onRegisterClick, onLogin }) => {

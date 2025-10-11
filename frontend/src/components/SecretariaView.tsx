@@ -22,7 +22,7 @@ interface ProcesoItem {
 
 
 const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
-  const [activeTab, setActiveTab] = useState<'cuadernillos'>('cuadernillos')
+  const [activeTab, setActiveTab] = useState<'cuadernillos' | 'papeleria'>('cuadernillos')
   const token = localStorage.getItem('token')
 
   // Filtros de procesos
@@ -160,12 +160,16 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
             <span className="nav-icon"><img src={iconProcesos} alt="Cuadernillos" className="nav-icon-img" /></span>
             <span className="nav-label">Cuadernillos</span>
           </button>
+          <button className={`admin-nav-item ${activeTab === 'papeleria' ? 'active' : ''}`} onClick={() => setActiveTab('papeleria')}>
+            <span className="nav-icon"><img src={iconProcesos} alt="Papelería" className="nav-icon-img" /></span>
+            <span className="nav-label">Papelería</span>
+          </button>
         </nav>
       </div>
 
       <div className="admin-main-content">
         <div className="admin-content-header">
-          <h2>Cuadernillos</h2>
+          <h2>{activeTab === 'cuadernillos' ? 'Cuadernillos' : 'Papelería'}</h2>
           <p>Etapas de ingreso/envío de papelería</p>
         </div>
 
@@ -282,6 +286,60 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                   )})}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'papeleria' && (
+            <div>
+              <h2>Gestión de Papelería</h2>
+              <CRUDTable
+                title="Papelería"
+                endpoint="papeleria"
+                columns={[
+                  { key: 'id_papeleria', label: 'ID' },
+                  { key: 'nombre_empresa', label: 'Empresa' },
+                  { key: 'tipo_papeleria', label: 'Tipo' },
+                  { key: 'descripcion', label: 'Descripción' },
+                  { key: 'estado', label: 'Estado' },
+                  { key: 'nombre_proceso', label: 'Proceso' },
+                  { key: 'fecha_recepcion', label: 'Fecha Recepción' },
+                  { key: 'fecha_entrega', label: 'Fecha Entrega' }
+                ]}
+                createFields={[
+                  { 
+                    key: 'id_empresa', 
+                    label: 'Empresa', 
+                    type: 'select' as const, 
+                    required: true,
+                    dynamicOptions: async (_fd, token) => {
+                      const resp = await fetch(`${API_CONFIG.BASE_URL}/api/empresas`, { headers: { Authorization: `Bearer ${token}` } });
+                      const json = await resp.json();
+                      return (json?.data || []).map((e: any) => ({ value: e.id_empresa, label: e.nombre_empresa }));
+                    }
+                  },
+                  { 
+                    key: 'tipo_papeleria', 
+                    label: 'Tipo de Papelería', 
+                    type: 'select' as const, 
+                    required: true,
+                    options: [ { value: 'Venta', label: 'Venta' }, { value: 'Compra', label: 'Compra' } ]
+                  },
+                  { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true }
+                ]}
+                editFields={[
+                  { key: 'descripcion', label: 'Descripción', type: 'text' as const, required: true },
+                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select' as const, required: true, options: [
+                    { value: 'Venta', label: 'Venta' },
+                    { value: 'Compra', label: 'Compra' }
+                  ]},
+                  { key: 'estado', label: 'Estado', type: 'select' as const, required: true, options: [
+                    { value: 'Recibida', label: 'Recibida' },
+                    { value: 'En proceso', label: 'En proceso' },
+                    { value: 'Entregada', label: 'Entregada' }
+                  ]},
+                  { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date' as const, required: false }
+                ]}
+              />
             </div>
           )}
 

@@ -16,7 +16,9 @@ const RolEtapasCRUD: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       }).then(r => r.json()).catch(() => ({ data: [] }))
     ]).then(([r1, r2]) => {
-      setRoles(r1.data || []);
+      // Excluir rol administrador
+      const rs = (r1.data || []).filter((r: any) => String(r.nombre_rol).toLowerCase() !== 'administrador');
+      setRoles(rs);
       setEtapas(r2.data || []);
     });
   }, []);
@@ -44,6 +46,7 @@ const RolEtapasCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
+      hideEditButton={true}
       afterCreate={async () => {}}
     />
   );

@@ -17,30 +17,57 @@ const UsuariosCRUD: React.FC = () => {
     { key: 'nombre_completo', label: 'Nombre completo', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
     { key: 'contrasena', label: 'Contraseña', type: 'text' as const, required: true },
-    { key: 'activo', label: 'Activo', type: 'boolean' as const },
+    // Ocultar estado al crear (no incluir el campo aquí)
   ];
 
   const editFields = [
     { key: 'nombre_completo', label: 'Nombre completo', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
-    // No permitir cambiar contraseña desde administración
+    // No permitir cambiar contraseña desde administración para otros usuarios
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
 
   const [pwOpenForUserId, setPwOpenForUserId] = useState<number | null>(null);
   const [pwError, setPwError] = useState<string>('');
+  const [changePwdUserId, setChangePwdUserId] = useState<number | null>(null);
+  const [newPwd, setNewPwd] = useState<string>('');
+  const [newPwd2, setNewPwd2] = useState<string>('');
+  const [changePwdError, setChangePwdError] = useState<string>('');
+
+  const token = localStorage.getItem('token') || '';
+  let myUserId: number | null = null;
+  let myTipo: string = String(localStorage.getItem('tipo') || '');
+  try {
+    const payload = JSON.parse(atob((token.split('.')[1] || '').replace(/-/g, '+').replace(/_/g, '/')));
+    myUserId = Number(payload?.id || 0) || null;
+  } catch {}
 
   const convertirAccion = (item: any, refresh: () => void) => {
-    const token = localStorage.getItem('token');
     const disabled = item.tipo_usuario === 'empleado';
     const onClick = async () => {
       if (disabled) return;
       setPwError('');
       setPwOpenForUserId(item.id_usuario);
     };
+    const isAdmin = String(item?.tipo_usuario || '').toLowerCase() === 'administrador';
+    const disabledConvert = disabled || isAdmin;
     return (
-      <button className="crud-btn-edit" onClick={onClick} disabled={disabled} title={disabled ? 'Ya es empleado' : 'Convertir a empleado'}>
-        {disabled ? '✅' : '👤→💼'}
+      <button className="crud-btn-edit" onClick={onClick} disabled={disabledConvert} title={disabledConvert ? 'No disponible' : 'Convertir a empleado'}>
+        {disabledConvert ? '✅' : '👤→💼'}
+      </button>
+    );
+  };
+
+  const cambiarContrasenaAccion = (item: any) => {
+    const isMyAdmin = (myUserId && Number(item?.id_usuario) === Number(myUserId) && String(item?.tipo_usuario || '').toLowerCase() === 'administrador');
+    if (!isMyAdmin) return null;
+    return (
+      <button
+        className="crud-btn-edit"
+        onClick={() => { setChangePwdUserId(item.id_usuario); setNewPwd(''); setNewPwd2(''); setChangePwdError(''); }}
+        title="Cambiar contraseña"
+      >
+        🔒
       </button>
     );
   };
@@ -69,7 +96,12 @@ const UsuariosCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
-      extraActionsForItem={convertirAccion}
+      extraActionsForItem={(item, refresh) => (
+        <>
+          {convertirAccion(item, refresh)}
+          {cambiarContrasenaAccion(item)}
+        </>
+      )}
       filterFunction={filterFunction}
       />
 
@@ -97,6 +129,75 @@ const UsuariosCRUD: React.FC = () => {
           title="Confirmar conversión a empleado"
           message="Ingresa tu contraseña de administrador para confirmar."
           errorMessage={pwError}
+        />
+      )}
+
+      {/* Modal para cambiar contraseña (solo mi usuario admin) */}
+      {changePwdUserId !== null && (
+        <div className="crud-modal-overlay open">
+          <div className="crud-modal" style={{ maxWidth: 520 }}>
+            <div className="crud-modal-header">
+              <h3>Cambiar contraseña</h3>
+              <button className="crud-modal-close" onClick={() => { setChangePwdUserId(null); setChangePwdError(''); }}>✖</button>
+            </div>
+            <div className="crud-modal-body">
+              <div className="crud-form">
+                <div className="crud-form-group">
+                  <label>Nueva contraseña:</label>
+                  <input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Ingresa nueva contraseña" />
+                </div>
+                <div className="crud-form-group">
+                  <label>Confirmar contraseña:</label>
+                  <input type="password" value={newPwd2} onChange={(e) => setNewPwd2(e.target.value)} placeholder="Repite la nueva contraseña" />
+                </div>
+                {changePwdError && <div className="crud-error">{changePwdError}</div>}
+                <div className="crud-modal-actions">
+                  <button className="crud-btn-cancel" onClick={() => { setChangePwdUserId(null); setChangePwdError(''); }}>Cancelar</button>
+                  <button
+                    className="crud-btn-save"
+                    onClick={() => {
+                      if (!newPwd || newPwd !== newPwd2) {
+                        setChangePwdError('Las contraseñas no coinciden');
+                        return;
+                      }
+                      setChangePwdError('');
+                      // Abrir verificación de contraseña actual (admin)
+                      setPwError('');
+                      setPwOpenForUserId(-1); // usar -1 para distinguir acción de cambio de contraseña
+                    }}
+                  >
+                    Guardar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reutilizar PasswordVerificationModal para confirmar cambio de contraseña */}
+      {pwOpenForUserId === -1 && changePwdUserId !== null && (
+        <PasswordVerificationModal
+          isOpen={pwOpenForUserId === -1}
+          onClose={() => { setPwOpenForUserId(null); setChangePwdError(''); }}
+          onVerify={async (pwd: string) => {
+            try {
+              await axios.put(`${API_CONFIG.BASE_URL}/api/usuarios/${changePwdUserId}`, { contrasena: newPwd, adminContrasena: pwd }, {
+                headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+              });
+              setPwOpenForUserId(null);
+              setChangePwdUserId(null);
+              setNewPwd(''); setNewPwd2('');
+              return true;
+            } catch (e: any) {
+              const msg = e?.response?.data?.message || 'Error al actualizar contraseña';
+              setChangePwdError(msg);
+              return false;
+            }
+          }}
+          title="Verificación de Administrador"
+          message="Ingresa tu contraseña actual para confirmar el cambio"
+          errorMessage={changePwdError}
         />
       )}
     </>

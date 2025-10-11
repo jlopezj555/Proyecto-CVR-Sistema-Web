@@ -32,6 +32,8 @@ function App() {
   const [userFoto, setUserFoto] = useState<string | null>(localStorage.getItem('foto'));
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+  const [roleSelectOpen, setRoleSelectOpen] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState<string[]>([]);
   const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutos
 
   useEffect(() => {
@@ -183,7 +185,7 @@ function App() {
       });
 
       if ((response.data as any).success) {
-        const { nombre, rol, token, tipo, foto } = (response.data as any);
+        const { nombre, rol, token, tipo, foto, roles } = (response.data as any);
 
         // Store token and user data
         localStorage.setItem('token', token);
@@ -196,6 +198,14 @@ function App() {
         setUserName(nombre);
         setUserType(tipo);
         setUserFoto(foto || '');
+        // Si roles incluye múltiples roles y alguno es revisor y otro operativo, abrir selección
+        const rolesArr: string[] = Array.isArray(roles) ? roles : [];
+        const tieneRevisor = rolesArr.some(r => r.toLowerCase().includes('revisor'));
+        const tieneOperativo = rolesArr.some(r => !r.toLowerCase().includes('revisor'));
+        if (tipo !== 'cliente' && rolesArr.length > 1 && tieneRevisor && tieneOperativo) {
+          setAvailableRoles(rolesArr);
+          setRoleSelectOpen(true);
+        }
         setIsLoginOpen(false);
         // Registrar actividad inicial al iniciar sesión
         localStorage.setItem('lastActivity', Date.now().toString());
@@ -290,6 +300,34 @@ function App() {
         onRegisterClick={() => setIsRegisterOpen(true)}
         onLogin={handleLogin}
       />
+
+      {/* Modal simple para elegir rol al iniciar sesión */}
+      {roleSelectOpen && (
+        <div className="register-dialog-overlay">
+          <div className="register-dialog" style={{ maxWidth: 420 }}>
+            <div className="dialog-icon">👤</div>
+            <div className="dialog-message" style={{ color: '#000' }}>
+              Selecciona el rol con el que deseas iniciar sesión:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+              {availableRoles.map(r => (
+                <button
+                  key={r}
+                  className="register-btn"
+                  onClick={() => {
+                    localStorage.setItem('rol', r);
+                    setUserRole(r);
+                    setRoleSelectOpen(false);
+                  }}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <button className="dialog-close-btn" onClick={() => setRoleSelectOpen(false)}>Cerrar</button>
+          </div>
+        </div>
+      )}
 
 
       <RegisterModal 
