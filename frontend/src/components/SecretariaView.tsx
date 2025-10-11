@@ -325,6 +325,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                   ]},
                   { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date', required: false }
                 ]}
+                getItemId={(item: any) => item.id_papeleria}
               />
             </div>
           )}

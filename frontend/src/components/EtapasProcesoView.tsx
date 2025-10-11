@@ -300,7 +300,11 @@ const EtapasProcesoView: React.FC = () => {
                           >
                             <div style={{ fontWeight: 700, color: '#000', fontSize: 13 }}>{cat.nombre_etapa}</div>
                             <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Estado: <span style={{ color }}>{estado}</span></div>
-                            <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Rol: {etapa?.nombre_rol || '-'}</div>
+                            {cat.nombre_etapa.toLowerCase().startsWith('ingreso de papeler') ? null : (
+                              etapa?.nombre_rol ? (
+                                <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Rol: {etapa.nombre_rol}</div>
+                              ) : null
+                            )}
                             <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Responsable: {responsable}</div>
                             {etapa?.estado === 'Rechazada' && etapa?.motivo_rechazo && (
                               <div style={{ color: '#dc3545', marginTop: 4, fontSize: 12 }}>
