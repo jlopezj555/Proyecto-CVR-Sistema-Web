@@ -94,33 +94,25 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                 </div>
                 <div className="welcome-info">
                   <h3 className="welcome-title">Bienvenido, {nombre}</h3>
-                  <p className="welcome-subtitle">Descripción de los procesos del Panel de Administración</p>
+                  <p className="welcome-subtitle">Selecciona una sección para administrar</p>
                 </div>
               </div>
               <div className="welcome-content">
-
-                <div className="admin-instructions-grid">
-                  {[ 
-                    { icon: iconUsuarios, title: 'Usuarios', desc: 'Gestión de usuarios del sistema. Crear, editar, activar.' },
-                    { icon: iconEmpleados, title: 'Empleados', desc: 'Alta y mantenimiento de empleados vinculados a Usuarios.' },
-                    { icon: iconEmpresas, title: 'Empresas', desc: 'Empresas clientes para asignación de roles y procesos.' },
-                    { icon: iconRoles, title: 'Roles', desc: 'Definición de roles y permisos funcionales.' },
-                    { icon: iconProcesos, title: 'Procesos', desc: 'Listado de procesos por empresa y filtros por mes asignado.' },
-                   // { icon: iconPapeleria, title: 'Papelería', desc: 'Registro de papelería por mes. Auto-genera proceso (Venta/Compra).' },
-                    { icon: iconEtapasCatalogo, title: 'Etapas Catálogo', desc: 'Definición del catálogo de etapas disponibles.' },
-                    { icon: iconEtapasProceso, title: 'Etapas Proceso', desc: 'Visualización de etapas instanciadas por proceso y progreso.' },
-                    { icon: iconAsignaciones, title: 'Asignaciones', desc: 'Asignar roles a empleados por empresa.' },
-                    { icon: iconRolEtapas, title: 'Etapas por Rol', desc: 'Orden y asociación de etapas a cada rol.' }
-                  ].map((c, idx) => (
-                    <div key={idx} className="admin-instruction-card">
-                      <div className="welcome-icon-container admin-icon admin-instruction-icon">
-                        <img src={c.icon} alt={c.title} className="welcome-icon-img" />
+                <div className="actions-grid">
+                  {menuItems.filter(mi => mi.id !== 'dashboard').map((item) => (
+                    <button
+                      key={item.id}
+                      className="action-card"
+                      onClick={() => setActiveSection(item.id)}
+                    >
+                      <span className="welcome-icon-container admin-icon action-icon" style={{ width: 56, height: 56 }}>
+                        <img src={item.icon} alt={item.label} className="welcome-icon-img" />
+                      </span>
+                      <div className="action-content">
+                        <h4>{item.label}</h4>
+                        <p>Gestionar {item.label}</p>
                       </div>
-                      <div className="admin-instruction-text">
-                        <div className="admin-instruction-title">{c.title}</div>
-                        <div className="admin-instruction-desc">{c.desc}</div>
-                      </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -138,27 +130,26 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
             <p>Hola, {nombre}</p>
           </div>
 
-          {/* Mobile collapsible menu */}
-          <details className="only-mobile" style={{ padding: '0 8px' }}>
-            <summary>
-              <button className="admin-mobile-menu-toggle" aria-label="Abrir menú de secciones">
-                Secciones
-                <span style={{ fontSize: 18, marginLeft: 8 }}>▾</span>
-              </button>
-            </summary>
-            <div className="admin-mobile-nav">
+          {/* Navegación móvil: tarjetas animadas */}
+          <div className="only-mobile" style={{ padding: '8px 12px 16px' }}>
+            <div className="actions-grid">
               {menuItems.map(item => (
                 <button
                   key={item.id}
                   onClick={() => setActiveSection(item.id)}
-                  className={`admin-nav-item ${activeSection === item.id ? 'active' : ''}`}
+                  className={`action-card ${activeSection === item.id ? 'active' : ''}`}
                 >
-                  <span className="nav-icon"><img src={item.icon} alt={item.label} className="nav-icon-img" /></span>
-                  <span className="nav-label">{item.label}</span>
+                  <span className="welcome-icon-container admin-icon action-icon" style={{ width: 56, height: 56 }}>
+                    <img src={item.icon} alt={item.label} className="welcome-icon-img" />
+                  </span>
+                  <div className="action-content">
+                    <h4>{item.label}</h4>
+                    <p>Ir a {item.label}</p>
+                  </div>
                 </button>
               ))}
             </div>
-          </details>
+          </div>
 
           {/* Desktop/Tablet horizontal nav */}
           <nav className="admin-nav only-desktop">
@@ -183,7 +174,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
         
         <div className="admin-content-body">
           {activeSection !== 'dashboard' && (
-            <div style={{ marginBottom: '12px' }}>
+            <div style={{ marginBottom: '12px' }} className="only-mobile">
               <button
                 className="crud-btn-back"
                 onClick={() => {

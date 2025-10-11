@@ -210,12 +210,17 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                 <div className="no-data">No hay procesos registrados.</div>
               ) : (
                 <div style={{ display: 'grid', gap: 16 }}>
-                  {procesos.map((p) => (
+                  {procesos.map((p) => {
+                    const isEntregado = !!p.fecha_completado || p.estado === 'Completado';
+                    const headerBg = isEntregado
+                      ? 'linear-gradient(135deg, #1f5d32 0%, #2e7d32 100%)'
+                      : 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)';
+                    return (
                     <div key={p.id_proceso} style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
                       {/* Encabezado colapsable (idéntico al admin) */}
                       <button onClick={() => toggleProceso(p.id_proceso)} style={{
                         width: '100%',
-                        background: 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)',
+                        background: headerBg,
                         color: 'white', border: 'none', padding: '14px 16px',
                         borderTopLeftRadius: 12, borderTopRightRadius: 12, cursor: 'pointer', textAlign: 'left'
                       }}>
@@ -225,7 +230,12 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                             <div style={{ opacity: 0.85, fontSize: 11 }}>{p.nombre_empresa} • {p.tipo_proceso}</div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ fontSize: 11, opacity: 0.9 }}>Creado: {formatDate(p.fecha_creacion)}</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                              <div style={{ fontSize: 11, opacity: 0.9 }}>Creado: {formatDate(p.fecha_creacion)}</div>
+                              {p.fecha_completado && (
+                                <div style={{ fontSize: 11, opacity: 0.9 }}>Entregado: {formatDate(p.fecha_completado)}</div>
+                              )}
+                            </div>
                             <div style={{ fontSize: 18 }}>{expandedProcesoId === p.id_proceso ? '▴' : '▾'}</div>
                           </div>
                         </div>
@@ -269,7 +279,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                         </div>
                       )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
