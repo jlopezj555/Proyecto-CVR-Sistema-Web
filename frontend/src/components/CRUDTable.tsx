@@ -32,6 +32,8 @@ interface CRUDTableProps {
   // Opcional: ocultar botones por defecto
   hideEditButton?: boolean;
   hideDeleteButton?: boolean;
+  // Ruta personalizada para DELETE (útil para llaves compuestas)
+  deletePathBuilder?: (endpoint: string, item: TableData) => string;
 }
 
 export interface TableData {
@@ -50,7 +52,8 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   queryParams,
   filterFunction,
   hideEditButton = false,
-  hideDeleteButton = false
+  hideDeleteButton = false,
+  deletePathBuilder
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -188,8 +191,11 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
         if (!selectedItem) return false;
         const idKey = `id_${endpoint.slice(0, -1)}`;
         const id = selectedItem[idKey];
+        const url = deletePathBuilder
+          ? `${API_CONFIG.BASE_URL}${deletePathBuilder(endpoint, selectedItem)}`
+          : `${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`;
         await axios.request({
-          url: `${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`,
+          url,
           method: 'delete',
           data: { adminContrasena: password },
           headers: { Authorization: `Bearer ${token}` }

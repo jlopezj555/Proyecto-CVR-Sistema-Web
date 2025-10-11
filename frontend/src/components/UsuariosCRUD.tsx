@@ -50,7 +50,9 @@ const UsuariosCRUD: React.FC = () => {
       setPwOpenForUserId(item.id_usuario);
     };
     const isAdmin = String(item?.tipo_usuario || '').toLowerCase() === 'administrador';
-    const disabledConvert = disabled || isAdmin;
+    // No mostrar opción para administradores
+    if (isAdmin) return null;
+    const disabledConvert = disabled;
     return (
       <button className="crud-btn-edit" onClick={onClick} disabled={disabledConvert} title={disabledConvert ? 'No disponible' : 'Convertir a empleado'}>
         {disabledConvert ? '✅' : '👤→💼'}
@@ -118,6 +120,8 @@ const UsuariosCRUD: React.FC = () => {
               setPwOpenForUserId(null);
               setPwError('');
               // Forzar refresh visual: simple estrategia es recargar la página de tabla
+              // Persistir que estamos en la sección de usuarios para no volver al dashboard
+              try { localStorage.setItem('admin_active_section', 'usuarios'); } catch {}
               window.setTimeout(() => window.location.reload(), 250);
               return true;
             } catch (e: any) {

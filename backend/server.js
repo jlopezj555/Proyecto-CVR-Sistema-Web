@@ -1888,6 +1888,10 @@ app.get('/api/asignaciones', verificarToken, verificarAdmin, async (req, res) =>
         await pool.query('DELETE FROM AsignacionRol WHERE id_asignacion = ?', [row.id_asignacion]);
         continue;
       }
+      // Si la asignación está marcada inactiva, excluir del resultado para "no tendrá valor"
+      if (String(row.estado).toLowerCase() === 'inactivo') {
+        continue;
+      }
       depurados.push(row);
     }
     res.json({ success: true, data: depurados });
@@ -2001,11 +2005,12 @@ const instanciarEtapasParaProceso = async (id_proceso, id_empresa) => {
   try {
     await conn.beginTransaction();
 
-    const [plantilla] = await conn.query(
+  const [plantilla] = await conn.query(
       `SELECT DISTINCT rec.id_rol, rec.id_etapa, rec.orden
        FROM RolEtapaCatalogo rec
        WHERE EXISTS (
-         SELECT 1 FROM AsignacionRol ar WHERE ar.id_rol = rec.id_rol AND ar.id_empresa = ?
+         SELECT 1 FROM AsignacionRol ar 
+         WHERE ar.id_rol = rec.id_rol AND ar.id_empresa = ? AND ar.estado = 'Activo'
        )
        ORDER BY rec.id_rol, rec.orden ASC`,
       [id_empresa]

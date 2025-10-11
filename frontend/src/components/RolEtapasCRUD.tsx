@@ -47,6 +47,9 @@ const RolEtapasCRUD: React.FC = () => {
       createFields={createFields}
       editFields={editFields}
       hideEditButton={true}
+      // Permitir eliminar desde UI, pero backend ya borra dependencias
+      hideDeleteButton={false}
+      deletePathBuilder={(endpoint, item) => `/api/rol-etapas/${item.id_rol}/${item.id_etapa}`}
       afterCreate={async () => {}}
     />
   );
