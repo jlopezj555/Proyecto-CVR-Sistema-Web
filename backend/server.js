@@ -260,6 +260,108 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Middlewares de autenticación y autorización (movidos arriba para evitar TDZ)
+// Middleware para verificar token JWT
+const verificarToken = (req, res, next) => {
+  const token = req.headers['authorization']?.split(' ')[1];
+  
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'Token no proporcionado' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: 'Token inválido' });
+  }
+};
+
+// Middleware para verificar que sea administrador
+const verificarAdmin = (req, res, next) => {
+  if (req.user.tipo !== 'administrador') {
+    return res.status(403).json({ success: false, message: 'Acceso denegado. Solo administradores.' });
+  }
+  next();
+};
+
+// Middleware para permitir acceso a Secretarias o Administradores
+const verificarSecretariaOrAdmin = (req, res, next) => {
+  if (req.user.tipo === 'administrador') return next();
+  const rol = String(req.user.rol || '').toLowerCase();
+  if (rol.includes('secretaria')) return next();
+  return res.status(403).json({ success: false, message: 'Acceso denegado. Solo secretarias o administradores.' });
+};
+
+// Middleware para verificar contraseña: admin o usuario actual
+const verificarPasswordAdmin = async (req, res, next) => {
+  const contrasena = req.body?.adminContrasena || req.body?.contrasena;
+  
+  if (!contrasena) {
+    return res.status(400).json({ success: false, message: 'Contraseña requerida' });
+  }
+
+  try {
+    console.log('Verificando contraseña admin para usuario ID:', req.user.id);
+    
+    // Buscar el administrador actual
+    const [adminRows] = await pool.query(
+      'SELECT contrasena FROM Usuario WHERE id_usuario = ? AND tipo_usuario = "administrador"',
+      [req.user.id]
+    );
+
+    console.log('Resultado de consulta admin:', adminRows.length);
+
+    if (adminRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Administrador no encontrado' });
+    }
+
+    const passwordValida = await bcrypt.compare(contrasena, adminRows[0].contrasena);
+    console.log('Contraseña válida:', passwordValida);
+    
+    if (!passwordValida) {
+      return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
+    }
+
+    next();
+  } catch (error) {
+    console.error('Error verificando contraseña:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+};
+
+const verificarPasswordActualOAdmin = async (req, res, next) => {
+  const contrasena = req.body?.adminContrasena || req.body?.contrasena;
+  if (!contrasena) {
+    return res.status(400).json({ success: false, message: 'Contraseña requerida' });
+  }
+  try {
+    if (req.user.tipo === 'administrador') {
+      // reutilizar lógica admin
+      const [adminRows] = await pool.query(
+        'SELECT contrasena FROM Usuario WHERE id_usuario = ? AND tipo_usuario = "administrador" LIMIT 1',
+        [req.user.id]
+      );
+      if (adminRows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Administrador no encontrado' });
+      }
+      const ok = await bcrypt.compare(contrasena, adminRows[0].contrasena);
+      if (!ok) return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
+      return next();
+    }
+    // validar password del usuario actual (empleado/secretaria)
+    const [rows] = await pool.query('SELECT contrasena FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    const ok = await bcrypt.compare(contrasena, rows[0].contrasena);
+    if (!ok) return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
+    next();
+  } catch (error) {
+    console.error('Error verificando contraseña:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+};
+
 // Permitir al administrador cambiar su propia contraseña (con verificación de contraseña actual)
 app.post('/api/usuarios/me/cambiar-contrasena', verificarToken, async (req, res) => {
   try {
@@ -524,107 +626,6 @@ const mail = (correo ?? '').toString().trim();
 });
 
 // (Se movieron endpoints de USUARIOS más abajo, después de definir middlewares)
-
-// Middleware para verificar token JWT
-const verificarToken = (req, res, next) => {
-  const token = req.headers['authorization']?.split(' ')[1];
-  
-  if (!token) {
-    return res.status(401).json({ success: false, message: 'Token no proporcionado' });
-  }
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({ success: false, message: 'Token inválido' });
-  }
-};
-
-// Middleware para verificar que sea administrador
-const verificarAdmin = (req, res, next) => {
-  if (req.user.tipo !== 'administrador') {
-    return res.status(403).json({ success: false, message: 'Acceso denegado. Solo administradores.' });
-  }
-  next();
-};
-
-// Middleware para permitir acceso a Secretarias o Administradores
-const verificarSecretariaOrAdmin = (req, res, next) => {
-  if (req.user.tipo === 'administrador') return next();
-  const rol = String(req.user.rol || '').toLowerCase();
-  if (rol.includes('secretaria')) return next();
-  return res.status(403).json({ success: false, message: 'Acceso denegado. Solo secretarias o administradores.' });
-};
-
-// Middleware para verificar contraseña: admin o usuario actual
-const verificarPasswordAdmin = async (req, res, next) => {
-  const contrasena = req.body?.adminContrasena || req.body?.contrasena;
-  
-  if (!contrasena) {
-    return res.status(400).json({ success: false, message: 'Contraseña requerida' });
-  }
-
-  try {
-    console.log('Verificando contraseña admin para usuario ID:', req.user.id);
-    
-    // Buscar el administrador actual
-    const [adminRows] = await pool.query(
-      'SELECT contrasena FROM Usuario WHERE id_usuario = ? AND tipo_usuario = "administrador"',
-      [req.user.id]
-    );
-
-    console.log('Resultado de consulta admin:', adminRows.length);
-
-    if (adminRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Administrador no encontrado' });
-    }
-
-    const passwordValida = await bcrypt.compare(contrasena, adminRows[0].contrasena);
-    console.log('Contraseña válida:', passwordValida);
-    
-    if (!passwordValida) {
-      return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
-    }
-
-    next();
-  } catch (error) {
-    console.error('Error verificando contraseña:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-};
-
-const verificarPasswordActualOAdmin = async (req, res, next) => {
-  const contrasena = req.body?.adminContrasena || req.body?.contrasena;
-  if (!contrasena) {
-    return res.status(400).json({ success: false, message: 'Contraseña requerida' });
-  }
-  try {
-    if (req.user.tipo === 'administrador') {
-      // reutilizar lógica admin
-      const [adminRows] = await pool.query(
-        'SELECT contrasena FROM Usuario WHERE id_usuario = ? AND tipo_usuario = "administrador" LIMIT 1',
-        [req.user.id]
-      );
-      if (adminRows.length === 0) {
-        return res.status(404).json({ success: false, message: 'Administrador no encontrado' });
-      }
-      const ok = await bcrypt.compare(contrasena, adminRows[0].contrasena);
-      if (!ok) return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
-      return next();
-    }
-    // validar password del usuario actual (empleado/secretaria)
-    const [rows] = await pool.query('SELECT contrasena FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
-    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
-    const ok = await bcrypt.compare(contrasena, rows[0].contrasena);
-    if (!ok) return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
-    next();
-  } catch (error) {
-    console.error('Error verificando contraseña:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-};
 
 // ============================================
 // ENDPOINTS CRUD PARA USUARIOS
