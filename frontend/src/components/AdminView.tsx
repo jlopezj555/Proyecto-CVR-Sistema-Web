@@ -182,7 +182,8 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
         </div>
 
       <div className="admin-main-content">
-        <div className="admin-content-header">
+        {/* En móviles ocultamos esta cabecera para promover navegación via tarjetas */}
+        <div className="admin-content-header only-desktop">
           <h2>{menuItems.find(item => item.id === activeSection)?.label || 'Dashboard'}</h2>
           <p>Gestiona y administra todos los aspectos del sistema</p>
         </div>
@@ -191,13 +192,13 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
           {activeSection !== 'dashboard' && (
             <div style={{ marginBottom: '12px' }} className="only-mobile">
               <button
-                className="crud-btn-back"
+                className="crud-btn-back crud-btn-back-danger"
                 onClick={() => {
                   setActiveSection('dashboard')
                   onSectionChange && onSectionChange(null)
                 }}
               >
-                ← Volver al menú principal de administrador
+                ← Volver a menú Principal
               </button>
             </div>
           )}
