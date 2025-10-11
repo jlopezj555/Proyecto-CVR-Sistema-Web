@@ -185,7 +185,7 @@ function App() {
       });
 
       if ((response.data as any).success) {
-        const { nombre, rol, token, tipo, foto } = (response.data as any);
+        const { nombre, rol, token, tipo, foto, roles } = (response.data as any);
 
         // Store token and user data
         localStorage.setItem('token', token);

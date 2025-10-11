@@ -97,7 +97,12 @@ const UsuariosCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
-      extraActionsForItem={convertirAccion}
+      extraActionsForItem={(item, refresh) => (
+        <>
+          {convertirAccion(item, refresh)}
+          {cambiarContrasenaAccion(item)}
+        </>
+      )}
       filterFunction={filterFunction}
       />
 

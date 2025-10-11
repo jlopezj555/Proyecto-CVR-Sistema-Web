@@ -49,7 +49,10 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   afterCreate,
   extraActionsForItem,
   queryParams,
-  filterFunction
+  filterFunction,
+  hideEditButton = false,
+  hideDeleteButton = false,
+  deletePathBuilder
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -196,7 +199,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
           ? getItemId(selectedItem)
           : selectedItem[`id_${endpoint.slice(0, -1)}`];
         await axios.request({
-          url: `${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`,
+          url,
           method: 'delete',
           data: { adminContrasena: password },
           headers: { Authorization: `Bearer ${token}` }

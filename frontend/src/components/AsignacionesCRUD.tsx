@@ -21,7 +21,7 @@ const AsignacionesCRUD: React.FC = () => {
       .then(data => setEmpleados(data.data || []))
       .catch(console.error);
 
-    // Cargar roles
+  // Cargar roles
     fetch(`${API_CONFIG.BASE_URL}/api/roles`, {
       headers: { Authorization: `Bearer ${token}` }
     })
@@ -111,7 +111,7 @@ const AsignacionesCRUD: React.FC = () => {
         padding: 16,
         marginBottom: 16,
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: 12
       }}>
         <div>

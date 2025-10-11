@@ -169,7 +169,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
       <div className="admin-main-content">
         <div className="admin-content-header">
-          <h2>Cuadernillos</h2>
+          <h2>{activeTab === 'cuadernillos' ? 'Cuadernillos' : 'Papelería'}</h2>
           <p>Etapas de ingreso/envío de papelería</p>
         </div>
 

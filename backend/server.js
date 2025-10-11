@@ -228,13 +228,28 @@ app.post('/api/login', async (req, res) => {
       { expiresIn: '2h' }
     );
 
+    // Si el empleado tiene roles mixtos (operativo y revisor), devolver lista de roles para selector
+    let rolesDisponibles = [];
+    if (usuario.tipo_usuario === 'empleado') {
+      const [rolesRows] = await pool.query(
+        `SELECT DISTINCT r.nombre_rol
+         FROM AsignacionRol ar
+         INNER JOIN Rol r ON ar.id_rol = r.id_rol
+         INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
+         WHERE u.id_usuario = ? AND ar.estado = 'Activo'`,
+        [usuario.id_usuario]
+      );
+      rolesDisponibles = rolesRows.map(r => r.nombre_rol);
+    }
+
     res.json({
       success: true,
       token,
       nombre: usuario.nombre_completo,
       rol: rol,
       tipo: usuario.tipo_usuario,
-      foto: fotoPerfil
+      foto: fotoPerfil,
+      roles: rolesDisponibles
     });
   } catch (err) {
     console.error(err);
@@ -671,7 +686,7 @@ app.post('/api/usuarios', verificarToken, verificarAdmin, async (req, res) => {
 // Actualizar usuario (sin permitir cambio de contraseña ni tipo_usuario por admin)
 app.put('/api/usuarios/:id', verificarToken, verificarAdmin, async (req, res) => {
   const { id } = req.params;
-  const { nombre_completo, correo, /* tipo_usuario, contrasena, */ activo } = req.body;
+  const { nombre_completo, correo, contrasena /* nueva contraseña opcional */, activo } = req.body;
 
   try {
     const [existing] = await pool.query('SELECT * FROM Usuario WHERE id_usuario = ?', [id]);
@@ -679,9 +694,18 @@ app.put('/api/usuarios/:id', verificarToken, verificarAdmin, async (req, res) =>
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     }
 
+    // Preparar actualización de Usuario
+    let setPwdSql = '';
+    let setPwdParams = [];
+    if (contrasena && Number(id) === Number(req.user.id) && String(req.user.tipo).toLowerCase() === 'administrador') {
+      const hashed = await bcrypt.hash(String(contrasena), 10);
+      setPwdSql = ', contrasena = ?';
+      setPwdParams.push(hashed);
+    }
+
     await pool.query(
-      'UPDATE Usuario SET nombre_completo = ?, correo = ?, activo = ? WHERE id_usuario = ?',
-      [nombre_completo, correo, activo !== undefined ? !!activo : existing[0].activo, id]
+      `UPDATE Usuario SET nombre_completo = ?, correo = ?, activo = ?${setPwdSql} WHERE id_usuario = ?`,
+      [nombre_completo, correo, activo !== undefined ? !!activo : existing[0].activo, ...setPwdParams, id]
     );
 
     // Si está enlazado a empleado o cliente, actualizar nombre/correo espejo
@@ -690,6 +714,10 @@ app.put('/api/usuarios/:id', verificarToken, verificarAdmin, async (req, res) =>
       const nombre = partes.slice(0, -1).join(' ') || nombre_completo;
       const apellido = partes.slice(-1).join(' ');
       await pool.query('UPDATE Empleado SET nombre = ?, apellido = ?, correo = ? WHERE id_empleado = ?', [nombre, apellido, correo, existing[0].id_empleado]);
+      // Si se actualizó la contraseña y existe empleado vinculado, reflejar también
+      if (setPwdParams.length > 0) {
+        await pool.query('UPDATE Empleado SET contrasena = ? WHERE id_empleado = ?', [setPwdParams[0], existing[0].id_empleado]);
+      }
     }
 
     res.json({ success: true, message: 'Usuario actualizado exitosamente' });
@@ -723,8 +751,8 @@ app.post('/api/usuarios/:id/convertir-empleado', verificarToken, verificarAdmin,
     const [userRows] = await pool.query('SELECT * FROM Usuario WHERE id_usuario = ? LIMIT 1', [id]);
     if (userRows.length === 0) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     const user = userRows[0];
-    if (user.tipo_usuario === 'administrador') {
-      return res.status(400).json({ success: false, message: 'No se puede convertir un administrador a empleado' });
+    if (String(user.tipo_usuario).toLowerCase() === 'administrador') {
+      return res.status(400).json({ success: false, message: 'No se puede convertir un administrador en empleado' });
     }
     if (user.tipo_usuario === 'empleado' && user.id_empleado) {
       return res.json({ success: true, message: 'El usuario ya es empleado' });
@@ -862,7 +890,9 @@ app.delete('/api/empleados/:id', verificarToken, verificarAdmin, verificarPasswo
       return res.status(404).json({ success: false, message: 'Empleado no encontrado' });
     }
 
-    // Eliminar empleado (cascada eliminará registros relacionados)
+    // Eliminar asignaciones huérfanas relacionadas primero para evitar restricciones
+    await pool.query('DELETE FROM AsignacionRol WHERE id_empleado = ?', [id]);
+    // Eliminar empleado (cascada/foráneas manejadas por orden)
     await pool.query('DELETE FROM Empleado WHERE id_empleado = ?', [id]);
 
     res.json({ success: true, message: 'Empleado eliminado exitosamente' });
@@ -1905,12 +1935,11 @@ const enviarNotificacionProcesoEnviado = async (idProceso) => {
 // Obtener todas las asignaciones
 app.get('/api/asignaciones', verificarToken, verificarAdmin, async (req, res) => {
   try {
-    const { empresa, year, month } = req.query;
+    const { empresa /*, year, month*/ } = req.query;
     const params = [];
     let where = ' WHERE 1=1';
     if (empresa) { where += ' AND ar.id_empresa = ?'; params.push(Number(empresa)); }
-    if (year) { where += ' AND YEAR(ar.fecha_asignacion) = ?'; params.push(Number(year)); }
-    if (month) { where += ' AND MONTH(ar.fecha_asignacion) = ?'; params.push(Number(month)); }
+    // Filtros de año/mes deshabilitados
 
     const [rows] = await pool.query(
       `SELECT ar.*, 
@@ -1925,7 +1954,25 @@ app.get('/api/asignaciones', verificarToken, verificarAdmin, async (req, res) =>
        ORDER BY ar.id_asignacion ASC`,
       params
     );
-    res.json({ success: true, data: rows });
+    // Filtrar asignaciones cuyo empleado no existe o cuyo usuario está inactivo
+    const depurados = [];
+    for (const row of rows) {
+      const [[usr]] = await pool.query(
+        `SELECT u.activo FROM Usuario u WHERE u.id_empleado = ? LIMIT 1`,
+        [row.id_empleado]
+      );
+      if (!usr || usr.activo === 0) {
+        // borrar asignación inválida
+        await pool.query('DELETE FROM AsignacionRol WHERE id_asignacion = ?', [row.id_asignacion]);
+        continue;
+      }
+      // Si la asignación está marcada inactiva, excluir del resultado para "no tendrá valor"
+      if (String(row.estado).toLowerCase() === 'inactivo') {
+        continue;
+      }
+      depurados.push(row);
+    }
+    res.json({ success: true, data: depurados });
   } catch (error) {
     console.error('Error obteniendo asignaciones:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
@@ -2036,7 +2083,7 @@ const instanciarEtapasParaProceso = async (id_proceso, id_empresa) => {
   try {
     await conn.beginTransaction();
 
-    const [plantilla] = await conn.query(
+  const [plantilla] = await conn.query(
       `SELECT DISTINCT rec.id_rol, rec.id_etapa, rec.orden
        FROM RolEtapaCatalogo rec
        WHERE EXISTS (
@@ -2171,6 +2218,7 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
        WHERE ar.id_empleado = ?${whereFecha}${whereEmpresa}${whereRol}
        AND ar.estado = 'Activo'
        AND p.estado <> 'Completado'
+       AND ar.estado = 'Activo'
        ORDER BY p.fecha_creacion DESC`,
       params
     );
@@ -2767,7 +2815,22 @@ app.put('/api/rol-etapas/:idRol/:idEtapa', verificarToken, verificarAdmin, verif
 app.delete('/api/rol-etapas/:idRol/:idEtapa', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
   const { idRol, idEtapa } = req.params;
   try {
-    await pool.query('DELETE FROM RolEtapaCatalogo WHERE id_rol = ? AND id_etapa = ?', [idRol, idEtapa]);
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      // Borrar primero instancias dependientes en EtapaProceso para evitar foráneas
+      await conn.query(
+        'DELETE FROM EtapaProceso WHERE id_rol = ? AND id_etapa = ?',
+        [idRol, idEtapa]
+      );
+      await conn.query('DELETE FROM RolEtapaCatalogo WHERE id_rol = ? AND id_etapa = ?', [idRol, idEtapa]);
+      await conn.commit();
+    } catch (e) {
+      await conn.rollback();
+      throw e;
+    } finally {
+      conn.release();
+    }
     res.json({ success: true, message: 'Asignación eliminada' });
   } catch (error) {
     console.error('Error eliminando etapa por rol:', error);

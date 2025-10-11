@@ -532,6 +532,9 @@
   .admin-content-body {
     padding: 20px;
   }
+  /* En móviles: mostrar solo elementos móviles y ocultar desktop */
+  .only-mobile { display: block; }
+  .only-desktop { display: none; }
   
   .welcome-header {
     flex-direction: column;
