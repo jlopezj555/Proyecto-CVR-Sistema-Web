@@ -353,6 +353,18 @@
   background: #f8d7da;
 }
 
+/* Flotante en móvil: abajo a la derecha */
+@media (max-width: 768px) {
+  .crud-btn-back-floating {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    z-index: 2000;
+    box-shadow: 0 6px 16px rgba(220, 53, 69, 0.35);
+    background: #ffffff;
+  }
+}
+
 /* Botón de búsqueda colocado en la cabecera: fondo blanco y texto negro */
 .crud-btn-search {
   background: #ffffff;

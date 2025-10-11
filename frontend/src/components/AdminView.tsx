@@ -192,7 +192,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
           {activeSection !== 'dashboard' && (
             <div style={{ marginBottom: '12px' }} className="only-mobile">
               <button
-                className="crud-btn-back crud-btn-back-danger"
+                className="crud-btn-back crud-btn-back-danger crud-btn-back-floating"
                 onClick={() => {
                   setActiveSection('dashboard')
                   onSectionChange && onSectionChange(null)
