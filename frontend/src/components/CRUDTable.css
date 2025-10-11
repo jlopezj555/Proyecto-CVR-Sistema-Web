@@ -344,6 +344,15 @@
   background: #f1f3f5;
 }
 
+/* Variante roja para volver al menú principal en móvil */
+.crud-btn-back-danger {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+.crud-btn-back-danger:hover {
+  background: #f8d7da;
+}
+
 /* Botón de búsqueda colocado en la cabecera: fondo blanco y texto negro */
 .crud-btn-search {
   background: #ffffff;
