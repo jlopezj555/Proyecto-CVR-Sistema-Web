@@ -275,8 +275,8 @@ const EtapasProcesoView: React.FC = () => {
                 </button>
 
                 {expandedProcesoId === proceso.id_proceso && (
-                <div style={{ padding: 12, overflowX: 'auto', overflowY: 'hidden' }}>
-                  <div style={{ display: 'flex', flexDirection: 'row', gap: 16, minWidth: 'max-content', paddingBottom: 12 }}>
+                <div style={{ padding: 12 }} className="etapas-scroll-container">
+                  <div style={{ display: 'flex', flexDirection: 'row', gap: 16, paddingBottom: 12 }}>
                     {catalogo.map((cat) => {
                       const etapa = etapasInstanciadas.find(e => e.id_etapa === cat.id_etapa);
                       const estado = etapa?.estado || 'Pendiente';

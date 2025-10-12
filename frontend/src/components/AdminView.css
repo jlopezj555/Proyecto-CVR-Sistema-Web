@@ -60,6 +60,34 @@
   text-overflow: ellipsis;
 }
 
+/* Mostrar la cinta SOLO en pantallas pequeñas (móvil) */
+@media (min-width: 601px) {
+  .admin-tabs-sticky { display: none !important; }
+}
+
+/* Estilos específicos para la cinta en móvil: mostrar texto completo y iconos en azul oscuro */
+@media (max-width: 600px) {
+  .admin-tab-btn {
+    min-width: auto;
+    max-width: none;
+    padding: 8px 12px;
+    white-space: normal;
+  }
+  .admin-tab-label {
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+    font-size: 0.95rem;
+  }
+  /* Forzar color azul oscuro en iconos (aprox al del header) usando filtro sobre SVGs en img */
+  .admin-tab-icon img {
+    filter: invert(14%) sepia(8%) saturate(350%) hue-rotate(175deg) brightness(85%);
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
+}
+
 @media (max-width: 900px) {
   .admin-tab-btn {
     min-width: 70px;
