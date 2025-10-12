@@ -40,6 +40,7 @@ type AdminSection =
 
 const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, onSectionChange }) => {
   const [activeSection, setActiveSection] = useState<AdminSection>('dashboard')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Sincronizar con el header si se provee externalSection
   useEffect(() => {
@@ -112,24 +113,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                 </div>
               </div>
               <div className="welcome-content">
-                <div className="actions-grid only-mobile">
-                  {menuItems.filter(mi => mi.id !== 'dashboard').map((item) => (
-                    <button
-                      key={item.id}
-                      className="action-card"
-                      onClick={() => setActiveSection(item.id)}
-                    >
-                      <span className="welcome-icon-container admin-icon action-icon" style={{ width: 56, height: 56 }}>
-                        <img src={item.icon} alt={item.label} className="welcome-icon-img" />
-                      </span>
-                      <div className="action-content">
-                        <h4>{item.label}</h4>
-                        <p>Gestionar {item.label}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <div className="only-desktop" style={{ textAlign: 'center', padding: '20px' }}>
+                <div style={{ textAlign: 'center', padding: '20px' }}>
                   <p style={{ fontSize: '1.1rem', color: '#666', margin: '20px 0' }}>
                     Usa la barra de navegación lateral para acceder a las diferentes secciones
                   </p>
@@ -145,37 +129,28 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
     <div className="admin-view-container">
         <div className="admin-sidebar">
           <div className="admin-sidebar-header">
-            <h3>Panel Admin</h3>
-            <p>Hola, {nombre}</p>
-          </div>
-
-          {/* Navegación móvil: tarjetas animadas */}
-          <div className="only-mobile" style={{ padding: '8px 12px 16px' }}>
-            <div className="actions-grid">
-              {menuItems.map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveSection(item.id)}
-                  className={`action-card ${activeSection === item.id ? 'active' : ''}`}
-                >
-                  <span className="welcome-icon-container admin-icon action-icon" style={{ width: 56, height: 56 }}>
-                    <img src={item.icon} alt={item.label} className="welcome-icon-img" />
-                  </span>
-                  <div className="action-content">
-                    <h4>{item.label}</h4>
-                    <p>Ir a {item.label}</p>
-                  </div>
-                </button>
-              ))}
+            <div>
+              <h3>Panel Admin</h3>
+              <p>Hola, {nombre}</p>
             </div>
+            <button 
+              className="mobile-menu-toggle"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? '✕' : '☰'}
+            </button>
           </div>
 
-          {/* Desktop/Tablet horizontal nav */}
-          <nav className="admin-nav only-desktop">
+          {/* Navegación unificada para todos los dispositivos */}
+          <nav className={`admin-nav ${mobileMenuOpen ? 'open' : ''}`}>
             {menuItems.map(item => (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => {
+                  setActiveSection(item.id)
+                  setMobileMenuOpen(false) // Cerrar menú móvil al seleccionar
+                }}
                 className={`admin-nav-item ${activeSection === item.id ? 'active' : ''}`}
               >
                 <span className="nav-icon"><img src={item.icon} alt={item.label} className="nav-icon-img" /></span>
@@ -186,8 +161,8 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
         </div>
 
       <div className="admin-main-content">
-        {/* En móviles ocultamos esta cabecera para promover navegación via tarjetas */}
-        <div className="admin-content-header only-desktop">
+        {/* Header para todos los dispositivos */}
+        <div className="admin-content-header">
           <h2>{menuItems.find(item => item.id === activeSection)?.label || 'Dashboard'}</h2>
           <p>Gestiona y administra todos los aspectos del sistema</p>
         </div>
