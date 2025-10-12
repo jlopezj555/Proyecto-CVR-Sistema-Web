@@ -118,16 +118,25 @@ function App() {
     }
   }, [userType, userRole]);
 
-  // Modo admin/empleado: desactivar fondo hero fijo para evitar superposición
+  // Aplicar clases CSS según el tipo de usuario para controlar el hero image
   useEffect(() => {
-    const adminMode = !!userRole && userType !== 'cliente';
-    if (adminMode) {
-      document.body.classList.add('admin-mode');
-    } else {
-      document.body.classList.remove('admin-mode');
+    // Limpiar todas las clases de modo
+    document.body.classList.remove('admin-mode', 'employee-mode', 'revisor-mode', 'secretaria-mode');
+    
+    if (userRole && userType !== 'cliente') {
+      if (userRole === 'administrador' || userRole === 'Administrador') {
+        document.body.classList.add('admin-mode');
+      } else if (userRole?.toLowerCase().includes('secretaria')) {
+        document.body.classList.add('secretaria-mode');
+      } else if (userRole?.toLowerCase().includes('revisor')) {
+        document.body.classList.add('revisor-mode');
+      } else {
+        document.body.classList.add('employee-mode');
+      }
     }
+    
     return () => {
-      document.body.classList.remove('admin-mode');
+      document.body.classList.remove('admin-mode', 'employee-mode', 'revisor-mode', 'secretaria-mode');
     };
   }, [userRole, userType]);
 
@@ -185,7 +194,7 @@ function App() {
       });
 
       if ((response.data as any).success) {
-        const { nombre, rol, token, tipo, foto, roles } = (response.data as any);
+        const { nombre, rol, token, tipo, foto } = (response.data as any);
 
         // Store token and user data
         localStorage.setItem('token', token);

@@ -1,16 +1,24 @@
-/* Fondo fijo en toda la página */
+/* Fondo fijo solo cuando no hay sesión activa */
 body {
   margin: 0;
   padding: 0;
-  background-image: url('./assets/hero-image.jpg'); /* Ajusta al nombre de tu imagen */
-  background-size: cover; /* Que ocupe toda la pantalla */
-  background-repeat: no-repeat; /* No se repita */
-  background-attachment: fixed; /* Hace que el fondo quede fijo */
-  background-position: center; /* Centrado */
+  background-color: #f8f9fa;
 }
 
-/* En modo administrador/empleado, no fijar el fondo para evitar congelamiento en móviles */
-body.admin-mode {
+/* Hero image solo para usuarios no autenticados o clientes */
+body:not(.admin-mode):not(.employee-mode):not(.revisor-mode):not(.secretaria-mode) {
+  background-image: url('./assets/hero-image.jpg');
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  background-position: center;
+}
+
+/* En modo administrador/empleado, no mostrar hero image */
+body.admin-mode,
+body.employee-mode,
+body.revisor-mode,
+body.secretaria-mode {
   background-image: none !important;
   background-color: #f8f9fa;
   background-attachment: scroll;
