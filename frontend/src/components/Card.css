@@ -1,3 +1,19 @@
+@media (max-width: 600px) {
+  .card-list {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .card {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    padding: 10px 6px;
+    font-size: 0.93rem;
+    margin: 0;
+    box-sizing: border-box;
+  }
+}
 .card {
   background: 
     linear-gradient(45deg, #F2B632 0%, #F2B632 30%, transparent 30%, transparent 70%, #A35D2D 70%, #A35D2D 100%),

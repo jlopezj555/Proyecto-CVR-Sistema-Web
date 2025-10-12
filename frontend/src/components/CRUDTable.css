@@ -1,3 +1,22 @@
+@media (max-width: 600px) {
+  .crud-table {
+    font-size: 0.89rem;
+  }
+  .crud-table th, .crud-table td {
+    font-size: 0.89rem;
+    padding: 6px 4px;
+  }
+  .crud-table input, .crud-table select, .crud-table textarea, .crud-table button {
+    font-size: 0.92rem;
+    padding: 7px 8px;
+  }
+  .crud-form {
+    font-size: 0.92rem;
+  }
+  .crud-form label {
+    font-size: 0.92rem;
+  }
+}
 /* Estilos para la tabla CRUD */
 .crud-table-container {
   background: white;
