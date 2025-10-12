@@ -45,6 +45,8 @@ interface CRUDTableProps {
   shouldRequirePassword?: (action: 'create' | 'update' | 'delete', item?: TableData | null) => boolean;
   // Opcional: manejar actualización personalizada (si devuelve true, no se usa flujo por defecto)
   onUpdate?: (id: string | number, formData: TableData, token: string) => Promise<void | boolean>;
+  // Opcional: deshabilitar botón de eliminar para ciertos registros
+  disableDeleteFor?: (item: TableData) => boolean;
 }
 
 export interface TableData {
@@ -68,6 +70,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   shouldRequirePassword,
   onUpdate,
   disableEdit = false,
+  disableDeleteFor,
   getItemId
 }) => {
   const [data, setData] = useState<TableData[]>([]);
@@ -175,7 +178,13 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
     setShowValidationErrors(false);
   };
 
+  const isDeleteDisabled = (item?: TableData) => {
+    if (typeof disableDeleteFor === 'function') return disableDeleteFor(item || {});
+    return false;
+  };
+
   const handleDelete = (item: TableData) => {
+    if (isDeleteDisabled(item)) return;
     if (window.confirm('¿Estás seguro de que deseas eliminar este registro?')) {
       setSelectedItem(item);
       setPendingAction('delete');
@@ -670,8 +679,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                       {!(typeof hideDeleteButton === 'function' ? hideDeleteButton(item) : hideDeleteButton) && (
                         <button 
                           onClick={() => handleDelete(item)}
-                          className="crud-btn-delete"
-                          title="Eliminar"
+                          className={`crud-btn-delete ${typeof disableDeleteFor === 'function' && disableDeleteFor(item) ? 'disabled' : ''}`}
+                          title={typeof disableDeleteFor === 'function' && disableDeleteFor(item) ? 'No se puede eliminar este registro' : 'Eliminar'}
+                          disabled={typeof disableDeleteFor === 'function' && disableDeleteFor(item)}
                         >
                           🗑️
                         </button>

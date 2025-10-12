@@ -77,6 +77,7 @@ const UsuariosCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
+      disableDeleteFor={(item) => item?.id_usuario === 1}
       extraActionsForItem={(item, refresh) => (
         <>
           {convertirAccion(item, refresh)}

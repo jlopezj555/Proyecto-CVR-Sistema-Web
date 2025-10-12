@@ -24,6 +24,41 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   margin: 20px 0;
+  position: relative;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.crud-table thead {
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.crud-table th {
+  position: relative;
+}
+
+.crud-table th::after {
+  content: "↕";
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.3;
+  font-size: 0.9em;
+}
+
+.crud-table th.asc::after {
+  content: "↑";
+  opacity: 0.8;
+}
+
+.crud-table th.desc::after {
+  content: "↓";
+  opacity: 0.8;
 }
 
 .crud-table-header {
@@ -138,6 +173,16 @@
 .crud-btn-delete:hover {
   background: #ffebee;
   transform: scale(1.1);
+}
+
+.crud-btn-delete.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.crud-btn-delete.disabled:hover {
+  background: none;
+  transform: none;
 }
 
 .crud-loading {
