@@ -1,11 +1,11 @@
-/* Fondo fijo solo cuando no hay sesión activa */
+/* Fondo limpio para todas las vistas */
 body {
   margin: 0;
   padding: 0;
   background-color: #f8f9fa;
 }
 
-/* Hero image solo para usuarios no autenticados o clientes */
+/* Hero image SOLO para usuarios no autenticados o clientes */
 body:not(.admin-mode):not(.employee-mode):not(.revisor-mode):not(.secretaria-mode) {
   background-image: url('./assets/hero-image.jpg');
   background-size: cover;
@@ -14,14 +14,14 @@ body:not(.admin-mode):not(.employee-mode):not(.revisor-mode):not(.secretaria-mod
   background-position: center;
 }
 
-/* En modo administrador/empleado, no mostrar hero image */
+/* SIN hero image para empleados y administradores - NUNCA */
 body.admin-mode,
 body.employee-mode,
 body.revisor-mode,
 body.secretaria-mode {
   background-image: none !important;
-  background-color: #f8f9fa;
-  background-attachment: scroll;
+  background-color: #f8f9fa !important;
+  background-attachment: scroll !important;
 }
 
 /* Mensaje de bienvenida */

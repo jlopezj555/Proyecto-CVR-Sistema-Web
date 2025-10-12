@@ -112,7 +112,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                 </div>
               </div>
               <div className="welcome-content">
-                <div className="actions-grid">
+                <div className="actions-grid only-mobile">
                   {menuItems.filter(mi => mi.id !== 'dashboard').map((item) => (
                     <button
                       key={item.id}
@@ -128,6 +128,11 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                       </div>
                     </button>
                   ))}
+                </div>
+                <div className="only-desktop" style={{ textAlign: 'center', padding: '20px' }}>
+                  <p style={{ fontSize: '1.1rem', color: '#666', margin: '20px 0' }}>
+                    Usa la barra de navegación lateral para acceder a las diferentes secciones
+                  </p>
                 </div>
               </div>
             </div>
