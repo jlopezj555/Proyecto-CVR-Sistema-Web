@@ -4,8 +4,126 @@
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   margin: 20px 0;
+  padding: 20px;
   /* permitir que los contenedores internos muestren sus scrollbars */
   overflow: visible;
+  color: #000;
+  max-width: 100%;
+}
+
+/* Responsive para móviles */
+@media (max-width: 768px) {
+  .etapas-cuenta-container {
+    padding: 12px;
+    margin: 12px 0;
+  }
+
+  .etapas-cuenta-container h2 {
+    font-size: 1.25rem;
+    margin-bottom: 16px;
+  }
+
+  /* Ajustar tamaño de las tarjetas en móvil */
+  .etapa-item {
+    min-width: 160px !important;
+  }
+
+  /* Mejorar visibilidad del scroll */
+  .etapas-scroll-container::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  /* Hacer los filtros más amigables en móvil */
+  .etapas-cuenta-container > div:first-of-type {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .etapas-cuenta-container select {
+    width: 100%;
+  }
+}
+
+/* Contenedor para el scroll horizontal de etapas */
+.etapas-scroll-container {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 12px 0;
+  padding-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #4e7ab5 #e9ecef;
+  -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+}
+
+.etapas-scroll-container::-webkit-scrollbar {
+  height: 12px;
+  background: #e9ecef;
+  border-radius: 6px;
+}
+
+.etapas-scroll-container::-webkit-scrollbar-thumb {
+  background: #4e7ab5;
+  border-radius: 6px;
+  min-width: 48px;
+}
+
+.etapas-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #2e5a9e;
+}
+
+/* Cinta horizontal de etapas */
+.etapas-cinta {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  padding: 4px;
+  min-width: max-content;
+}
+
+/* Contenedor de etapa individual */
+.etapa-item {
+  min-width: 180px;
+  flex: 0 0 auto;
+  padding: 12px;
+  border-radius: 10px;
+  background: white;
+  border: 1px solid #dee2e6;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Barra de progreso adaptable */
+.proceso-progreso {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  height: 12px;
+  background: #e9ecef;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+
+.proceso-progreso-valor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #1e3a5f, #4e7ab5);
+  border-radius: 999px;
+  transition: width 600ms ease;
+}
+
+.proceso-progreso-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 8px;
+}
+
+.proceso-progreso-label span {
+  font-size: 13px;
   color: #000;
 }
 

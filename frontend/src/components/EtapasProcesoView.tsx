@@ -278,8 +278,8 @@ const EtapasProcesoView: React.FC = () => {
                 <div style={{ padding: 12 }}>
                   {/* Contenedor fijo del bloque expandido: header del proceso ya define ancho; acá evitamos scroll global */}
                   {/* Línea de etapas horizontal con scroll propio */}
-                  <div className="etapas-scroll-x" style={{ width: '100%' }}>
-                    <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', minWidth: 'max-content' }}>
+                  <div className="etapas-scroll-container">
+                    <div className="etapas-cinta">
                       {catalogo.map((cat) => {
                       const etapa = etapasInstanciadas.find(e => e.id_etapa === cat.id_etapa);
                       const estado = etapa?.estado || 'Pendiente';
@@ -290,29 +290,20 @@ const EtapasProcesoView: React.FC = () => {
                       const key = `${proceso.id_proceso}:${cat.id_etapa}`;
 
                       return (
-                        <div key={key} style={{ minWidth: 160, flex: '0 0 auto' }}>
-                          <div
-                            style={{
-                              padding: 8,
-                              borderRadius: 10,
-                              background: 'white',
-                              border: '1px solid #dee2e6'
-                            }}
-                          >
-                            <div style={{ fontWeight: 700, color: '#000', fontSize: 13 }}>{cat.nombre_etapa}</div>
-                            <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Estado: <span style={{ color }}>{estado}</span></div>
-                            {cat.nombre_etapa.toLowerCase().startsWith('ingreso de papeler') ? null : (
-                              etapa?.nombre_rol ? (
-                                <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Rol: {etapa.nombre_rol}</div>
-                              ) : null
-                            )}
-                            <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Responsable: {responsable}</div>
-                            {etapa?.estado === 'Rechazada' && etapa?.motivo_rechazo && (
-                              <div style={{ color: '#dc3545', marginTop: 4, fontSize: 12 }}>
-                                <strong>Motivo rechazo:</strong> {etapa.motivo_rechazo}
-                              </div>
-                            )}
-                          </div>
+                        <div key={key} className="etapa-item">
+                          <div style={{ fontWeight: 700, color: '#000', fontSize: 13 }}>{cat.nombre_etapa}</div>
+                          <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Estado: <span style={{ color }}>{estado}</span></div>
+                          {cat.nombre_etapa.toLowerCase().startsWith('ingreso de papeler') ? null : (
+                            etapa?.nombre_rol ? (
+                              <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Rol: {etapa.nombre_rol}</div>
+                            ) : null
+                          )}
+                          <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Responsable: {responsable}</div>
+                          {etapa?.estado === 'Rechazada' && etapa?.motivo_rechazo && (
+                            <div style={{ color: '#dc3545', marginTop: 4, fontSize: 12 }}>
+                              <strong>Motivo rechazo:</strong> {etapa.motivo_rechazo}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -320,24 +311,13 @@ const EtapasProcesoView: React.FC = () => {
                   </div>
 
                   {/* Barra de progreso: se mantiene en el ancho del contenedor del proceso, no scrollea */}
-                  <div style={{ marginTop: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontWeight: 600, color: '#000', fontSize: 13 }}>Avance del proceso</span>
-                    <span style={{ color: '#000', fontSize: 12 }}>{progreso}%</span>
+                  <div className="proceso-progreso-container">
+                    <div className="proceso-progreso-label">
+                      <span style={{ fontWeight: 600 }}>Avance del proceso</span>
+                      <span>{progreso}%</span>
                     </div>
-                    <div style={{ position: 'relative', height: 10, background: '#e9ecef', borderRadius: 999, overflow: 'hidden' }}>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          bottom: 0,
-                          width: `${progreso}%`,
-                          background: 'linear-gradient(90deg, #1e3a5f, #4e7ab5)',
-                          borderRadius: 999,
-                          transition: 'width 600ms ease'
-                        }}
-                      />
+                    <div className="proceso-progreso">
+                      <div className="proceso-progreso-valor" style={{ width: `${progreso}%` }} />
                     </div>
                   </div>
                 </div>
