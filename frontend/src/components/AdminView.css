@@ -68,8 +68,9 @@
 /* Estilos específicos para la cinta en móvil: mostrar texto completo y iconos en azul oscuro */
 @media (max-width: 600px) {
   .admin-tab-btn {
-    min-width: auto;
-    max-width: none;
+      min-width: unset;
+      max-width: unset;
+      width: auto;
     padding: 8px 12px;
     white-space: normal;
   }
@@ -187,7 +188,7 @@
     align-items: center;
     gap: 12px;
     width: 100%;
-    border-radius: 0;
+      gap: 10px;
   }
   .admin-nav-item:last-child {
     border-bottom: none;
