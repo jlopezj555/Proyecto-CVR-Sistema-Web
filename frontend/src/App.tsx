@@ -121,22 +121,27 @@ function App() {
   // Aplicar clases CSS según el tipo de usuario para controlar el hero image
   useEffect(() => {
     // Limpiar todas las clases de modo
-    document.body.classList.remove('admin-mode', 'employee-mode', 'revisor-mode', 'secretaria-mode');
+    document.body.classList.remove('admin-mode', 'employee-mode', 'revisor-mode', 'secretaria-mode', 'authenticated');
     
-    if (userRole && userType !== 'cliente') {
-      if (userRole === 'administrador' || userRole === 'Administrador') {
-        document.body.classList.add('admin-mode');
-      } else if (userRole?.toLowerCase().includes('secretaria')) {
-        document.body.classList.add('secretaria-mode');
-      } else if (userRole?.toLowerCase().includes('revisor')) {
-        document.body.classList.add('revisor-mode');
-      } else {
-        document.body.classList.add('employee-mode');
+    if (userRole) {
+      // Agregar clase authenticated para cualquier usuario logueado
+      document.body.classList.add('authenticated');
+      
+      if (userType !== 'cliente') {
+        if (userRole === 'administrador' || userRole === 'Administrador') {
+          document.body.classList.add('admin-mode');
+        } else if (userRole?.toLowerCase().includes('secretaria')) {
+          document.body.classList.add('secretaria-mode');
+        } else if (userRole?.toLowerCase().includes('revisor')) {
+          document.body.classList.add('revisor-mode');
+        } else {
+          document.body.classList.add('employee-mode');
+        }
       }
     }
     
     return () => {
-      document.body.classList.remove('admin-mode', 'employee-mode', 'revisor-mode', 'secretaria-mode');
+      document.body.classList.remove('admin-mode', 'employee-mode', 'revisor-mode', 'secretaria-mode', 'authenticated');
     };
   }, [userRole, userType]);
 

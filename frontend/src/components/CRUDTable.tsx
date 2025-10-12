@@ -98,12 +98,15 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   const fetchData = async () => {
     setLoading(true);
     try {
+      console.log(`CRUDTable - Fetching data from: ${API_CONFIG.BASE_URL}/api/${endpoint}`);
       const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/${endpoint}`, {
         headers: { Authorization: `Bearer ${token}` },
         params: queryParams || {}
       });
+      console.log(`CRUDTable - Response for ${endpoint}:`, response.data);
       setData((response.data as any).data);
     } catch (error: any) {
+      console.error(`CRUDTable - Error fetching ${endpoint}:`, error);
       setError(error.response?.data?.message || 'Error al cargar los datos');
     } finally {
       setLoading(false);

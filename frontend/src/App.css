@@ -1,12 +1,13 @@
-/* Fondo limpio para todas las vistas */
+/* Fondo limpio por defecto */
 body {
   margin: 0;
   padding: 0;
   background-color: #f8f9fa;
+  background-image: none;
 }
 
 /* Hero image SOLO para usuarios no autenticados o clientes */
-body:not(.admin-mode):not(.employee-mode):not(.revisor-mode):not(.secretaria-mode) {
+body:not(.admin-mode):not(.employee-mode):not(.revisor-mode):not(.secretaria-mode):not(.authenticated) {
   background-image: url('./assets/hero-image.jpg');
   background-size: cover;
   background-repeat: no-repeat;
@@ -14,14 +15,24 @@ body:not(.admin-mode):not(.employee-mode):not(.revisor-mode):not(.secretaria-mod
   background-position: center;
 }
 
-/* SIN hero image para empleados y administradores - NUNCA */
+/* FORZAR eliminación del hero image para empleados y administradores */
 body.admin-mode,
 body.employee-mode,
 body.revisor-mode,
-body.secretaria-mode {
+body.secretaria-mode,
+body.authenticated {
   background-image: none !important;
   background-color: #f8f9fa !important;
   background-attachment: scroll !important;
+}
+
+/* Asegurar que las vistas de empleados no tengan hero image */
+.admin-view-container,
+.secretaria-view-container,
+.revisor-view-container,
+.user-view-container {
+  background-color: #f8f9fa !important;
+  background-image: none !important;
 }
 
 /* Mensaje de bienvenida */

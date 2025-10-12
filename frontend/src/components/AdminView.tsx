@@ -78,28 +78,38 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
   ]
 
   const renderContent = () => {
+    console.log('AdminView - Rendering content for section:', activeSection);
     switch (activeSection) {
       // case 'empleados':
       //   return <EmpleadosCRUD />
       case 'usuarios':
+        console.log('AdminView - Rendering UsuariosCRUD');
         return <UsuariosCRUD />
       case 'empresas':
+        console.log('AdminView - Rendering EmpresasCRUD');
         return <EmpresasCRUD />
       case 'roles':
+        console.log('AdminView - Rendering RolesCRUD');
         return <RolesCRUD />
       case 'procesos':
+        console.log('AdminView - Rendering ProcesosCRUD');
         return <ProcesosCRUD />
       // case 'papeleria':
       //   return <PapeleriaCRUD />
       case 'etapas-catalogo':
+        console.log('AdminView - Rendering EtapasCatalogoCRUD');
         return <EtapasCatalogoCRUD />
       case 'etapas-proceso':
+        console.log('AdminView - Rendering EtapasProcesoView');
         return <EtapasProcesoView />
       case 'asignaciones':
+        console.log('AdminView - Rendering AsignacionesCRUD');
         return <AsignacionesCRUD />
       case 'rol-etapas':
+        console.log('AdminView - Rendering RolEtapasCRUD');
         return <RolEtapasCRUD />
       default:
+        console.log('AdminView - Rendering Dashboard');
         return (
           <div className="admin-dashboard">
             <div className="admin-welcome-card">
