@@ -47,13 +47,22 @@
 /* Contenedor para el scroll horizontal de etapas */
 .etapas-scroll-container {
   width: 100%;
-  overflow-x: auto;
+  overflow-x: auto !important;
   overflow-y: hidden;
   margin: 12px 0;
   padding-bottom: 12px;
   scrollbar-width: thin;
   scrollbar-color: #4e7ab5 #e9ecef;
   -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+}
+
+.etapas-scroll-container > div {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap; /* permitir que las etapas 'salten' a la siguiente línea */
+  gap: 16px;
+  padding-bottom: 12px;
+  align-items: flex-start;
 }
 
 .etapas-scroll-container::-webkit-scrollbar {
@@ -75,21 +84,37 @@
 /* Cinta horizontal de etapas */
 .etapas-cinta {
   display: flex;
-  flex-wrap: nowrap;
-  gap: 8px;
+  flex-wrap: wrap; /* permitir múltiples filas */
+  gap: 16px;
   padding: 4px;
-  min-width: max-content;
+  justify-content: flex-start;
 }
 
 /* Contenedor de etapa individual */
 .etapa-item {
-  min-width: 180px;
+  width: 160px;
+  min-width: 140px;
   flex: 0 0 auto;
-  padding: 12px;
+  padding: 10px;
   border-radius: 10px;
   background: white;
   border: 1px solid #dee2e6;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+/* Versión compacta para móviles */
+@media (max-width: 600px) {
+  .etapa-item {
+    width: 120px;
+    min-width: 100px;
+    padding: 8px;
+  }
+  .etapa-item div { font-size: 12px; }
 }
 
 /* Barra de progreso adaptable */

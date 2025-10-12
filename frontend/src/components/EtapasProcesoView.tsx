@@ -287,32 +287,17 @@ const EtapasProcesoView: React.FC = () => {
                       const key = `${proceso.id_proceso}:${cat.id_etapa}`;
 
                       return (
-                        <div key={key} style={{
-                          width: 120,
-                          height: 120,
-                          minWidth: 120,
-                          minHeight: 120,
-                          flex: '0 0 auto',
-                          borderRadius: 12,
-                          background: 'white',
-                          border: '1.5px solid #dee2e6',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          padding: 10
-                        }}>
+                        <div key={key} className="etapa-item">
                           <div style={{ fontWeight: 700, color: '#000', fontSize: 13, textAlign: 'center' }}>{cat.nombre_etapa}</div>
-                          <div style={{ marginTop: 4, fontSize: 11, color: '#495057', textAlign: 'center' }}>Estado: <span style={{ color }}>{estado}</span></div>
+                          <div style={{ marginTop: 6, fontSize: 11, color: '#495057', textAlign: 'center' }}>Estado: <span style={{ color }}>{estado}</span></div>
                           {cat.nombre_etapa.toLowerCase().startsWith('ingreso de papeler') ? null : (
                             etapa?.nombre_rol ? (
-                              <div style={{ marginTop: 4, fontSize: 11, color: '#495057', textAlign: 'center' }}>Rol: {etapa.nombre_rol}</div>
+                              <div style={{ marginTop: 6, fontSize: 11, color: '#495057', textAlign: 'center' }}>Rol: {etapa.nombre_rol}</div>
                             ) : null
                           )}
-                          <div style={{ marginTop: 4, fontSize: 11, color: '#495057', textAlign: 'center' }}>Responsable: {responsable}</div>
+                          <div style={{ marginTop: 6, fontSize: 11, color: '#495057', textAlign: 'center' }}>Responsable: {responsable}</div>
                           {etapa?.estado === 'Rechazada' && etapa?.motivo_rechazo && (
-                            <div style={{ color: '#dc3545', marginTop: 4, fontSize: 12, textAlign: 'center' }}>
+                            <div style={{ color: '#dc3545', marginTop: 6, fontSize: 12, textAlign: 'center' }}>
                               <strong>Motivo rechazo:</strong> {etapa.motivo_rechazo}
                             </div>
                           )}

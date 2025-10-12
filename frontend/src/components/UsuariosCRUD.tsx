@@ -1,7 +1,8 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import axios from 'axios';
 import CRUDTable from './CRUDTable';
 import PasswordVerificationModal from './PasswordVerificationModal';
+import ChangePasswordModal from './ChangePasswordModal';
 import API_CONFIG from '../config/api'
 
 const UsuariosCRUD: React.FC = () => {
@@ -23,39 +24,26 @@ const UsuariosCRUD: React.FC = () => {
   const editFields = [
     { key: 'nombre_completo', label: 'Nombre completo', type: 'text' as const, required: true },
     { key: 'correo', label: 'Correo', type: 'email' as const, required: true },
-    // Si el usuario es administrador y es su propio registro, podrá cambiar su contraseña desde aquí
-    { key: 'contrasena_actual', label: 'Contraseña actual', type: 'text' as const, required: false },
-    { key: 'contrasena', label: 'Nueva contraseña', type: 'text' as const, required: false },
     { key: 'activo', label: 'Activo', type: 'boolean' as const },
   ];
 
   const [pwOpenForUserId, setPwOpenForUserId] = useState<number | null>(null);
-  const [pwChangeOpen, setPwChangeOpen] = useState<boolean>(false);
+  const [convertRefresh, setConvertRefresh] = useState<(() => void) | null>(null);
   const [pwError, setPwError] = useState<string>('');
-  const [myUserId, setMyUserId] = useState<number | null>(null);
-
-  // Obtener mi id de usuario para permitir cambiar solo mi propia contraseña (si soy admin)
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    axios.get(`${API_CONFIG.BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(res => setMyUserId(res?.data?.data?.id_usuario ?? null))
-      .catch(() => setMyUserId(null));
-  }, []);
+  const [changePwdOpenForUserId, setChangePwdOpenForUserId] = useState<number | null>(null);
+  // Nota: eliminada la carga inicial de `myUserId`; se verifica en runtime cuando se necesita.
 
   const convertirAccion = (item: any, refresh: () => void) => {
-    const token = localStorage.getItem('token');
     // Ocultar para administrador: no se puede convertir a empleado
     const esAdmin = String(item?.tipo_usuario || '').toLowerCase() === 'administrador';
-    const showChangePwd = esAdmin && myUserId === item.id_usuario;
     const actions: React.ReactNode[] = [];
-    // Ya no mostramos botón separado; el cambio de contraseña se gestiona en el modal de edición
     if (esAdmin) return <>{actions}</>;
     const disabled = item.tipo_usuario === 'empleado';
     const onClick = async () => {
       if (disabled) return;
       setPwError('');
       setPwOpenForUserId(item.id_usuario);
+      setConvertRefresh(() => refresh);
     };
     actions.push(
       <button key="convert" className="crud-btn-edit" onClick={onClick} disabled={disabled} title={disabled ? 'Ya es empleado' : 'Convertir a empleado'}>
@@ -92,47 +80,13 @@ const UsuariosCRUD: React.FC = () => {
       extraActionsForItem={(item, refresh) => (
         <>
           {convertirAccion(item, refresh)}
+          {/* Mostrar botón 'Cambiar contraseña' solo para el registro admin (id_usuario === 1) */}
+          {item?.id_usuario === 1 && (
+            <button key="changePwd" className="crud-btn-edit" onClick={() => setChangePwdOpenForUserId(item.id_usuario)} title="Cambiar contraseña">🔒 Cambiar contraseña</button>
+          )}
         </>
       )}
-      shouldRequirePassword={(action, item) => {
-        // Solo omitir modal si es actualización de su propia contraseña (admin propio) y hay campos de contraseña
-        if (action === 'update' && item && myUserId === item.id_usuario && String(item.tipo_usuario).toLowerCase() === 'administrador') {
-          const hasPwdFields = !!(formData?.contrasena || formData?.contrasena_actual);
-          return !hasPwdFields; // si hay campos de contraseña, NO requerir modal; de lo contrario, sí
-        }
-        return true;
-      }}
-      onUpdate={async (id, formData, token) => {
-        // Si es el propio admin y proporciona contrasena_actual + contrasena, usar flujo dedicado
-        const esPropioAdmin = myUserId === formData.id_usuario || myUserId === id;
-        if (esPropioAdmin && String(formData.tipo_usuario || '').toLowerCase() === 'administrador') {
-          const nueva = String(formData.contrasena || '').trim();
-          const actual = String(formData.contrasena_actual || '').trim();
-          if (nueva || actual) {
-            if (!actual) {
-              alert('Debes ingresar tu contraseña actual');
-              return true; // handled (no continuar con default)
-            }
-            if (!nueva || nueva.length < 6) {
-              alert('La nueva contraseña debe tener al menos 6 caracteres');
-              return true; // handled
-            }
-            // Validar actual y cambiar
-            await axios.post(`${API_CONFIG.BASE_URL}/api/verify-password`, { contrasena: actual }, {
-              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
-            await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/me/cambiar-contrasena`, {
-              contrasena_actual: actual,
-              contrasena_nueva: nueva
-            }, {
-              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-            });
-            alert('Contraseña actualizada');
-            return true; // handled
-          }
-        }
-        return false; // no handled, usar flujo por defecto
-      }}
+      /* No usamos shouldRequirePassword ni onUpdate para manejo de contraseñas aquí; se hace mediante modal específico */
       filterFunction={filterFunction}
       />
 
@@ -140,7 +94,7 @@ const UsuariosCRUD: React.FC = () => {
       {pwOpenForUserId !== null && (
         <PasswordVerificationModal
           isOpen={pwOpenForUserId !== null}
-          onClose={() => { setPwOpenForUserId(null); setPwError(''); }}
+          onClose={() => { setPwOpenForUserId(null); setPwError(''); setConvertRefresh(null); }}
           onVerify={async (pwd: string) => {
             try {
               await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${pwOpenForUserId}/convertir-empleado`, { adminContrasena: pwd }, {
@@ -148,8 +102,9 @@ const UsuariosCRUD: React.FC = () => {
               });
               setPwOpenForUserId(null);
               setPwError('');
-              // Refrescar tabla sin recargar toda la página
-              refresh();
+              // Refrescar tabla si se pasó el callback
+              convertRefresh && convertRefresh();
+              setConvertRefresh(null);
               return true;
             } catch (e: any) {
               const msg = e?.response?.data?.message || 'Error de autorización';
@@ -160,6 +115,32 @@ const UsuariosCRUD: React.FC = () => {
           title="Confirmar conversión a empleado"
           message="Ingresa tu contraseña de administrador para confirmar."
           errorMessage={pwError}
+        />
+      )}
+
+      {changePwdOpenForUserId !== null && (
+        <ChangePasswordModal
+          isOpen={changePwdOpenForUserId !== null}
+          onClose={() => setChangePwdOpenForUserId(null)}
+          onChangePassword={async (currentPwd: string, newPwd: string) => {
+            try {
+              // Solo soportado por el backend para el usuario autenticado
+              const token = localStorage.getItem('token');
+              const my = await axios.get(`${API_CONFIG.BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } }) as any;
+              const myId = my?.data?.data?.id_usuario;
+              if (myId !== changePwdOpenForUserId) {
+                alert('Solo es posible cambiar la contraseña del usuario autenticado. Por favor inicia sesión como ese usuario o use la funcionalidad del backend.');
+                return false;
+              }
+              await axios.post(`${API_CONFIG.BASE_URL}/api/verify-password`, { contrasena: currentPwd }, { headers: { Authorization: `Bearer ${token}` } });
+              await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/me/cambiar-contrasena`, { contrasena_actual: currentPwd, contrasena_nueva: newPwd }, { headers: { Authorization: `Bearer ${token}` } });
+              alert('Contraseña actualizada');
+              return true;
+            } catch (e: any) {
+              alert(e?.response?.data?.message || 'Error cambiando la contraseña');
+              return false;
+            }
+          }}
         />
       )}
     </>
