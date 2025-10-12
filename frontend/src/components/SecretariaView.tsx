@@ -36,6 +36,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     const [loadingProc, setLoadingProc] = useState(false)
   const [progreso, setProgreso] = useState<Record<number, { porcentaje: number, total: number, completadas: number }>>({})
   const [loadingProgreso, setLoadingProgreso] = useState<Record<number, boolean>>({})
+  const [etapasPorProceso, setEtapasPorProceso] = useState<Record<number, any[]>>({})
   const [expandedProcesoId, setExpandedProcesoId] = useState<number | null>(null)
   const [confirmPwdOpenForProceso, setConfirmPwdOpenForProceso] = useState<number | null>(null)
   const [confirmPwdError, setConfirmPwdError] = useState<string>('')
@@ -88,14 +89,24 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     }
   }
 
-  useEffect(() => { cargarProcesos() }, [empresaFiltro, mesFiltro, anioFiltro])
+  const cargarEtapasProceso = async (id: number) => {
+    try {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos/${id}/etapas`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setEtapasPorProceso(prev => ({ ...prev, [id]: data?.data || [] }))
+    } catch (e) {
+      console.error('Error cargando etapas del proceso:', e)
+      setEtapasPorProceso(prev => ({ ...prev, [id]: [] }))
+    }
+  }
 
-  // Refrescar al entrar en la pestaña de cuadernillos
-  useEffect(() => {
-    if (activeTab === 'cuadernillos') cargarProcesos()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab])
-
+  // Cargar procesos cuando cambien los filtros o la pestaña
+  useEffect(() => { 
+    if (activeTab === 'cuadernillos') {
+      cargarProcesos()
+    }
+  }, [empresaFiltro, mesFiltro, anioFiltro, activeTab])
 
   // Cargar progreso para todos los procesos listados
   useEffect(() => {
@@ -120,12 +131,38 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const toggleProceso = (procesoId: number) => {
     const newId = expandedProcesoId === procesoId ? null : procesoId
     setExpandedProcesoId(newId)
-    if (newId && !progreso[newId]) {
-      cargarProgreso(newId)
+    if (newId) {
+      if (!progreso[newId]) {
+        cargarProgreso(newId)
+      }
+      if (!etapasPorProceso[newId]) {
+        cargarEtapasProceso(newId)
+      }
     }
   }
 
   const formatDate = (s?: string | null) => (s ? new Date(s).toLocaleDateString('es-ES') : '-')
+
+  const getProcesoEstado = (proceso: ProcesoItem) => {
+    const etapas = etapasPorProceso[proceso.id_proceso] || []
+    const tieneRechazada = etapas.some((e: any) => e.estado === 'Rechazada')
+    const isEntregado = !!proceso.fecha_completado || proceso.estado === 'Completado'
+    
+    if (tieneRechazada) return 'rechazado'
+    if (isEntregado) return 'entregado'
+    return 'normal'
+  }
+
+  const getProcesoColor = (estado: string) => {
+    switch (estado) {
+      case 'entregado':
+        return 'linear-gradient(135deg, #1f5d32 0%, #2e7d32 100%)'
+      case 'rechazado':
+        return 'linear-gradient(135deg, #8B1E1E 0%, #C62828 100%)'
+      default:
+        return 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)'
+    }
+  }
 
   return (
     <div className="admin-view-container">
@@ -194,13 +231,19 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
               ) : (
                 <div style={{ display: 'grid', gap: 16 }}>
                   {procesos.map((p) => {
-                    const isEntregado = !!p.fecha_completado || p.estado === 'Completado';
-                    const headerBg = isEntregado
-                      ? 'linear-gradient(135deg, #1f5d32 0%, #2e7d32 100%)'
-                      : 'linear-gradient(135deg, #122745 0%, #1e3a5f 100%)';
+                    const estadoProceso = getProcesoEstado(p)
+                    const headerBg = getProcesoColor(estadoProceso)
+                    const isEntregado = estadoProceso === 'entregado'
+                    const tieneRechazada = estadoProceso === 'rechazado'
+                    
                     return (
-                    <div key={p.id_proceso} style={{ background: 'white', border: '1px solid #e9ecef', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.06)' }}>
-                      {/* Encabezado colapsable (idéntico al admin) */}
+                    <div key={p.id_proceso} style={{ 
+                      background: 'white', 
+                      border: tieneRechazada ? '2.5px solid #dc3545' : '1px solid #e9ecef', 
+                      borderRadius: 12, 
+                      boxShadow: tieneRechazada ? '0 0 0 2px #dc3545' : '0 8px 24px rgba(0,0,0,0.06)' 
+                    }}>
+                      {/* Encabezado colapsable */}
                       <button onClick={() => toggleProceso(p.id_proceso)} style={{
                         width: '100%',
                         background: headerBg,
@@ -215,7 +258,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                               <div style={{ fontSize: 11, opacity: 0.9 }}>Creado: {formatDate(p.fecha_creacion)}</div>
-                              {p.fecha_completado && (
+                              {isEntregado && (
                                 <div style={{ fontSize: 11, opacity: 0.9 }}>Entregado: {formatDate(p.fecha_completado)}</div>
                               )}
                             </div>
@@ -225,8 +268,57 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                       </button>
 
                       {expandedProcesoId === p.id_proceso && (
-                        <div className="v-scroll v-scroll-60vh" style={{ padding: 12 }}>
-                          {/* Solo barra de progreso y porcentaje */}
+                        <div style={{ padding: 12 }}>
+                          {/* Etapas del proceso con scroll horizontal */}
+                          <div style={{ marginBottom: 16 }}>
+                            <h4 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 600, color: '#000' }}>Etapas del Proceso</h4>
+                            <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', paddingBottom: 8 }}>
+                              <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', minWidth: 'max-content' }}>
+                                {(etapasPorProceso[p.id_proceso] || []).map((etapa: any, index: number) => {
+                                  const getEstadoColor = (estado: string) => {
+                                    switch (estado) {
+                                      case 'Completada': return '#28a745'
+                                      case 'En progreso': return '#ffc107'
+                                      case 'Rechazada': return '#dc3545'
+                                      default: return '#6c757d'
+                                    }
+                                  }
+                                  
+                                  const color = getEstadoColor(etapa.estado)
+                                  const responsable = etapa.responsable_nombres && etapa.responsable_nombres.trim().length > 0
+                                    ? etapa.responsable_nombres
+                                    : 'Vacante'
+                                  
+                                  return (
+                                    <div key={index} style={{ minWidth: 160, flex: '0 0 auto' }}>
+                                      <div style={{
+                                        padding: 8,
+                                        borderRadius: 10,
+                                        background: 'white',
+                                        border: '1px solid #dee2e6'
+                                      }}>
+                                        <div style={{ fontWeight: 700, color: '#000', fontSize: 13 }}>{etapa.nombre_etapa}</div>
+                                        <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>
+                                          Estado: <span style={{ color }}>{etapa.estado}</span>
+                                        </div>
+                                        {etapa.nombre_rol && (
+                                          <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Rol: {etapa.nombre_rol}</div>
+                                        )}
+                                        <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Responsable: {responsable}</div>
+                                        {etapa.estado === 'Rechazada' && etapa.motivo_rechazo && (
+                                          <div style={{ color: '#dc3545', marginTop: 4, fontSize: 12 }}>
+                                            <strong>Motivo rechazo:</strong> {etapa.motivo_rechazo}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Barra de progreso */}
                           {loadingProgreso[p.id_proceso] ? (
                             <div className="loading">Calculando progreso...</div>
                           ) : (
