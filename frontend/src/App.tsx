@@ -589,19 +589,7 @@ function App() {
           {userRole === 'administrador' || userRole === 'Administrador' ? (
             <AdminView 
               nombre={userName || ''} 
-              externalSection={
-                activeTab === 'empleados' ? 'empleados' :
-                activeTab === 'empresas' ? 'empresas' :
-                activeTab === 'roles' ? 'roles' :
-                activeTab === 'papeleria' ? 'papeleria' :
-                activeTab === 'etapas-catalogo' ? 'etapas-catalogo' :
-                activeTab === 'etapas-proceso' ? 'etapas-proceso' :
-                activeTab === 'asignaciones' ? 'asignaciones' :
-                activeTab === 'rol-etapas' ? 'rol-etapas' :
-                activeTab === 'usuarios' ? 'usuarios' :
-                activeTab === 'procesos' ? 'procesos' :
-                null
-              }
+              externalSection={null}
               onSectionChange={(section) => {
                 if (!section) {
                   setActiveTab(null)

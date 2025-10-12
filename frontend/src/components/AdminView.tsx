@@ -11,7 +11,6 @@ import AsignacionesCRUD from './AsignacionesCRUD'
 import './AdminView.css'
 import iconDashboard from '../assets/admin-dashboard-white.svg'
 import iconUsuarios from '../assets/admin-usuarios-white.svg'
-import iconEmpleados from '../assets/admin-empleados-white.svg'
 import iconEmpresas from '../assets/admin-empresas-white.svg'
 import iconRoles from '../assets/admin-roles-white.svg'
 import iconProcesos from '../assets/admin-etapas-proceso-white.svg'
@@ -46,7 +45,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
   useEffect(() => {
     // Restaurar sección activa desde almacenamiento si existe
     const stored = localStorage.getItem('admin_active_section') as AdminSection | null
-    if (stored) {
+    if (stored && menuItems.some(item => item.id === stored)) {
       setActiveSection(stored)
     }
   }, [])
@@ -87,7 +86,7 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
         return <EmpresasCRUD />
       case 'roles':
         return <RolesCRUD />
-            case 'procesos':
+      case 'procesos':
         return <ProcesosCRUD />
       // case 'papeleria':
       //   return <PapeleriaCRUD />
