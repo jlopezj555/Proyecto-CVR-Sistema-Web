@@ -64,7 +64,9 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   hideDeleteButton = false,
   deletePathBuilder,
   shouldRequirePassword,
-  onUpdate
+  onUpdate,
+  disableEdit = false,
+  getItemId
 }) => {
   const [data, setData] = useState<TableData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -239,10 +241,11 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
         const deleteUrl = typeof deletePathBuilder === 'function'
           ? deletePathBuilder(id, selectedItem)
           : `${API_CONFIG.BASE_URL}/api/${endpoint}/${id}`;
+        // axios.delete soporta 'data' en config en axios >=0.19. Si tu versión es menor, debes actualizar axios.
         await axios.delete(deleteUrl, {
           data: { adminContrasena: password },
           headers: { Authorization: `Bearer ${token}` }
-        });
+        } as any);
 
         setSuccess('Registro eliminado exitosamente');
         setSelectedItem(null);
@@ -651,7 +654,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                   ))}
                   <td>
                     <div className="crud-actions">
-                      { !isEditDisabled(item) && (
+                      {!(typeof hideEditButton === 'function' ? hideEditButton(item) : hideEditButton) && !isEditDisabled(item) && (
                         <button
                           onClick={() => handleEdit(item)}
                           className="crud-btn-edit"
@@ -660,13 +663,15 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                           ✏️
                         </button>
                       )}
-                      <button 
-                        onClick={() => handleDelete(item)}
-                        className="crud-btn-delete"
-                        title="Eliminar"
-                      >
-                        🗑️
-                      </button>
+                      {!(typeof hideDeleteButton === 'function' ? hideDeleteButton(item) : hideDeleteButton) && (
+                        <button 
+                          onClick={() => handleDelete(item)}
+                          className="crud-btn-delete"
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
+                      )}
                       {typeof (extraActionsForItem) === 'function' && (
                         <span>{extraActionsForItem(item, fetchData)}</span>
                       )}
