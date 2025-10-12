@@ -197,8 +197,10 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
                   setActiveSection('dashboard')
                   onSectionChange && onSectionChange(null)
                 }}
+                aria-label="Volver a menú Principal"
+                title="Volver a menú Principal"
               >
-                ← Volver a menú Principal
+                🏠
               </button>
             </div>
           )}
