@@ -1,3 +1,92 @@
+/* Barra de pestañas sticky debajo del header */
+.admin-tabs-sticky {
+  position: sticky;
+  top: 90px;
+  z-index: 20;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+  padding: 0 0 2px 0;
+  overflow-x: auto;
+}
+
+.admin-tabs-scroll {
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #1e3a5f #e9ecef;
+  padding: 4px 8px 2px 8px;
+}
+
+.admin-tab-btn {
+  background: none;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  padding: 6px 10px 4px 10px;
+  font-size: 0.95rem;
+  color: #1e3a5f;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  min-width: 80px;
+  max-width: 140px;
+  white-space: nowrap;
+  transition: background 0.18s, color 0.18s;
+  opacity: 0.85;
+}
+.admin-tab-btn.active {
+  background: #fff;
+  color: #A35D2D;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(163,93,45,0.07);
+  opacity: 1;
+}
+.admin-tab-btn:hover {
+  background: #e9ecef;
+  color: #A35D2D;
+  opacity: 1;
+}
+.admin-tab-icon img {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+.admin-tab-label {
+  font-size: 0.93rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+  .admin-tab-btn {
+    min-width: 70px;
+    max-width: 100px;
+    font-size: 0.88rem;
+    padding: 5px 6px 3px 6px;
+  }
+  .admin-tab-label {
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-tabs-sticky {
+    top: 56px;
+    padding: 0 0 1px 0;
+  }
+  .admin-tab-btn {
+    min-width: 60px;
+    max-width: 90px;
+    font-size: 0.8rem;
+    padding: 4px 4px 2px 4px;
+  }
+  .admin-tab-label {
+    font-size: 0.78rem;
+  }
+}
 /* Estilos para el panel de administración */
 .admin-view-container {
   display: flex;

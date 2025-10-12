@@ -188,6 +188,19 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
           <p>Revisión final, rechazo con motivo o aprobación</p>
         </div>
 
+        {/* Barra de pestañas sticky similar a Admin/Secretaria */}
+        <div className="admin-tabs-sticky">
+          <div className="admin-tabs-scroll" tabIndex={0}>
+            <button
+              className={`admin-tab-btn active`}
+              title="Procesos terminados"
+            >
+              <span className="admin-tab-icon"><img src={iconEtapasProceso} alt="Procesos terminados" /></span>
+              <span className="admin-tab-label">Procesos terminados</span>
+            </button>
+          </div>
+        </div>
+
         <div className="admin-content-body">
           {/* Filtros */}
           <div style={{

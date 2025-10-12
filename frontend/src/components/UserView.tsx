@@ -192,6 +192,16 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
           <p>Tus procesos en empresas asignadas</p>
         </div>
 
+        {/* Barra de pestañas sticky igual que en Admin/Secretaria */}
+        <div className="admin-tabs-sticky">
+          <div className="admin-tabs-scroll" tabIndex={0}>
+            <button className={`admin-tab-btn active`} title="Procesos">
+              <span className="admin-tab-icon"><img src={iconProcesos} alt="Procesos" /></span>
+              <span className="admin-tab-label">Procesos</span>
+            </button>
+          </div>
+        </div>
+
         <div className="admin-content-body">
           {/* Filtros */}
           <div style={{

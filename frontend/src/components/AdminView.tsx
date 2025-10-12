@@ -177,6 +177,22 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
           <h2>{menuItems.find(item => item.id === activeSection)?.label || 'Dashboard'}</h2>
           <p>Gestiona y administra todos los aspectos del sistema</p>
         </div>
+        {/* Barra de pestañas sticky debajo del header */}
+        <div className="admin-tabs-sticky">
+          <div className="admin-tabs-scroll" tabIndex={0}>
+            {menuItems.map(item => (
+              <button
+                key={item.id}
+                className={`admin-tab-btn${activeSection === item.id ? ' active' : ''}`}
+                onClick={() => setActiveSection(item.id)}
+                title={item.label}
+              >
+                <span className="admin-tab-icon"><img src={item.icon} alt={item.label} /></span>
+                <span className="admin-tab-label">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="admin-content-body">
           {activeSection !== 'dashboard' && (
             <div style={{ marginBottom: '12px' }} className="only-mobile">

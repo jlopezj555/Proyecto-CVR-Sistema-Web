@@ -188,12 +188,31 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
           <h2>{activeTab === 'cuadernillos' ? 'Cuadernillos' : 'Papelería'}</h2>
           <p>Etapas de ingreso/envío de papelería</p>
         </div>
-
+        {/* Barra de pestañas sticky debajo del header */}
+        <div className="admin-tabs-sticky">
+          <div className="admin-tabs-scroll" tabIndex={0}>
+            <button
+              className={`admin-tab-btn${activeTab === 'cuadernillos' ? ' active' : ''}`}
+              onClick={() => setActiveTab('cuadernillos')}
+              title="Cuadernillos"
+            >
+              <span className="admin-tab-icon"><img src={iconProcesos} alt="Cuadernillos" /></span>
+              <span className="admin-tab-label">Cuadernillos</span>
+            </button>
+            <button
+              className={`admin-tab-btn${activeTab === 'papeleria' ? ' active' : ''}`}
+              onClick={() => setActiveTab('papeleria')}
+              title="Papelería"
+            >
+              <span className="admin-tab-icon"><img src={iconPapeleria} alt="Papelería" /></span>
+              <span className="admin-tab-label">Papelería</span>
+            </button>
+          </div>
+        </div>
         <div className="admin-content-body">
           {activeTab === 'cuadernillos' && (
             <div className="etapas-cuenta-container">
               <h2>Gestión de Cuadernillos</h2>
-
               <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
                 <div>
                   <label>Empresa</label>
@@ -235,7 +254,6 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                     const headerBg = getProcesoColor(estadoProceso)
                     const isEntregado = estadoProceso === 'entregado'
                     const tieneRechazada = estadoProceso === 'rechazado'
-                    
                     return (
                     <div key={p.id_proceso} style={{ 
                       background: 'white', 
@@ -274,46 +292,21 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                             <h4 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 600, color: '#000' }}>Etapas del Proceso</h4>
                             <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', paddingBottom: 8 }}>
                               <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', minWidth: 'max-content' }}>
-                                {(etapasPorProceso[p.id_proceso] || []).map((etapa: any, index: number) => {
-                                  const getEstadoColor = (estado: string) => {
-                                    switch (estado) {
-                                      case 'Completada': return '#28a745'
-                                      case 'En progreso': return '#ffc107'
-                                      case 'Rechazada': return '#dc3545'
-                                      default: return '#6c757d'
-                                    }
-                                  }
-                                  
-                                  const color = getEstadoColor(etapa.estado)
-                                  const responsable = etapa.responsable_nombres && etapa.responsable_nombres.trim().length > 0
-                                    ? etapa.responsable_nombres
-                                    : 'Vacante'
-                                  
-                                  return (
-                                    <div key={index} style={{ minWidth: 160, flex: '0 0 auto' }}>
-                                      <div style={{
-                                        padding: 8,
-                                        borderRadius: 10,
-                                        background: 'white',
-                                        border: '1px solid #dee2e6'
-                                      }}>
-                                        <div style={{ fontWeight: 700, color: '#000', fontSize: 13 }}>{etapa.nombre_etapa}</div>
-                                        <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>
-                                          Estado: <span style={{ color }}>{etapa.estado}</span>
-                                        </div>
-                                        {etapa.nombre_rol && (
-                                          <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Rol: {etapa.nombre_rol}</div>
-                                        )}
-                                        <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Responsable: {responsable}</div>
-                                        {etapa.estado === 'Rechazada' && etapa.motivo_rechazo && (
-                                          <div style={{ color: '#dc3545', marginTop: 4, fontSize: 12 }}>
-                                            <strong>Motivo rechazo:</strong> {etapa.motivo_rechazo}
-                                          </div>
-                                        )}
+                                {(etapasPorProceso[p.id_proceso] || []).map((etapa: any) => (
+                                  <div key={etapa.id_etapa_proceso} style={{ minWidth: 140, flex: '0 0 auto', background: 'white', border: '1px solid #dee2e6', borderRadius: 10, padding: 8, textAlign: 'center' }}>
+                                    <div style={{ fontWeight: 700, color: '#000', fontSize: 13 }}>{etapa.nombre_etapa}</div>
+                                    <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Estado: <span style={{ color: etapa.estado === 'Completada' ? '#28a745' : etapa.estado === 'En progreso' ? '#ffc107' : etapa.estado === 'Rechazada' ? '#dc3545' : '#6c757d' }}>{etapa.estado}</span></div>
+                                    {etapa.nombre_rol && (
+                                      <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Rol: {etapa.nombre_rol}</div>
+                                    )}
+                                    <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Responsable: {etapa.responsable_nombres || 'Vacante'}</div>
+                                    {etapa.estado === 'Rechazada' && etapa.motivo_rechazo && (
+                                      <div style={{ color: '#dc3545', marginTop: 4, fontSize: 12 }}>
+                                        <strong>Motivo rechazo:</strong> {etapa.motivo_rechazo}
                                       </div>
-                                    </div>
-                                  )
-                                })}
+                                    )}
+                                  </div>
+                                ))}
                               </div>
                             </div>
                           </div>
@@ -339,12 +332,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                                   </div>
                                   {isAlmostComplete && (
                                     <div style={{ marginTop: 12 }}>
-                                      <button
-                                        onClick={() => { setConfirmPwdError(''); setConfirmPwdOpenForProceso(p.id_proceso); }}
-                                        style={{ background: '#28a745', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }}
-                                      >
-                                        Confirmar envío
-                                      </button>
+                                      <span style={{ color: '#ffc107', fontWeight: 600 }}>¡Solo falta una etapa para completar el proceso!</span>
                                     </div>
                                   )}
                                 </div>
@@ -359,13 +347,11 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
               )}
             </div>
           )}
-
           {activeTab === 'papeleria' && (
             <div>
               <PapeleriaCRUD />
             </div>
           )}
-
           {/* Modal de verificación para confirmar envío */}
           {confirmPwdOpenForProceso !== null && (
             <PasswordVerificationModal
