@@ -4,7 +4,8 @@ import API_CONFIG from '../config/api'
 import './AdminView.css'
 import './EtapasCuentaView.css'
 import iconProcesos from '../assets/admin-etapas-proceso-white.svg'
-import CRUDTable from './CRUDTable'
+import iconPapeleria from '../assets/admin-papeleria-white.svg'
+import PapeleriaCRUD from './PapeleriaCRUD'
 import PasswordVerificationModal from './PasswordVerificationModal'
 
 interface ProcesoItem {
@@ -35,7 +36,6 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     const [loadingProc, setLoadingProc] = useState(false)
   const [progreso, setProgreso] = useState<Record<number, { porcentaje: number, total: number, completadas: number }>>({})
   const [loadingProgreso, setLoadingProgreso] = useState<Record<number, boolean>>({})
-  const [empresasAsignadas, setEmpresasAsignadas] = useState<{ value: number, label: string }[]>([])
   const [expandedProcesoId, setExpandedProcesoId] = useState<number | null>(null)
   const [confirmPwdOpenForProceso, setConfirmPwdOpenForProceso] = useState<number | null>(null)
   const [confirmPwdError, setConfirmPwdError] = useState<string>('')
@@ -90,33 +90,12 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
   useEffect(() => { cargarProcesos() }, [empresaFiltro, mesFiltro, anioFiltro])
 
-  // Refrescar al entrar en la pestaña de procesos
+  // Refrescar al entrar en la pestaña de cuadernillos
   useEffect(() => {
-    if (activeTab === 'procesos') cargarProcesos()
+    if (activeTab === 'cuadernillos') cargarProcesos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab])
 
-  const cargarMisEmpresas = async () => {
-    try {
-      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-empresas`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      const opts = (data?.data || []).map((e: any) => ({ value: e.id_empresa, label: e.nombre_empresa }))
-      setEmpresasAsignadas(opts)
-    } catch (e) {
-      // Fallback: derivar desde procesos si el endpoint no existe
-      const _err = e as any
-      console.warn('Error cargando mis empresas, usando fallback:', _err)
-      const fallback = Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries())
-        .map(([value, label]) => ({ value: Number(value), label: String(label) }))
-      setEmpresasAsignadas(fallback)
-    }
-  }
-
-  useEffect(() => {
-    if (activeTab === 'papeleria') cargarMisEmpresas()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab])
 
   // Cargar progreso para todos los procesos listados
   useEffect(() => {
@@ -161,7 +140,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
             <span className="nav-label">Cuadernillos</span>
           </button>
           <button className={`admin-nav-item ${activeTab === 'papeleria' ? 'active' : ''}`} onClick={() => setActiveTab('papeleria')}>
-            <span className="nav-icon"><img src={iconProcesos} alt="Papelería" className="nav-icon-img" /></span>
+            <span className="nav-icon"><img src={iconPapeleria} alt="Papelería" className="nav-icon-img" /></span>
             <span className="nav-label">Papelería</span>
           </button>
         </nav>
@@ -291,42 +270,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
           {activeTab === 'papeleria' && (
             <div>
-              <CRUDTable
-                title="Papelería"
-                endpoint="papeleria"
-                columns={[
-                  { key: 'id_papeleria', label: 'ID' },
-                  { key: 'nombre_empresa', label: 'Empresa' },
-                  { key: 'tipo_papeleria', label: 'Tipo' },
-                  { key: 'descripcion', label: 'Descripción' },
-                  { key: 'estado', label: 'Estado' },
-                  { key: 'nombre_proceso', label: 'Proceso' },
-                  { key: 'fecha_recepcion', label: 'Fecha Recepción' },
-                  { key: 'fecha_entrega', label: 'Fecha Entrega' }
-                ]}
-                createFields={[
-                  { key: 'id_empresa', label: 'Empresa', type: 'select', required: true, options: empresasAsignadas },
-                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select', required: true, options: [
-                    { value: 'Venta', label: 'Venta' },
-                    { value: 'Compra', label: 'Compra' }
-                  ]},
-                  { key: 'descripcion', label: 'Descripción', type: 'text', required: true }
-                ]}
-                editFields={[
-                  { key: 'descripcion', label: 'Descripción', type: 'text', required: true },
-                  { key: 'tipo_papeleria', label: 'Tipo de Papelería', type: 'select', required: true, options: [
-                    { value: 'Venta', label: 'Venta' },
-                    { value: 'Compra', label: 'Compra' }
-                  ]},
-                  { key: 'estado', label: 'Estado', type: 'select', required: true, options: [
-                    { value: 'Recibida', label: 'Recibida' },
-                    { value: 'En proceso', label: 'En proceso' },
-                    { value: 'Entregada', label: 'Entregada' }
-                  ]},
-                  { key: 'fecha_entrega', label: 'Fecha de Entrega', type: 'date', required: false }
-                ]}
-                getItemId={(item: any) => item.id_papeleria}
-              />
+              <PapeleriaCRUD />
             </div>
           )}
 

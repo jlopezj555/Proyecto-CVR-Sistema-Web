@@ -393,7 +393,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
                     </div>
                   )}
                 </div>
-              )})
+              )})}
             </div>
           )}
         </div>
