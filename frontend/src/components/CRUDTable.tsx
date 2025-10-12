@@ -16,6 +16,8 @@ export interface Column {
   dependsOnKeys?: string[];
   // Deshabilitar el campo condicionalmente según formData
   disabledWhen?: (formData: TableData) => boolean;
+  // Renderizado personalizado de la celda
+  render?: (value: any, row?: TableData) => React.ReactNode;
 }
 
 interface CRUDTableProps {
@@ -644,11 +646,13 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
                 <tr key={index}>
                   {columns.map(column => (
                     <td key={column.key}>
-                      {column.type === 'boolean'
-                        ? (item[column.key] ? 'Sí' : 'No')
-                        : (column.key.toLowerCase().includes('contrasena')
-                            ? '••••••'
-                            : (item[column.key] || '-'))
+                      {column.render
+                        ? column.render(item[column.key], item)
+                        : column.type === 'boolean'
+                          ? (item[column.key] ? 'Sí' : 'No')
+                          : (column.key.toLowerCase().includes('contrasena')
+                              ? '••••••'
+                              : (item[column.key] || '-'))
                       }
                     </td>
                   ))}

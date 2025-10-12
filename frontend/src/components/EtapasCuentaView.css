@@ -9,6 +9,37 @@
   color: #000;
 }
 
+/* Scrollbar horizontal visible y amigable para etapas */
+.etapas-cuenta-container .etapas-scroll-x {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 8px;
+  scrollbar-color: #4e7ab5 #e9ecef;
+  scrollbar-width: thin;
+}
+
+.etapas-cuenta-container .etapas-scroll-x::-webkit-scrollbar {
+  height: 12px;
+  background: #e9ecef;
+  border-radius: 8px;
+}
+.etapas-cuenta-container .etapas-scroll-x::-webkit-scrollbar-thumb {
+  background: #4e7ab5;
+  border-radius: 8px;
+  min-width: 48px;
+}
+.etapas-cuenta-container .etapas-scroll-x::-webkit-scrollbar-thumb:hover {
+  background: #2e5a9e;
+}
+@media (max-width: 600px) {
+  .etapas-cuenta-container .etapas-scroll-x::-webkit-scrollbar {
+    height: 18px;
+  }
+  .etapas-cuenta-container .etapas-scroll-x::-webkit-scrollbar-thumb {
+    min-width: 64px;
+  }
+}
+
 .etapas-cuenta-header {
   background: linear-gradient(135deg, #122745 0%, #1e3a5f 100%);
   color: #000;

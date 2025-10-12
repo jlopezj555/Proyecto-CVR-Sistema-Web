@@ -137,46 +137,46 @@ const AdminView: React.FC<AdminViewProps> = ({ nombre, externalSection = null, o
 
   return (
     <div className="admin-view-container">
-        <div className="admin-sidebar">
-          <div className="admin-sidebar-header">
-            <div>
-              <h3>Panel Admin</h3>
-              <p>Hola, {nombre}</p>
-            </div>
-            <button 
-              className="mobile-menu-toggle"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? '✕' : '☰'}
-            </button>
+      {/* Drawer backdrop para móvil */}
+      {mobileMenuOpen && (
+        <div className="admin-drawer-backdrop" onClick={() => setMobileMenuOpen(false)} />
+      )}
+      <div className={`admin-sidebar${mobileMenuOpen ? ' open' : ''}`} tabIndex={-1}>
+        <div className="admin-sidebar-header">
+          <div>
+            <h3>Panel Admin</h3>
+            <p>Hola, {nombre}</p>
           </div>
-
-          {/* Navegación unificada para todos los dispositivos */}
-          <nav className={`admin-nav ${mobileMenuOpen ? 'open' : ''}`}>
-            {menuItems.map(item => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveSection(item.id)
-                  setMobileMenuOpen(false) // Cerrar menú móvil al seleccionar
-                }}
-                className={`admin-nav-item ${activeSection === item.id ? 'active' : ''}`}
-              >
-                <span className="nav-icon"><img src={item.icon} alt={item.label} className="nav-icon-img" /></span>
-                <span className="nav-label">{item.label}</span>
-              </button>
-            ))}
-          </nav>
+          <button
+            className="mobile-menu-toggle"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
         </div>
-
+        <nav className={`admin-nav${mobileMenuOpen ? ' open' : ''}`}>
+          {menuItems.map(item => (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveSection(item.id)
+                setMobileMenuOpen(false)
+              }}
+              className={`admin-nav-item${activeSection === item.id ? ' active' : ''}`}
+              tabIndex={mobileMenuOpen ? 0 : -1}
+            >
+              <span className="nav-icon"><img src={item.icon} alt={item.label} className="nav-icon-img" /></span>
+              <span className="nav-label">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
       <div className="admin-main-content">
-        {/* Header para todos los dispositivos */}
         <div className="admin-content-header">
           <h2>{menuItems.find(item => item.id === activeSection)?.label || 'Dashboard'}</h2>
           <p>Gestiona y administra todos los aspectos del sistema</p>
         </div>
-        
         <div className="admin-content-body">
           {activeSection !== 'dashboard' && (
             <div style={{ marginBottom: '12px' }} className="only-mobile">

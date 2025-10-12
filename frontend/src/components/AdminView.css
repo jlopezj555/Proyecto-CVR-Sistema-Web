@@ -16,77 +16,103 @@
     flex-direction: column;
     padding-top: 90px;
   }
-  
   .admin-sidebar {
-    width: 100%;
-    height: auto;
+    width: 80vw;
+    max-width: 340px;
+    min-width: 220px;
+    height: 100vh;
     position: fixed;
-    top: 90px;
+    top: 0;
     left: 0;
-    z-index: 1000;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 2001;
+    box-shadow: 2px 0 16px rgba(0,0,0,0.18);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+    background: linear-gradient(180deg, #122745 0%, #1e3a5f 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    border-top-right-radius: 18px;
+    border-bottom-right-radius: 18px;
   }
-  
+  .admin-sidebar.open {
+    transform: translateX(0);
+  }
   .admin-sidebar-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 18px 20px 12px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
-  
   .admin-sidebar-header h3 {
     font-size: 1.2rem;
   }
-  
   .admin-sidebar-header p {
     font-size: 0.8rem;
   }
-  
   .admin-nav {
     padding: 0;
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 70px);
+    background: none;
+    transition: none;
   }
-  
-  .admin-nav.open {
-    max-height: 400px;
-  }
-  
   .admin-nav-item {
-    padding: 12px 20px;
-    font-size: 0.9rem;
+    padding: 14px 22px;
+    font-size: 1rem;
     border-left: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    border-radius: 0;
   }
-  
   .admin-nav-item:last-child {
     border-bottom: none;
   }
-  
   .nav-icon {
-    width: 20px;
+    width: 22px;
   }
-  
   .nav-icon-img {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
   }
-  
   .admin-main-content {
     margin-left: 0;
     margin-top: 0;
   }
-  
   .admin-content-header {
     padding: 16px 20px;
   }
-  
   .admin-content-header h2 {
     font-size: 1.4rem;
   }
-  
   .admin-content-body {
     padding: 12px;
   }
+  /* Fondo semitransparente para el drawer */
+  .admin-drawer-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(30, 42, 95, 0.45);
+    z-index: 2000;
+    transition: opacity 0.3s cubic-bezier(.4,0,.2,1);
+    opacity: 1;
+  }
+  .admin-drawer-backdrop.hide {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .only-mobile { display: block !important; }
+  .only-desktop { display: none !important; }
 }
 
 /* Mobile menu toggle button */

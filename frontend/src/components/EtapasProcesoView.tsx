@@ -278,7 +278,7 @@ const EtapasProcesoView: React.FC = () => {
                 <div style={{ padding: 12 }}>
                   {/* Contenedor fijo del bloque expandido: header del proceso ya define ancho; acá evitamos scroll global */}
                   {/* Línea de etapas horizontal con scroll propio */}
-                  <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', paddingBottom: 8 }}>
+                  <div className="etapas-scroll-x" style={{ width: '100%' }}>
                     <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', minWidth: 'max-content' }}>
                       {catalogo.map((cat) => {
                       const etapa = etapasInstanciadas.find(e => e.id_etapa === cat.id_etapa);

@@ -23,7 +23,25 @@ const ProcesosCRUD: React.FC = () => {
     { key: 'id_proceso', label: 'ID' },
     { key: 'nombre_proceso', label: 'Nombre del Proceso' },
     { key: 'tipo_proceso', label: 'Tipo' },
-    { key: 'estado', label: 'Estado' },
+    {
+      key: 'estado',
+      label: 'Estado',
+      render: (value: string) => {
+        let color = '#3498db'; // azul por defecto (pendiente)
+        let label = value;
+        if (value?.toLowerCase() === 'enviado' || value?.toLowerCase() === 'completado') {
+          color = '#27ae60'; // verde
+          label = 'Enviado';
+        } else if (value?.toLowerCase() === 'rechazado' || value?.toLowerCase() === 'cancelado') {
+          color = '#e74c3c'; // rojo
+          label = 'Rechazado';
+        } else if (value?.toLowerCase() === 'pendiente' || value?.toLowerCase() === 'activo') {
+          color = '#3498db'; // azul
+          label = 'Pendiente';
+        }
+        return <span style={{ color, fontWeight: 700 }}>{label}</span>;
+      }
+    },
     { key: 'nombre_empresa', label: 'Empresa' },
     { key: 'fecha_creacion', label: 'Fecha Creación' },
     { key: 'fecha_completado', label: 'Fecha Completado' }
