@@ -1675,7 +1675,8 @@ const enviarNotificacionNuevoProceso = async (idProceso, idEmpresa) => {
     
     if (!proc) return;
 
-    // Obtener empleados asignados a roles en esta empresa
+    // Obtener empleados asignados específicamente a los roles Contador y Digitador en esta empresa
+    // (según requisito: notificar solo a Contador y Digitador cuando se crea un nuevo proceso)
     const [empleados] = await pool.query(`
       SELECT DISTINCT u.correo, u.nombre_completo,
              GROUP_CONCAT(DISTINCT ec.nombre_etapa ORDER BY rec.orden SEPARATOR ', ') as etapas_responsabilidades
@@ -1684,7 +1685,9 @@ const enviarNotificacionNuevoProceso = async (idProceso, idEmpresa) => {
       INNER JOIN Rol r ON r.id_rol = ar.id_rol
       INNER JOIN RolEtapaCatalogo rec ON rec.id_rol = r.id_rol
       INNER JOIN EtapaCatalogo ec ON ec.id_etapa = rec.id_etapa
-      WHERE ar.id_empresa = ? AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
+      WHERE ar.id_empresa = ?
+        AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
+        AND LOWER(r.nombre_rol) IN ('contador', 'digitador')
       GROUP BY u.correo, u.nombre_completo
     `, [idEmpresa]);
 
@@ -1858,7 +1861,7 @@ const enviarNotificacionProcesocompletado = async (idProceso) => {
       INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
       INNER JOIN Rol r ON r.id_rol = ar.id_rol
       WHERE ar.id_empresa = (SELECT id_empresa FROM Proceso WHERE id_proceso = ?)
-        AND r.nombre_rol LIKE '%secretaria%' AND u.correo IS NOT NULL
+        AND (r.nombre_rol LIKE '%secretaria%' OR r.nombre_rol LIKE '%recepcion%') AND u.correo IS NOT NULL
     `, [idProceso]);
 
     // Obtener jefe de revisión (usuario con rol 'Jefe de Revisión' o similar, asumiendo 'Revisor 3' o nombre específico)
@@ -2571,6 +2574,43 @@ app.post('/api/revisor/procesos/:id/rechazar', verificarToken, async (req, res) 
          WHERE id_etapa_proceso = ?`, 
         [motivoFull, etapa.id_etapa_proceso]
       );
+
+      // Enviar notificación al usuario asignado a esta etapa (contador o digitador asignado)
+      try {
+        const [[assignedUser]] = await conn.query(`
+          SELECT u.correo, u.nombre_completo
+          FROM AsignacionRol ar
+          INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
+          WHERE ar.id_empresa = (SELECT p.id_empresa FROM Proceso p INNER JOIN EtapaProceso ep ON ep.id_proceso = p.id_proceso WHERE ep.id_etapa_proceso = ? LIMIT 1)
+            AND ar.id_rol = (SELECT ep2.id_rol FROM EtapaProceso ep2 WHERE ep2.id_etapa_proceso = ? LIMIT 1)
+            AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
+          LIMIT 1
+        `, [etapa.id_etapa_proceso, etapa.id_etapa_proceso]);
+
+        if (assignedUser && assignedUser.correo) {
+          const [[procInfo]] = await conn.query(`SELECT p.nombre_proceso, e.nombre_empresa FROM Proceso p INNER JOIN Empresa e ON e.id_empresa = p.id_empresa INNER JOIN EtapaProceso ep ON ep.id_proceso = p.id_proceso WHERE ep.id_etapa_proceso = ? LIMIT 1`, [etapa.id_etapa_proceso]);
+          await sendMailSafe({
+            from: emailConfig.from,
+            to: assignedUser.correo,
+            subject: `Etapa rechazada en ${procInfo?.nombre_proceso || 'proceso'}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="text-align: center; background: #122745; padding: 20px; color: white;">
+                  <h1>Etapa Rechazada</h1>
+                </div>
+                <div style="padding: 20px; background: #f8f9fa;">
+                  <h2>Hola ${assignedUser.nombre_completo || ''},</h2>
+                  <p>La etapa asignada a tu rol en el proceso <strong>${procInfo?.nombre_proceso || ''}</strong> ha sido <strong>rechazada</strong> por el revisor.</p>
+                  <p>Motivo: ${etapa.motivo}</p>
+                  <p>Por favor, revisa y corrige lo necesario en el sistema.</p>
+                </div>
+              </div>
+            `
+          });
+        }
+      } catch (e) {
+        console.error('Error enviando notificación de rechazo al asignado:', e);
+      }
     }
 
     // 2. Identificar la revisión exacta (nivel) que realizó el rechazo — usar el rol(es) del revisor autenticado
@@ -2787,7 +2827,7 @@ app.put('/api/etapas-proceso/:id', verificarToken, async (req, res) => {
                 FROM AsignacionRol ar
                 INNER JOIN Usuario u ON u.id_empleado = ar.id_empleado
                 INNER JOIN Rol r ON r.id_rol = ar.id_rol
-                WHERE ar.id_empresa = ? AND r.nombre_rol LIKE '%Secretaria%'
+                WHERE ar.id_empresa = ? AND (r.nombre_rol LIKE '%Secretaria%' OR r.nombre_rol LIKE '%Recepcion%')
                   AND u.correo IS NOT NULL AND LENGTH(u.correo) > 0
               `, [pinfo.id_empresa]);
 
