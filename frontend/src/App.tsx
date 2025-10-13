@@ -366,7 +366,7 @@ function App() {
       {/* Hero y secciones públicas SOLO para no autenticados o clientes */}
       {(!userRole || userType === 'cliente') && <>
         <div className="hero-image-container">
-          <h1 className="hero-text typing">Asesoría y Soluciones Óptimas para tus Finanzas</h1>
+          <h1 className="hero-text typing">Asesoría y Soluciones Financieras</h1>
         </div>
 
         {/* Mensaje de bienvenida para clientes */}
