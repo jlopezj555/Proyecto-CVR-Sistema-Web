@@ -22,6 +22,7 @@ export const emailConfig = {
     'msn.com',
     'icloud.com',
     'protonmail.com',
+    'miumg.edu.gt',
     'cvrasesoria.com.gt' // Agregar el dominio de la empresa
   ]
 };
