@@ -53,6 +53,45 @@ const UsuariosCRUD: React.FC = () => {
     return <>{actions}</>;
   };
 
+  // Nueva acción: eliminar usuario junto con sus asignaciones
+  const eliminarAccion = (item: any, refresh: () => void) => {
+    const disabled = item?.id_usuario === 1; // proteger superadmin
+    const onClick = async () => {
+      if (disabled) return;
+      if (!confirm(`¿Eliminar al usuario ${item.nombre_completo}? Esto también eliminará sus asignaciones.`)) return;
+      try {
+        const token = localStorage.getItem('token');
+        // Intentar eliminar asignaciones por endpoint específico
+        try {
+          await axios.delete(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}/asignaciones`, { headers: { Authorization: `Bearer ${token}` } });
+        } catch (e) {
+          // Fallback: intentar borrar asignaciones buscando por usuario
+          try {
+            const res = await axios.get(`${API_CONFIG.BASE_URL}/api/asignaciones?usuario=${item.id_usuario}`, { headers: { Authorization: `Bearer ${token}` } });
+            const asigns = (res as any)?.data?.data || [];
+            for (const a of asigns) {
+              await axios.delete(`${API_CONFIG.BASE_URL}/api/asignaciones/${a.id_asignacion}`, { headers: { Authorization: `Bearer ${token}` } });
+            }
+          } catch (e2) {
+            // Si tampoco funciona, continuar para intentar eliminar usuario y avisar al admin
+            console.warn('No se pudo eliminar asignaciones automáticamente', e2);
+          }
+        }
+
+        // Ahora eliminar el usuario
+        await axios.delete(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}`, { headers: { Authorization: `Bearer ${token}` } });
+        alert('Usuario y (posiblemente) sus asignaciones eliminadas');
+        refresh();
+      } catch (err: any) {
+        alert(err?.response?.data?.message || 'Error al eliminar usuario');
+      }
+    };
+
+    return (
+      <button key="deleteWithAsign" className="crud-btn-delete" onClick={onClick} disabled={disabled} title={disabled ? 'No se puede eliminar este usuario' : 'Eliminar usuario y sus asignaciones'}>🗑️</button>
+    );
+  };
+
   // Filtro de tipo_usuario
   const [tipoFiltro, setTipoFiltro] = useState<string>('');
   const filterFunction = useMemo(() => {
@@ -81,10 +120,9 @@ const UsuariosCRUD: React.FC = () => {
       extraActionsForItem={(item, refresh) => (
         <>
           {convertirAccion(item, refresh)}
-          {/* Mostrar botón 'Cambiar contraseña' solo para el registro admin (id_usuario === 1) */}
-          {item?.id_usuario === 1 && (
-            <button key="changePwd" className="crud-btn-edit" onClick={() => setChangePwdOpenForUserId(item.id_usuario)} title="Cambiar contraseña">🔒 Cambiar contraseña</button>
-          )}
+          {eliminarAccion(item, refresh)}
+          {/* Mostrar botón 'Cambiar contraseña' para todos; la lógica en el modal validará si el admin puede cambiar la contraseña de otro */}
+          <button key="changePwd" className="crud-btn-edit" onClick={() => setChangePwdOpenForUserId(item.id_usuario)} title="Cambiar contraseña">🔒 Cambiar contraseña</button>
         </>
       )}
       /* No usamos shouldRequirePassword ni onUpdate para manejo de contraseñas aquí; se hace mediante modal específico */
@@ -125,14 +163,33 @@ const UsuariosCRUD: React.FC = () => {
           onClose={() => setChangePwdOpenForUserId(null)}
           onChangePassword={async (currentPwd: string, newPwd: string) => {
             try {
-              // Solo soportado por el backend para el usuario autenticado
               const token = localStorage.getItem('token');
-              const my = await axios.get(`${API_CONFIG.BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } }) as any;
-              const myId = my?.data?.data?.id_usuario;
+              // Consultar perfil para saber si soy admin
+              const myRes = await axios.get(`${API_CONFIG.BASE_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
+              const my = (myRes as any)?.data as any;
+              const myId = my?.data?.id_usuario;
+              const myTipo = String(my?.data?.tipo_usuario || '').toLowerCase();
+
+              // Si soy administrador y estoy cambiando la contraseña de otro usuario, usar endpoint admin
+              if (myTipo === 'administrador' && myId !== changePwdOpenForUserId) {
+                // Endpoint esperado: POST /api/usuarios/:id/cambiar-contrasena-admin (o similar). Probaremos /api/usuarios/:id/cambiar-contrasena
+                try {
+                  await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/${changePwdOpenForUserId}/cambiar-contrasena`, { contrasena_nueva: newPwd }, { headers: { Authorization: `Bearer ${token}` } });
+                  alert('Contraseña actualizada por administrador');
+                  return true;
+                } catch (eAdmin: any) {
+                  // Si backend no soporta endpoint, informar
+                  alert(eAdmin?.response?.data?.message || 'El backend no permite cambiar contraseña de otro usuario vía admin.');
+                  return false;
+                }
+              }
+
+              // Si no soy admin o estoy cambiando mi propia contraseña, usar flujo existente que verifica contraseña actual
               if (myId !== changePwdOpenForUserId) {
-                alert('Solo es posible cambiar la contraseña del usuario autenticado. Por favor inicia sesión como ese usuario o use la funcionalidad del backend.');
+                alert('Solo es posible cambiar la contraseña del usuario autenticado si no eres administrador. Inicia sesión como ese usuario o utiliza un administrador.');
                 return false;
               }
+
               await axios.post(`${API_CONFIG.BASE_URL}/api/verify-password`, { contrasena: currentPwd }, { headers: { Authorization: `Bearer ${token}` } });
               await axios.post(`${API_CONFIG.BASE_URL}/api/usuarios/me/cambiar-contrasena`, { contrasena_actual: currentPwd, contrasena_nueva: newPwd }, { headers: { Authorization: `Bearer ${token}` } });
               alert('Contraseña actualizada');

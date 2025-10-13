@@ -737,11 +737,49 @@ app.delete('/api/usuarios/:id', verificarToken, verificarAdmin, verificarPasswor
       return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
     }
 
-    await pool.query('DELETE FROM Usuario WHERE id_usuario = ?', [id]);
-    res.json({ success: true, message: 'Usuario eliminado exitosamente' });
+    // Usar transacción para asegurar consistencia: eliminar asignaciones del empleado vinculado (si existe), empleado y usuario
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const usuario = existing[0];
+      // Si el usuario está vinculado a un empleado, eliminar asignaciones de AsignacionRol
+      if (usuario.id_empleado) {
+        await conn.query('DELETE FROM AsignacionRol WHERE id_empleado = ?', [usuario.id_empleado]);
+        // Opcional: eliminar registro en Empleado (si así se desea)
+        await conn.query('DELETE FROM Empleado WHERE id_empleado = ?', [usuario.id_empleado]);
+      }
+
+      // Finalmente eliminar el usuario
+      await conn.query('DELETE FROM Usuario WHERE id_usuario = ?', [id]);
+      await conn.commit();
+      res.json({ success: true, message: 'Usuario y asignaciones relacionadas eliminadas exitosamente' });
+    } catch (txErr) {
+      await conn.rollback();
+      console.error('Error en transacción al eliminar usuario:', txErr);
+      res.status(500).json({ success: false, message: 'Error eliminando usuario' });
+    } finally {
+      conn.release();
+    }
   } catch (error) {
     console.error('Error eliminando usuario:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Eliminar todas las asignaciones asociadas a un usuario
+app.delete('/api/usuarios/:id/asignaciones', verificarToken, verificarAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const [existing] = await pool.query('SELECT id_empleado FROM Usuario WHERE id_usuario = ? LIMIT 1', [id]);
+    if (existing.length === 0) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+    const idEmpleado = existing[0].id_empleado;
+    if (!idEmpleado) return res.json({ success: true, message: 'Usuario no tiene empleado vinculado, nada que borrar' });
+
+    await pool.query('DELETE FROM AsignacionRol WHERE id_empleado = ?', [idEmpleado]);
+    return res.json({ success: true, message: 'Asignaciones eliminadas' });
+  } catch (error) {
+    console.error('Error eliminando asignaciones del usuario:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 });
 
