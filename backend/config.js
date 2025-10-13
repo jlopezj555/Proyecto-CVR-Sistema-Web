@@ -1,18 +1,9 @@
 // Configuración de correo para CVR Asesoría (Stackmail)
+
+// Configuración para SendGrid
 export const emailConfig = {
-  // Configuración de Stackmail
-  host: process.env.EMAIL_HOST || 'mx.stackmail.com',
-  port: process.env.EMAIL_PORT ? parseInt(process.env.EMAIL_PORT, 10) : 465,
-  secure: (typeof process.env.EMAIL_SECURE !== 'undefined') ? (process.env.EMAIL_SECURE === 'true') : true,
-  auth: {
-    user: process.env.EMAIL_USER || '',
-    pass: process.env.EMAIL_PASS || ''
-  },
-
-  // Configuración de la empresa
+  sendgridApiKey: process.env.SENDGRID_API_KEY || '',
   from: process.env.EMAIL_FROM || `CVR Asesoría <${process.env.EMAIL_USER || ''}>`,
-
-  // Dominios de correo considerados "reales"
   realEmailDomains: [
     'gmail.com', 
     'hotmail.com', 
@@ -23,23 +14,17 @@ export const emailConfig = {
     'icloud.com',
     'protonmail.com',
     'miumg.edu.gt',
-    'cvrasesoria.com.gt' // Agregar el dominio de la empresa
+    'cvrasesoria.com.gt'
   ]
 };
 
 // Función para verificar la configuración de correo
 export const checkEmailConfig = () => {
   console.log('📧 Verificando configuración de correo:');
-  console.log(`  - EMAIL_HOST: ${process.env.EMAIL_HOST || 'mx.stackmail.com (default)'}`);
-  console.log(`  - EMAIL_PORT: ${process.env.EMAIL_PORT || '465 (default)'}`);
-  console.log(`  - EMAIL_SECURE: ${process.env.EMAIL_SECURE || 'true (default)'}`);
-  console.log(`  - EMAIL_USER: ${process.env.EMAIL_USER ? '***configurado***' : 'NO CONFIGURADO'}`);
-  console.log(`  - EMAIL_PASS: ${process.env.EMAIL_PASS ? '***configurado***' : 'NO CONFIGURADO'}`);
+  console.log(`  - SENDGRID_API_KEY: ${process.env.SENDGRID_API_KEY ? '***configurado***' : 'NO CONFIGURADO'}`);
   console.log(`  - EMAIL_FROM: ${process.env.EMAIL_FROM || 'usando EMAIL_USER'}`);
-  
-  const hasCredentials = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+  const hasCredentials = !!process.env.SENDGRID_API_KEY;
   console.log(`  - Estado: ${hasCredentials ? '✅ LISTO PARA ENVIAR' : '❌ FALTAN CREDENCIALES'}`);
-  
   return hasCredentials;
 };
 

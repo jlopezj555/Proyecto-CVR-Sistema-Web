@@ -7,7 +7,7 @@ import mysql from "mysql2/promise";
 import cors from "cors";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-import nodemailer from "nodemailer";
+import sgMail from "@sendgrid/mail";
 import crypto from "crypto";
 import { emailConfig, checkEmailConfig } from "./config.js";
 import path from "path";
@@ -82,7 +82,7 @@ if (process.env.DATABASE_URL) {
 const JWT_SECRET = process.env.JWT_SECRET || "secreto_super_seguro";
 
 // Configuración de nodemailer para envío de correos (solo si hay credenciales)
-let transporter = null;
+
 let EMAIL_ENABLED = false;
 
 // Log de variables de entorno para debug
@@ -97,42 +97,38 @@ console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');
 // Verificar configuración de correo
 const hasEmailCredentials = checkEmailConfig();
 
+
 try {
-  if (hasEmailCredentials && emailConfig.auth.user && emailConfig.auth.pass) {
-    transporter = nodemailer.createTransport(emailConfig);
+  if (hasEmailCredentials && emailConfig.sendgridApiKey) {
+    sgMail.setApiKey(emailConfig.sendgridApiKey);
     EMAIL_ENABLED = true;
-    console.log('✉️ Email enabled: transporter configured successfully');
-    
-    // Verificar la conexión
-    transporter.verify((error, success) => {
-      if (error) {
-        console.error('✉️ Error verifying email connection:', error);
-        EMAIL_ENABLED = false;
-      } else {
-        console.log('✉️ Email server connection verified successfully');
-      }
-    });
+    console.log('✉️ Email enabled: SendGrid configured successfully');
   } else {
-    console.log('✉️ Email disabled: EMAIL_USER or EMAIL_PASS not provided');
+    console.log('✉️ Email disabled: SENDGRID_API_KEY not provided');
   }
 } catch (err) {
-  transporter = null;
   EMAIL_ENABLED = false;
-  console.warn('✉️ Error configuring transporter, emails disabled:', err.message || err);
+  console.warn('✉️ Error configuring SendGrid, emails disabled:', err.message || err);
 }
 
 console.log('EMAIL_ENABLED (transporter configured):', EMAIL_ENABLED);
 
 const sendMailSafe = async (mailOptions) => {
-  if (!EMAIL_ENABLED || !transporter) {
+  if (!EMAIL_ENABLED) {
     console.log('✉️ Skipping sendMail (disabled). mailOptions:', { to: mailOptions.to, subject: mailOptions.subject });
     return null;
   }
-  
   try {
     console.log(`✉️ Enviando correo a: ${mailOptions.to}`);
-    const result = await transporter.sendMail(mailOptions);
-    console.log(`✉️ Correo enviado exitosamente. Message ID: ${result.messageId}`);
+    const msg = {
+      to: mailOptions.to,
+      from: emailConfig.from,
+      subject: mailOptions.subject,
+      text: mailOptions.text || '',
+      html: mailOptions.html || mailOptions.text || '',
+    };
+    const result = await sgMail.send(msg);
+    console.log(`✉️ Correo enviado exitosamente. Message ID: ${result[0]?.headers['x-message-id'] || 'N/A'}`);
     return result;
   } catch (error) {
     console.error('✉️ Error enviando correo:', error);
