@@ -28,6 +28,7 @@ VALUES ('Admin CVR', 'admin@cvrasesoria.com', 'admin123', 'administrador', NULL,
 
 -- Hashear contraseña admin
 SET SQL_SAFE_UPDATES = 0;
+
 UPDATE Usuario
 SET contrasena = '$2b$10$tmYxy8MitcaXLorfJLhkKey2QpbHtAuQUFimQi3bPzDJ1baXtir3S'
 WHERE nombre_completo = 'Admin CVR';

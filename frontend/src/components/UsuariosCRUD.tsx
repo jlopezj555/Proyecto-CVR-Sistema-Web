@@ -116,6 +116,8 @@ const UsuariosCRUD: React.FC = () => {
       columns={columns}
       createFields={createFields}
       editFields={editFields}
+  // Ocultamos el botón de eliminar por defecto para usar la acción personalizada
+  hideDeleteButton={true}
       disableDeleteFor={(item) => item?.id_usuario === 1}
       extraActionsForItem={(item, refresh) => (
         <>

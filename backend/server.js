@@ -383,6 +383,28 @@ app.post('/api/usuarios/me/cambiar-contrasena', verificarToken, async (req, res)
   }
 });
 
+// Permitir al administrador cambiar la contraseña de cualquier usuario
+app.post('/api/usuarios/:id/cambiar-contrasena', verificarToken, verificarAdmin, async (req, res) => {
+  try {
+    const targetId = Number(req.params.id);
+    const { contrasena_nueva } = req.body;
+    if (!contrasena_nueva) return res.status(400).json({ success: false, message: 'Contraseña nueva requerida' });
+
+    // Verificar que el usuario objetivo exista
+    const [rows] = await pool.query('SELECT id_usuario FROM Usuario WHERE id_usuario = ? LIMIT 1', [targetId]);
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Usuario objetivo no encontrado' });
+
+    // Hashear y actualizar
+    const hashed = await bcrypt.hash(contrasena_nueva, 10);
+    await pool.query('UPDATE Usuario SET contrasena = ? WHERE id_usuario = ?', [hashed, targetId]);
+
+    return res.json({ success: true, message: 'Contraseña actualizada por administrador' });
+  } catch (error) {
+    console.error('Error cambiando contraseña de usuario por admin:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
 // (validación de conversión se aplica directamente en el handler de conversión más abajo)
 
 // Limpieza automática de asignaciones huérfanas o inactivas
