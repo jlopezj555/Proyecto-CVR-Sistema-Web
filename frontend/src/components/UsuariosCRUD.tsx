@@ -62,6 +62,7 @@ const UsuariosCRUD: React.FC = () => {
     const disabled = item?.id_usuario === 1; // proteger superadmin
     const onClick = async () => {
       if (disabled) return;
+      console.log('eliminarAccion clicked for user', item?.id_usuario, item?.nombre_completo);
       if (!confirm(`¿Eliminar al usuario ${item.nombre_completo}? Esto también eliminará sus asignaciones.`)) return;
       // Abrir modal de verificación de contraseña antes de proceder
       setPwDeleteError('');

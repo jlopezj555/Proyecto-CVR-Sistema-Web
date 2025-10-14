@@ -1183,14 +1183,10 @@ app.delete('/api/empresas/:id', verificarToken, verificarAdmin, verificarPasswor
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
     }
 
-    // Verificar si tiene cuentas asociadas
-    const [cuentas] = await pool.query('SELECT COUNT(*) as count FROM Cuenta WHERE id_empresa = ?', [id]);
-    if (cuentas[0].count > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No se puede eliminar la empresa porque tiene cuentas asociadas' 
-      });
-    }
+    // Nota: la aplicación no debe depender de la tabla `Cuenta` (puede no existir en algunos despliegues).
+    // Se omite cualquier verificación sobre `Cuenta` y se procede directamente a eliminar la empresa.
+    // Si existe lógica adicional que requiera limpiar datos relacionados, debe implementarse con
+    // control de versión de esquema o migraciones; aquí evitamos consultas a tablas inexistentes.
 
     await pool.query('DELETE FROM Empresa WHERE id_empresa = ?', [id]);
 
