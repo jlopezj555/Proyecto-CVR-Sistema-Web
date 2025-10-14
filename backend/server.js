@@ -204,6 +204,29 @@ const sendMailSafe = async (mailOptions) => {
         return info;
       } catch (sendErr) {
         console.error('✉️ Error enviando correo via SMTP:', sendErr && sendErr.stack ? sendErr.stack : sendErr);
+
+        // If network error and SendGrid is available, try SendGrid as fallback
+        const networkErrorCodes = ['ETIMEDOUT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ECONNRESET'];
+        const isNetworkErr = sendErr && sendErr.code && networkErrorCodes.includes(sendErr.code);
+        if (isNetworkErr && emailConfig.sendgridApiKey) {
+          try {
+            console.log('✉️ Intentando fallback a SendGrid debido a error de red SMTP:', sendErr.code);
+            sgMail.setApiKey(emailConfig.sendgridApiKey);
+            const sgResult = await sgMail.send({
+              to: message.to,
+              from: message.from,
+              subject: message.subject,
+              text: message.text,
+              html: message.html
+            });
+            console.log('✉️ Correo enviado via SendGrid como fallback.');
+            return sgResult;
+          } catch (sgErr) {
+            console.error('✉️ Fallback a SendGrid falló:', sgErr && sgErr.stack ? sgErr.stack : sgErr);
+            throw sgErr;
+          }
+        }
+
         throw sendErr;
       }
     }
