@@ -30,6 +30,10 @@ const UsuariosCRUD: React.FC = () => {
   const [pwOpenForUserId, setPwOpenForUserId] = useState<number | null>(null);
   const [convertRefresh, setConvertRefresh] = useState<(() => void) | null>(null);
   const [pwError, setPwError] = useState<string>('');
+  // Estado para eliminar usuario con verificación de contraseña
+  const [pwDeleteForUserId, setPwDeleteForUserId] = useState<number | null>(null);
+  const [deleteRefresh, setDeleteRefresh] = useState<(() => void) | null>(null);
+  const [pwDeleteError, setPwDeleteError] = useState<string>('');
   const [changePwdOpenForUserId, setChangePwdOpenForUserId] = useState<number | null>(null);
   // Nota: eliminada la carga inicial de `myUserId`; se verifica en runtime cuando se necesita.
 
@@ -59,32 +63,10 @@ const UsuariosCRUD: React.FC = () => {
     const onClick = async () => {
       if (disabled) return;
       if (!confirm(`¿Eliminar al usuario ${item.nombre_completo}? Esto también eliminará sus asignaciones.`)) return;
-      try {
-        const token = localStorage.getItem('token');
-        // Intentar eliminar asignaciones por endpoint específico
-        try {
-          await axios.delete(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}/asignaciones`, { headers: { Authorization: `Bearer ${token}` } });
-        } catch (e) {
-          // Fallback: intentar borrar asignaciones buscando por usuario
-          try {
-            const res = await axios.get(`${API_CONFIG.BASE_URL}/api/asignaciones?usuario=${item.id_usuario}`, { headers: { Authorization: `Bearer ${token}` } });
-            const asigns = (res as any)?.data?.data || [];
-            for (const a of asigns) {
-              await axios.delete(`${API_CONFIG.BASE_URL}/api/asignaciones/${a.id_asignacion}`, { headers: { Authorization: `Bearer ${token}` } });
-            }
-          } catch (e2) {
-            // Si tampoco funciona, continuar para intentar eliminar usuario y avisar al admin
-            console.warn('No se pudo eliminar asignaciones automáticamente', e2);
-          }
-        }
-
-        // Ahora eliminar el usuario
-        await axios.delete(`${API_CONFIG.BASE_URL}/api/usuarios/${item.id_usuario}`, { headers: { Authorization: `Bearer ${token}` } });
-        alert('Usuario y (posiblemente) sus asignaciones eliminadas');
-        refresh();
-      } catch (err: any) {
-        alert(err?.response?.data?.message || 'Error al eliminar usuario');
-      }
+      // Abrir modal de verificación de contraseña antes de proceder
+      setPwDeleteError('');
+      setPwDeleteForUserId(item.id_usuario);
+      setDeleteRefresh(() => refresh);
     };
 
     return (
@@ -158,6 +140,58 @@ const UsuariosCRUD: React.FC = () => {
           errorMessage={pwError}
         />
       )}
+
+        {/* Modal de verificación para eliminar usuario */}
+        {pwDeleteForUserId !== null && (
+          <PasswordVerificationModal
+            isOpen={pwDeleteForUserId !== null}
+            onClose={() => { setPwDeleteForUserId(null); setPwDeleteError(''); setDeleteRefresh(null); }}
+            onVerify={async (pwd: string) => {
+              try {
+                const token = localStorage.getItem('token');
+                const userId = pwDeleteForUserId as number;
+
+                // Intentar eliminar asignaciones por endpoint específico
+                try {
+                  await axios.delete(`${API_CONFIG.BASE_URL}/api/usuarios/${userId}/asignaciones`, { headers: { Authorization: `Bearer ${token}` } });
+                } catch (e) {
+                  // Fallback: intentar borrar asignaciones buscando por usuario
+                  try {
+                    const res = await axios.get(`${API_CONFIG.BASE_URL}/api/asignaciones?usuario=${userId}`, { headers: { Authorization: `Bearer ${token}` } });
+                    const asigns = (res as any)?.data?.data || [];
+                    for (const a of asigns) {
+                      await axios.delete(`${API_CONFIG.BASE_URL}/api/asignaciones/${a.id_asignacion}`, { headers: { Authorization: `Bearer ${token}` } });
+                    }
+                  } catch (e2) {
+                    console.warn('No se pudo eliminar asignaciones automáticamente', e2);
+                  }
+                }
+
+                // Ahora eliminar el usuario — enviar la contraseña en el body para que el middleware la valide
+                await axios.request({
+                  method: 'delete',
+                  url: `${API_CONFIG.BASE_URL}/api/usuarios/${userId}`,
+                  headers: { Authorization: `Bearer ${token}` },
+                  data: { adminContrasena: pwd }
+                });
+
+                alert('Usuario y (posiblemente) sus asignaciones eliminadas');
+                // refrescar tabla
+                deleteRefresh && deleteRefresh();
+                setPwDeleteForUserId(null);
+                setDeleteRefresh(null);
+                return true;
+              } catch (err: any) {
+                const msg = err?.response?.data?.message || 'Error al eliminar usuario';
+                setPwDeleteError(msg);
+                return false;
+              }
+            }}
+            title="Confirmar eliminación"
+            message="Ingresa tu contraseña de administrador para confirmar la eliminación de este usuario."
+            errorMessage={pwDeleteError}
+          />
+        )}
 
       {changePwdOpenForUserId !== null && (
         <ChangePasswordModal
