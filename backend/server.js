@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import sgMail from "@sendgrid/mail";
 import nodemailer from 'nodemailer';
+import net from 'net';
 import crypto from "crypto";
 import { emailConfig, checkEmailConfig } from "./config.js";
 import path from "path";
@@ -123,6 +124,11 @@ try {
         user: emailConfig.smtpUser,
         pass: emailConfig.smtpPass
       },
+      // timeouts: increase to help in slow network / cloud environments
+      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 20000),
+      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS || 20000),
+      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS || 20000),
+      requireTLS: !emailConfig.secure,
       tls: {
         rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false'
       }
@@ -500,6 +506,30 @@ app.get('/api/email-debug', (req, res) => {
     success: true,
     emailEnabled: EMAIL_ENABLED,
     detected
+  });
+});
+
+// Test raw TCP connectivity to SMTP host:port (no secrets returned)
+app.get('/api/email-test', async (req, res) => {
+  const host = emailConfig.smtpHost;
+  const port = Number(emailConfig.smtpPort) || (emailConfig.secure ? 465 : 587);
+  if (!host || !port) return res.status(400).json({ success: false, message: 'SMTP host/port not configured' });
+
+  const socket = new net.Socket();
+  let called = false;
+  const timeoutMs = Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 10000);
+
+  const finish = (status, info) => {
+    if (called) return;
+    called = true;
+    try { socket.destroy(); } catch(e){}
+    res.json({ success: status === 'ok', status, info });
+  };
+
+  socket.setTimeout(timeoutMs, () => finish('timeout', `no response within ${timeoutMs}ms`));
+  socket.on('error', (err) => finish('error', String(err.message || err)));
+  socket.connect(port, host, () => {
+    finish('ok', `connected to ${host}:${port}`);
   });
 });
 
