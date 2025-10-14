@@ -1,21 +1,5 @@
 
-// Debug endpoint: report which email credentials are detected (no secrets)
-app.get('/api/email-debug', (req, res) => {
-  const detected = {
-    sendgridApiKeyPresent: !!process.env.SENDGRID_API_KEY,
-    smtpHostPresent: !!(process.env.SMTP_HOST || process.env.EMAIL_HOST || process.env.EMAIL_SMTP_HOST),
-    smtpPortPresent: !!(process.env.SMTP_PORT || process.env.EMAIL_PORT || process.env.EMAIL_SMTP_PORT),
-    smtpUserPresent: !!(process.env.SMTP_USER || process.env.EMAIL_USER),
-    smtpPassPresent: !!(process.env.SMTP_PASS || process.env.EMAIL_PASS),
-    emailFromPresent: !!process.env.EMAIL_FROM
-  };
 
-  res.json({
-    success: true,
-    emailEnabled: EMAIL_ENABLED,
-    detected
-  });
-});
 // server.js (inicio actualizado)
 import dotenv from "dotenv";
 dotenv.config(); // carga .env ANTES de importar otros módulos
@@ -488,6 +472,26 @@ const withLimpiezaAsignaciones = (handler) => async (req, res) => {
   await limpiarAsignacionesInactivas();
   return handler(req, res);
 };
+
+
+//METODO PARA SMTP
+// Debug endpoint: report which email credentials are detected (no secrets)
+app.get('/api/email-debug', (req, res) => {
+  const detected = {
+    sendgridApiKeyPresent: !!process.env.SENDGRID_API_KEY,
+    smtpHostPresent: !!(process.env.SMTP_HOST || process.env.EMAIL_HOST || process.env.EMAIL_SMTP_HOST),
+    smtpPortPresent: !!(process.env.SMTP_PORT || process.env.EMAIL_PORT || process.env.EMAIL_SMTP_PORT),
+    smtpUserPresent: !!(process.env.SMTP_USER || process.env.EMAIL_USER),
+    smtpPassPresent: !!(process.env.SMTP_PASS || process.env.EMAIL_PASS),
+    emailFromPresent: !!process.env.EMAIL_FROM
+  };
+
+  res.json({
+    success: true,
+    emailEnabled: EMAIL_ENABLED,
+    detected
+  });
+});
 
 // Reemplazar handlers de asignaciones con wrapper
 const getAsignacionesHandler = async (req, res) => {
