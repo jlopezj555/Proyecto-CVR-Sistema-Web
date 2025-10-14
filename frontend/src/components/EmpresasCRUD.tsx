@@ -12,16 +12,16 @@ const EmpresasCRUD: React.FC = () => {
 
   const createFields = [
     { key: 'nombre_empresa', label: 'Nombre de la Empresa', type: 'text' as const, required: true },
-    { key: 'direccion_empresa', label: 'Dirección', type: 'text' as const, required: true },
-    { key: 'telefono_empresa', label: 'Teléfono', type: 'text' as const, required: true },
-    { key: 'correo_empresa', label: 'Correo', type: 'email' as const, required: true }
+    { key: 'direccion_empresa', label: 'Dirección', type: 'text' as const },
+    { key: 'telefono_empresa', label: 'Teléfono', type: 'text' as const },
+    { key: 'correo_empresa', label: 'Correo', type: 'email' as const }
   ];
 
   const editFields = [
     { key: 'nombre_empresa', label: 'Nombre de la Empresa', type: 'text' as const, required: true },
-    { key: 'direccion_empresa', label: 'Dirección', type: 'text' as const, required: true },
-    { key: 'telefono_empresa', label: 'Teléfono', type: 'text' as const, required: true },
-    { key: 'correo_empresa', label: 'Correo', type: 'email' as const, required: true }
+    { key: 'direccion_empresa', label: 'Dirección', type: 'text' as const },
+    { key: 'telefono_empresa', label: 'Teléfono', type: 'text' as const },
+    { key: 'correo_empresa', label: 'Correo', type: 'email' as const }
   ];
 
   return (
