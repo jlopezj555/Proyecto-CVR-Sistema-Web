@@ -110,70 +110,59 @@ console.log('EMAIL_USER present:', !!process.env.EMAIL_USER);
 console.log('EMAIL_PASS present:', !!process.env.EMAIL_PASS);
 console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');
 
-// Verificar configuración de correo
+// Verificar configuración de correo (simplificada)
 const hasEmailCredentials = checkEmailConfig();
 
 try {
-  // Prefer SMTP (Nodemailer) when SMTP credentials are present (Gmail app password, etc.)
+  // Priorizar SMTP si está completo; si no, usar SendGrid si está configurado.
   if (hasEmailCredentials && emailConfig.smtpHost && emailConfig.smtpUser && emailConfig.smtpPass) {
-    // Configure Nodemailer SMTP transporter
     transporter = nodemailer.createTransport({
       host: emailConfig.smtpHost,
       port: Number(emailConfig.smtpPort) || (emailConfig.secure ? 465 : 587),
-      secure: !!emailConfig.secure, // true for 465, false for other ports
-      auth: {
-        user: emailConfig.smtpUser,
-        pass: emailConfig.smtpPass
-      },
-      // timeouts: increase to help in slow network / cloud environments
+      secure: !!emailConfig.secure,
+      auth: { user: emailConfig.smtpUser, pass: emailConfig.smtpPass },
       connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 20000),
       greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS || 20000),
       socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS || 20000),
       requireTLS: !emailConfig.secure,
-      tls: {
-        rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false'
-      }
+      tls: { rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false' }
     });
 
     try {
-  await transporter.verify();
-  transporterVerified = true;
-  EMAIL_ENABLED = true;
-  console.log('✉️ Email enabled: Nodemailer SMTP transporter configured and verified');
+      await transporter.verify();
+      transporterVerified = true;
+      EMAIL_ENABLED = true;
+      console.log('✉️ Email enabled: Nodemailer SMTP transporter configured and verified');
     } catch (verifyErr) {
-      const skipVerify = (process.env.SMTP_SKIP_VERIFY_ON_STARTUP === 'true');
-      if (skipVerify) {
-        EMAIL_ENABLED = true; // allow sending attempts even if verify failed on startup
-        transporterVerified = false;
-        console.warn('✉️ Nodemailer transporter verification failed, but continuing because SMTP_SKIP_VERIFY_ON_STARTUP=true. Verification error:', verifyErr.message || verifyErr);
-      } else {
-        EMAIL_ENABLED = false;
-        console.warn('✉️ Nodemailer transporter verification failed, emails disabled:', verifyErr.message || verifyErr);
-        transporter = null;
-      }
+      EMAIL_ENABLED = false;
+      transporter = null;
+      console.warn('✉️ Nodemailer transporter verification failed, emails disabled:', verifyErr.message || verifyErr);
     }
   } else if (hasEmailCredentials && emailConfig.sendgridApiKey) {
-    // Fallback to SendGrid only if SMTP not configured
     sgMail.setApiKey(emailConfig.sendgridApiKey);
     EMAIL_ENABLED = true;
-    console.log('✉️ Email enabled: SendGrid configured successfully');
+    transporter = null;
+    console.log('✉️ Email enabled: SendGrid configured');
   } else {
-    console.log('✉️ Email disabled: no SendGrid key or SMTP credentials provided');
+    EMAIL_ENABLED = false;
+    transporter = null;
+    console.log('✉️ Email disabled: no SMTP or SendGrid configured');
   }
 } catch (err) {
   EMAIL_ENABLED = false;
-  console.warn('✉️ Error configuring email provider, emails disabled:', err.message || err);
+  transporter = null;
+  console.warn('✉️ Error configuring email provider (simplified):', err.message || err);
 }
 
 console.log('EMAIL_ENABLED (transporter configured):', EMAIL_ENABLED);
 
+// sendMailSafe simplificado: no realizar fallbacks automáticos, usar el único transport configurado
 const sendMailSafe = async (mailOptions) => {
   if (!EMAIL_ENABLED) {
     console.log('✉️ Skipping sendMail (disabled). mailOptions:', { to: mailOptions.to, subject: mailOptions.subject });
     return null;
   }
 
-  // Normalize message
   const message = {
     from: emailConfig.from,
     to: mailOptions.to,
@@ -185,56 +174,22 @@ const sendMailSafe = async (mailOptions) => {
   try {
     console.log(`✉️ Enviando correo a: ${message.to}`);
 
-    if (emailConfig.sendgridApiKey) {
-      const result = await sgMail.send({
-        to: message.to,
-        from: message.from,
-        subject: message.subject,
-        text: message.text,
-        html: message.html
-      });
-      console.log(`✉️ Correo enviado via SendGrid. (SendGrid response length: ${Array.isArray(result) ? result.length : 'N/A'})`);
-      return result;
+    if (transporter) {
+      const info = await transporter.sendMail(message);
+      console.log('✉️ Correo enviado via SMTP. MessageId:', info.messageId || 'N/A');
+      return info;
     }
 
-    if (transporter) {
-      try {
-        const info = await transporter.sendMail(message);
-        console.log(`✉️ Correo enviado via SMTP. MessageId: ${info.messageId || 'N/A'}`);
-        return info;
-      } catch (sendErr) {
-        console.error('✉️ Error enviando correo via SMTP:', sendErr && sendErr.stack ? sendErr.stack : sendErr);
-
-        // If network error and SendGrid is available, try SendGrid as fallback
-        const networkErrorCodes = ['ETIMEDOUT', 'ECONNREFUSED', 'EHOSTUNREACH', 'ECONNRESET'];
-        const isNetworkErr = sendErr && sendErr.code && networkErrorCodes.includes(sendErr.code);
-        if (isNetworkErr && emailConfig.sendgridApiKey) {
-          try {
-            console.log('✉️ Intentando fallback a SendGrid debido a error de red SMTP:', sendErr.code);
-            sgMail.setApiKey(emailConfig.sendgridApiKey);
-            const sgResult = await sgMail.send({
-              to: message.to,
-              from: message.from,
-              subject: message.subject,
-              text: message.text,
-              html: message.html
-            });
-            console.log('✉️ Correo enviado via SendGrid como fallback.');
-            return sgResult;
-          } catch (sgErr) {
-            console.error('✉️ Fallback a SendGrid falló:', sgErr && sgErr.stack ? sgErr.stack : sgErr);
-            throw sgErr;
-          }
-        }
-
-        throw sendErr;
-      }
+    if (emailConfig.sendgridApiKey) {
+      const result = await sgMail.send({ to: message.to, from: message.from, subject: message.subject, text: message.text, html: message.html });
+      console.log('✉️ Correo enviado via SendGrid');
+      return result;
     }
 
     console.warn('✉️ No transport available to send email');
     return null;
   } catch (error) {
-    console.error('✉️ Error enviando correo:', error);
+    console.error('✉️ Error enviando correo (sin fallback):', error && (error.stack || error));
     throw error;
   }
 };
