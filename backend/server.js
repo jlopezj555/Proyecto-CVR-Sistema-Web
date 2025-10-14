@@ -8,6 +8,7 @@ import cors from "cors";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import sgMail from "@sendgrid/mail";
+import nodemailer from 'nodemailer';
 import crypto from "crypto";
 import { emailConfig, checkEmailConfig } from "./config.js";
 import path from "path";
@@ -84,6 +85,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "secreto_super_seguro";
 // Configuración de nodemailer para envío de correos (solo si hay credenciales)
 
 let EMAIL_ENABLED = false;
+let transporter = null; // nodemailer transporter when SMTP is used
 
 // Log de variables de entorno para debug
 console.log('--- Startup diagnostics ---');
@@ -97,18 +99,44 @@ console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');
 // Verificar configuración de correo
 const hasEmailCredentials = checkEmailConfig();
 
-
 try {
+  // If SendGrid API key provided, prefer SendGrid
   if (hasEmailCredentials && emailConfig.sendgridApiKey) {
     sgMail.setApiKey(emailConfig.sendgridApiKey);
     EMAIL_ENABLED = true;
     console.log('✉️ Email enabled: SendGrid configured successfully');
+  } else if (hasEmailCredentials && emailConfig.smtpHost && emailConfig.smtpUser && emailConfig.smtpPass) {
+    // Configure Nodemailer SMTP transporter
+    transporter = nodemailer.createTransport({
+      host: emailConfig.smtpHost,
+      port: Number(emailConfig.smtpPort) || (emailConfig.secure ? 465 : 587),
+      secure: !!emailConfig.secure, // true for 465, false for other ports
+      auth: {
+        user: emailConfig.smtpUser,
+        pass: emailConfig.smtpPass
+      },
+      // Allow self-signed certs or other TLS options via env if needed
+      tls: {
+        rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false'
+      }
+    });
+
+    // verify transporter
+    try {
+      await transporter.verify();
+      EMAIL_ENABLED = true;
+      console.log('✉️ Email enabled: Nodemailer SMTP transporter configured and verified');
+    } catch (verifyErr) {
+      EMAIL_ENABLED = false;
+      console.warn('✉️ Nodemailer transporter verification failed, emails disabled:', verifyErr.message || verifyErr);
+      transporter = null;
+    }
   } else {
-    console.log('✉️ Email disabled: SENDGRID_API_KEY not provided');
+    console.log('✉️ Email disabled: no SendGrid key or SMTP credentials provided');
   }
 } catch (err) {
   EMAIL_ENABLED = false;
-  console.warn('✉️ Error configuring SendGrid, emails disabled:', err.message || err);
+  console.warn('✉️ Error configuring email provider, emails disabled:', err.message || err);
 }
 
 console.log('EMAIL_ENABLED (transporter configured):', EMAIL_ENABLED);
@@ -118,18 +146,39 @@ const sendMailSafe = async (mailOptions) => {
     console.log('✉️ Skipping sendMail (disabled). mailOptions:', { to: mailOptions.to, subject: mailOptions.subject });
     return null;
   }
+
+  // Normalize message
+  const message = {
+    from: emailConfig.from,
+    to: mailOptions.to,
+    subject: mailOptions.subject,
+    text: mailOptions.text || '',
+    html: mailOptions.html || mailOptions.text || ''
+  };
+
   try {
-    console.log(`✉️ Enviando correo a: ${mailOptions.to}`);
-    const msg = {
-      to: mailOptions.to,
-      from: emailConfig.from,
-      subject: mailOptions.subject,
-      text: mailOptions.text || '',
-      html: mailOptions.html || mailOptions.text || '',
-    };
-    const result = await sgMail.send(msg);
-    console.log(`✉️ Correo enviado exitosamente. Message ID: ${result[0]?.headers['x-message-id'] || 'N/A'}`);
-    return result;
+    console.log(`✉️ Enviando correo a: ${message.to}`);
+
+    if (emailConfig.sendgridApiKey) {
+      const result = await sgMail.send({
+        to: message.to,
+        from: message.from,
+        subject: message.subject,
+        text: message.text,
+        html: message.html
+      });
+      console.log(`✉️ Correo enviado via SendGrid. (SendGrid response length: ${Array.isArray(result) ? result.length : 'N/A'})`);
+      return result;
+    }
+
+    if (transporter) {
+      const info = await transporter.sendMail(message);
+      console.log(`✉️ Correo enviado via SMTP. MessageId: ${info.messageId || 'N/A'}`);
+      return info;
+    }
+
+    console.warn('✉️ No transport available to send email');
+    return null;
   } catch (error) {
     console.error('✉️ Error enviando correo:', error);
     throw error;

@@ -15,41 +15,42 @@
 
 ## ⚙️ Configuración Paso a Paso
 
-### 1. **Configurar Gmail**
+### 1. Nuevas variables soportadas (Nodemailer SMTP y SendGrid)
 
-1. Ve a tu cuenta de Gmail
-2. Haz clic en tu foto de perfil (esquina superior derecha)
-3. Selecciona "Gestionar tu cuenta de Google"
-4. Ve a "Seguridad" en el menú lateral
-5. Activa "Verificación en 2 pasos" si no está activada
-6. Busca "Contraseñas de aplicación" y haz clic
-7. Selecciona "Otra (nombre personalizado)"
-8. Escribe "CVR Asesoría" y haz clic en "Generar"
-9. **COPIA** la contraseña que aparece (16 caracteres)
+Este backend ahora soporta dos métodos de envío:
 
-### 2. **Actualizar Configuración**
+- SMTP por Nodemailer (recomendado si tienes credenciales SMTP en Railway)
+- SendGrid (si tienes `SENDGRID_API_KEY` configurada)
 
-Edita el archivo `config.js`:
+Variables de entorno que puedes configurar en Railway (o localmente):
 
-```javascript
-export const emailConfig = {
-  service: 'gmail',
-  auth: {
-    user: 'tu-email-real@gmail.com', // ← Cambia por tu email
-    pass: 'abcd-efgh-ijkl-mnop'      // ← Cambia por la contraseña de aplicación
-  },
-  from: 'CVR Asesoría <tu-email-real@gmail.com>',
-  // ... resto de configuración
-};
-```
+- Para SMTP / Nodemailer (preferible cuando usas SMTP de tu proveedor):
+  - `SMTP_HOST` (ej. mx.stackmail.com)
+  - `SMTP_PORT` (ej. 465 o 587)
+  - `SMTP_USER` (usuario / email)
+  - `SMTP_PASS` (contraseña)
+  - `SMTP_SECURE` (true o false) — si se usa SSL (465) usar true
+  - `SMTP_REJECT_UNAUTHORIZED` (opcional) — establecer `false` si necesitas aceptar certificados auto-firmados
 
-### 3. **Reiniciar el Servidor**
+- Para SendGrid (opcional, si prefieres SendGrid):
+  - `SENDGRID_API_KEY`
 
-```bash
-# Detener el servidor (Ctrl+C)
-# Luego ejecutar:
+- Opciones comunes:
+  - `EMAIL_FROM` (opcional) — la dirección "from" que aparecerá en los correos
+
+Si ambas opciones existen, la app dará preferencia a SendGrid. Si quieres forzar SMTP, elimina `SENDGRID_API_KEY` de las variables.
+
+### 2. Reiniciar el servidor
+
+Después de añadir las variables en Railway o en tu `.env` local, reinicia el servidor:
+
+```powershell
+cd backend
+npm install
 node server.js
 ```
+
+> Nota: `npm install` es necesario la primera vez para instalar dependencias (`nodemailer`, `@sendgrid/mail`, etc.).
 
 ## 🧪 Probar las Funcionalidades
 

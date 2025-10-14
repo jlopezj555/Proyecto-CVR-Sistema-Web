@@ -2,8 +2,15 @@
 
 // Configuración para SendGrid
 export const emailConfig = {
+  // SendGrid (optional)
   sendgridApiKey: process.env.SENDGRID_API_KEY || '',
-  from: process.env.EMAIL_FROM || `CVR Asesoría <${process.env.EMAIL_USER || ''}>`,
+  // SMTP / Nodemailer settings (Railway SMTP variables expected)
+  smtpHost: process.env.SMTP_HOST || process.env.EMAIL_SMTP_HOST || '',
+  smtpPort: process.env.SMTP_PORT || process.env.EMAIL_SMTP_PORT || '',
+  smtpUser: process.env.SMTP_USER || process.env.EMAIL_USER || '',
+  smtpPass: process.env.SMTP_PASS || process.env.EMAIL_PASS || '',
+  secure: (process.env.SMTP_SECURE || process.env.EMAIL_SMTP_SECURE || 'true') === 'true',
+  from: process.env.EMAIL_FROM || `CVR Asesoría <${process.env.SMTP_USER || process.env.EMAIL_USER || ''}>`,
   realEmailDomains: [
     'gmail.com', 
     'hotmail.com', 
@@ -22,8 +29,14 @@ export const emailConfig = {
 export const checkEmailConfig = () => {
   console.log('📧 Verificando configuración de correo:');
   console.log(`  - SENDGRID_API_KEY: ${process.env.SENDGRID_API_KEY ? '***configurado***' : 'NO CONFIGURADO'}`);
-  console.log(`  - EMAIL_FROM: ${process.env.EMAIL_FROM || 'usando EMAIL_USER'}`);
-  const hasCredentials = !!process.env.SENDGRID_API_KEY;
+  console.log(`  - SMTP_HOST: ${process.env.SMTP_HOST || process.env.EMAIL_SMTP_HOST ? '***configurado***' : 'NO CONFIGURADO'}`);
+  console.log(`  - SMTP_USER: ${process.env.SMTP_USER || process.env.EMAIL_USER ? '***configurado***' : 'NO CONFIGURADO'}`);
+  console.log(`  - EMAIL_FROM: ${process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER || '(no definido)'} `);
+
+  const hasSendgrid = !!process.env.SENDGRID_API_KEY;
+  const hasSmtp = !!(process.env.SMTP_HOST || process.env.EMAIL_SMTP_HOST) && !!(process.env.SMTP_USER || process.env.EMAIL_USER) && !!(process.env.SMTP_PASS || process.env.EMAIL_PASS);
+
+  const hasCredentials = hasSendgrid || hasSmtp;
   console.log(`  - Estado: ${hasCredentials ? '✅ LISTO PARA ENVIAR' : '❌ FALTAN CREDENCIALES'}`);
   return hasCredentials;
 };
