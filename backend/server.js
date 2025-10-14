@@ -99,6 +99,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "secreto_super_seguro";
 
 let EMAIL_ENABLED = false;
 let transporter = null; // nodemailer transporter when SMTP is used
+let transporterVerified = false;
 
 // Log de variables de entorno para debug
 console.log('--- Startup diagnostics ---');
@@ -135,13 +136,21 @@ try {
     });
 
     try {
-      await transporter.verify();
-      EMAIL_ENABLED = true;
-      console.log('✉️ Email enabled: Nodemailer SMTP transporter configured and verified');
+  await transporter.verify();
+  transporterVerified = true;
+  EMAIL_ENABLED = true;
+  console.log('✉️ Email enabled: Nodemailer SMTP transporter configured and verified');
     } catch (verifyErr) {
-      EMAIL_ENABLED = false;
-      console.warn('✉️ Nodemailer transporter verification failed, emails disabled:', verifyErr.message || verifyErr);
-      transporter = null;
+      const skipVerify = (process.env.SMTP_SKIP_VERIFY_ON_STARTUP === 'true');
+      if (skipVerify) {
+        EMAIL_ENABLED = true; // allow sending attempts even if verify failed on startup
+        transporterVerified = false;
+        console.warn('✉️ Nodemailer transporter verification failed, but continuing because SMTP_SKIP_VERIFY_ON_STARTUP=true. Verification error:', verifyErr.message || verifyErr);
+      } else {
+        EMAIL_ENABLED = false;
+        console.warn('✉️ Nodemailer transporter verification failed, emails disabled:', verifyErr.message || verifyErr);
+        transporter = null;
+      }
     }
   } else if (hasEmailCredentials && emailConfig.sendgridApiKey) {
     // Fallback to SendGrid only if SMTP not configured
@@ -189,9 +198,14 @@ const sendMailSafe = async (mailOptions) => {
     }
 
     if (transporter) {
-      const info = await transporter.sendMail(message);
-      console.log(`✉️ Correo enviado via SMTP. MessageId: ${info.messageId || 'N/A'}`);
-      return info;
+      try {
+        const info = await transporter.sendMail(message);
+        console.log(`✉️ Correo enviado via SMTP. MessageId: ${info.messageId || 'N/A'}`);
+        return info;
+      } catch (sendErr) {
+        console.error('✉️ Error enviando correo via SMTP:', sendErr && sendErr.stack ? sendErr.stack : sendErr);
+        throw sendErr;
+      }
     }
 
     console.warn('✉️ No transport available to send email');
