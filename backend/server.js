@@ -20,6 +20,16 @@ import { fileURLToPath } from "url";
 const app = express();
 app.use(express.json());
 
+// Simple request logger to help debug 502 / proxy issues
+app.use((req, res, next) => {
+  try {
+    console.log(`[REQ] ${req.method} ${req.originalUrl} - from ${req.ip}`);
+  } catch (e) {
+    // ignore logging errors
+  }
+  next();
+});
+
 
 const FRONTEND_URL = (process.env.FRONTEND_URL || '').trim();
 const extraOrigins = (process.env.CORS_ORIGIN || '')
@@ -3315,4 +3325,26 @@ app.listen(PORT, '0.0.0.0', () => {
   } else {
     console.warn('No se encontró variable PORT en el entorno; usando el fallback 8080. En Railway, lo típico es no fijar PORT manualmente y dejar que la plataforma lo inyecte.');
   }
+});
+
+// Express error handler (last middleware)
+app.use((err, req, res, next) => {
+  console.error('Express error handler caught:', err && err.stack ? err.stack : err);
+  try {
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  } catch (e) {
+    console.error('Error sending error response:', e);
+  }
+});
+
+// Process-level handlers to capture crashes / promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason && reason.stack ? reason.stack : reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err && err.stack ? err.stack : err);
+  // Do not exit immediately in production container - log for debugging
 });
