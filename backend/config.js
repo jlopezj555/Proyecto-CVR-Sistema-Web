@@ -30,12 +30,12 @@ export const emailConfig = {
 export const checkEmailConfig = () => {
   console.log('📧 Verificando configuración de correo:');
   console.log(`  - SENDGRID_API_KEY: ${process.env.SENDGRID_API_KEY ? '***configurado***' : 'NO CONFIGURADO'}`);
-  console.log(`  - SMTP_HOST: ${process.env.SMTP_HOST || process.env.EMAIL_SMTP_HOST ? '***configurado***' : 'NO CONFIGURADO'}`);
+  console.log(`  - SMTP_HOST: ${process.env.SMTP_HOST || process.env.EMAIL_HOST || process.env.EMAIL_SMTP_HOST ? '***configurado***' : 'NO CONFIGURADO'}`);
   console.log(`  - SMTP_USER: ${process.env.SMTP_USER || process.env.EMAIL_USER ? '***configurado***' : 'NO CONFIGURADO'}`);
   console.log(`  - EMAIL_FROM: ${process.env.EMAIL_FROM || process.env.SMTP_USER || process.env.EMAIL_USER || '(no definido)'} `);
 
   const hasSendgrid = !!process.env.SENDGRID_API_KEY;
-  const hasSmtp = !!(process.env.SMTP_HOST || process.env.EMAIL_SMTP_HOST) && !!(process.env.SMTP_USER || process.env.EMAIL_USER) && !!(process.env.SMTP_PASS || process.env.EMAIL_PASS);
+  const hasSmtp = !!(process.env.SMTP_HOST || process.env.EMAIL_HOST || process.env.EMAIL_SMTP_HOST) && !!(process.env.SMTP_USER || process.env.EMAIL_USER) && !!(process.env.SMTP_PASS || process.env.EMAIL_PASS);
 
   const hasCredentials = hasSendgrid || hasSmtp;
   console.log(`  - Estado: ${hasCredentials ? '✅ LISTO PARA ENVIAR' : '❌ FALTAN CREDENCIALES'}`);
