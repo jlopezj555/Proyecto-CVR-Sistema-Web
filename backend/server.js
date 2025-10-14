@@ -100,12 +100,8 @@ console.log('NODE_ENV:', process.env.NODE_ENV || '(not set)');
 const hasEmailCredentials = checkEmailConfig();
 
 try {
-  // If SendGrid API key provided, prefer SendGrid
-  if (hasEmailCredentials && emailConfig.sendgridApiKey) {
-    sgMail.setApiKey(emailConfig.sendgridApiKey);
-    EMAIL_ENABLED = true;
-    console.log('✉️ Email enabled: SendGrid configured successfully');
-  } else if (hasEmailCredentials && emailConfig.smtpHost && emailConfig.smtpUser && emailConfig.smtpPass) {
+  // Prefer SMTP (Nodemailer) when SMTP credentials are present (Gmail app password, etc.)
+  if (hasEmailCredentials && emailConfig.smtpHost && emailConfig.smtpUser && emailConfig.smtpPass) {
     // Configure Nodemailer SMTP transporter
     transporter = nodemailer.createTransport({
       host: emailConfig.smtpHost,
@@ -115,13 +111,11 @@ try {
         user: emailConfig.smtpUser,
         pass: emailConfig.smtpPass
       },
-      // Allow self-signed certs or other TLS options via env if needed
       tls: {
         rejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== 'false'
       }
     });
 
-    // verify transporter
     try {
       await transporter.verify();
       EMAIL_ENABLED = true;
@@ -131,6 +125,11 @@ try {
       console.warn('✉️ Nodemailer transporter verification failed, emails disabled:', verifyErr.message || verifyErr);
       transporter = null;
     }
+  } else if (hasEmailCredentials && emailConfig.sendgridApiKey) {
+    // Fallback to SendGrid only if SMTP not configured
+    sgMail.setApiKey(emailConfig.sendgridApiKey);
+    EMAIL_ENABLED = true;
+    console.log('✉️ Email enabled: SendGrid configured successfully');
   } else {
     console.log('✉️ Email disabled: no SendGrid key or SMTP credentials provided');
   }

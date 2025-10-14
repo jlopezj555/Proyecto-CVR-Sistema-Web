@@ -5,11 +5,12 @@ export const emailConfig = {
   // SendGrid (optional)
   sendgridApiKey: process.env.SENDGRID_API_KEY || '',
   // SMTP / Nodemailer settings (Railway SMTP variables expected)
-  smtpHost: process.env.SMTP_HOST || process.env.EMAIL_SMTP_HOST || '',
-  smtpPort: process.env.SMTP_PORT || process.env.EMAIL_SMTP_PORT || '',
+  // Allow both SMTP_* and EMAIL_* prefixes (EMAIL_* for backward compatibility)
+  smtpHost: process.env.SMTP_HOST || process.env.EMAIL_HOST || process.env.EMAIL_SMTP_HOST || '',
+  smtpPort: process.env.SMTP_PORT || process.env.EMAIL_PORT || process.env.EMAIL_SMTP_PORT || '',
   smtpUser: process.env.SMTP_USER || process.env.EMAIL_USER || '',
   smtpPass: process.env.SMTP_PASS || process.env.EMAIL_PASS || '',
-  secure: (process.env.SMTP_SECURE || process.env.EMAIL_SMTP_SECURE || 'true') === 'true',
+  secure: ((process.env.SMTP_SECURE || process.env.EMAIL_SECURE || process.env.EMAIL_SMTP_SECURE || 'true') === 'true'),
   from: process.env.EMAIL_FROM || `CVR Asesoría <${process.env.SMTP_USER || process.env.EMAIL_USER || ''}>`,
   realEmailDomains: [
     'gmail.com', 
