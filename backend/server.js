@@ -1078,7 +1078,14 @@ app.get('/api/empresas', verificarToken, verificarAdmin, async (req, res) => {
 
 // Crear empresa
 app.post('/api/empresas', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
-  const { nombre_empresa, direccion_empresa, telefono_empresa, correo_empresa } = req.body;
+  let { nombre_empresa, direccion_empresa, telefono_empresa, correo_empresa } = req.body;
+
+  // Permitir que el frontend envíe undefined/null; almacenar como cadena vacía si la columna
+  // en la base de datos no acepta NULL (evita ER_BAD_NULL_ERROR). Si prefieres NULL en BD,
+  // aplica una migración ALTER TABLE para permitir NULL.
+  direccion_empresa = direccion_empresa ?? '';
+  telefono_empresa = telefono_empresa ?? '';
+  correo_empresa = correo_empresa ?? '';
 
   try {
     // Verificar si el correo ya existe
@@ -1106,7 +1113,12 @@ app.post('/api/empresas', verificarToken, verificarAdmin, verificarPasswordAdmin
 // Actualizar empresa
 app.put('/api/empresas/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
   const { id } = req.params;
-  const { nombre_empresa, direccion_empresa, telefono_empresa, correo_empresa } = req.body;
+  let { nombre_empresa, direccion_empresa, telefono_empresa, correo_empresa } = req.body;
+
+  // Normalizar valores para evitar insertar NULL en columnas NOT NULL
+  direccion_empresa = direccion_empresa ?? '';
+  telefono_empresa = telefono_empresa ?? '';
+  correo_empresa = correo_empresa ?? '';
 
   try {
     // Verificar si la empresa existe

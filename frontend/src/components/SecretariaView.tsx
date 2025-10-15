@@ -332,7 +332,17 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                                   </div>
                                   {isAlmostComplete && (
                                     <div style={{ marginTop: 12 }}>
-                                      <span style={{ color: '#ffc107', fontWeight: 600 }}>¡Solo falta una etapa para completar el proceso!</span>
+                                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <span style={{ color: '#ffc107', fontWeight: 600 }}>¡Solo falta una etapa para completar el proceso!</span>
+                                        <button
+                                          className="crud-btn-save"
+                                          onClick={() => setConfirmPwdOpenForProceso(p.id_proceso)}
+                                          title="Confirmar envío"
+                                          style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                                        >
+                                          Confirmar envío
+                                        </button>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
