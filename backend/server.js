@@ -2529,13 +2529,30 @@ app.get('/api/mis-procesos/:id/etapas', verificarToken, async (req, res) => {
     // Si se provee `rol` (nombre de rol con el que el usuario inició sesión) y ese rol no es de revisión,
     // excluir etapas cuyo EtapaCatalogo.es_revision = TRUE para evitar mostrar etapas de revisión a roles no revisores.
     const rolSesion = rol ? String(rol) : null;
-    const esRolRevisor = rolSesion ? /revisor/i.test(rolSesion) : null;
-
-    let extraWhere = '';
+    let esRolRevisor = null;
     const params = [id, empleadoId];
-    if (rolSesion && !esRolRevisor) {
-      // excluir etapas catalogadas como es_revision
-      extraWhere = " AND (et.es_revision = FALSE OR et.es_revision IS NULL)";
+    let extraWhere = '';
+    if (rolSesion) {
+      try {
+        const [rolRows] = await pool.query('SELECT nombre_rol FROM Rol WHERE nombre_rol = ? LIMIT 1', [rolSesion]);
+        if (rolRows && rolRows.length > 0) {
+          const found = String(rolRows[0].nombre_rol || '').toLowerCase();
+          esRolRevisor = found.includes('revisor');
+        } else {
+          // si no se encuentra por igualdad, probar búsqueda parcial por si el frontend envía variantes
+          const [rolLike] = await pool.query('SELECT nombre_rol FROM Rol WHERE LOWER(nombre_rol) LIKE ? LIMIT 1', [`%${rolSesion.toLowerCase()}%`]);
+          if (rolLike && rolLike.length > 0) {
+            esRolRevisor = String(rolLike[0].nombre_rol || '').toLowerCase().includes('revisor');
+          }
+        }
+      } catch (err) {
+        console.error('Error buscando rol en DB para determinar es_revision:', err);
+      }
+
+      if (esRolRevisor === false) {
+        // excluir etapas catalogadas como es_revision para roles no revisores
+        extraWhere = " AND (et.es_revision = FALSE OR et.es_revision IS NULL)";
+      }
     }
 
     const [rows] = await pool.query(
