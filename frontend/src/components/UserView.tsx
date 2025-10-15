@@ -36,6 +36,7 @@ interface EtapaAsignadaItem {
   etapa_descripcion: string
   motivo_rechazo?: string
   nombre_rol: string
+  es_revision?: boolean
 }
 
 type EstadoEtapa = 'Pendiente' | 'En progreso' | 'Completada' | 'Rechazada'
@@ -133,6 +134,18 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
 
   const solicitarCompletarEtapa = (etapaId: number, estadoActual: EstadoEtapa) => {
     if (estadoActual === 'Completada') return
+    // Before opening verification, check if the etapa is a revision stage and whether session role allows it
+    const sessionRole = localStorage.getItem('current_role') || localStorage.getItem('rol') || ''
+    const etapas = Object.values(etapasPorProceso).flat() as EtapaAsignadaItem[]
+    const etapa = etapas.find(e => e.id_etapa_proceso === etapaId)
+    if (etapa && etapa.es_revision) {
+      // If not a revisor role, block
+      const isRevisor = String(sessionRole).toLowerCase().includes('revisor')
+      if (!isRevisor) {
+        alert('Inicie sesión como revisor para completar esta tarea')
+        return
+      }
+    }
     setPendingEtapaId(etapaId)
     setPasswordModalOpen(true)
   }
