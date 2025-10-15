@@ -89,7 +89,8 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     setLoadingProcesos(true)
     try {
       const params: any = {}
-  if (sessionRole) params.rol = sessionRole
+      const sessionRole = localStorage.getItem('current_role')
+      if (sessionRole) params.rol = sessionRole
       if (empresaFiltro) params.empresa = empresaFiltro
       if (rolFiltro) params.rol = rolFiltro
       if (mesFiltro && anioFiltro) {
@@ -116,7 +117,8 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     setLoadingEtapas(prev => ({ ...prev, [procesoId]: true }))
     try {
       const params: any = {}
-  if (sessionRole) params.rol = sessionRole
+      const sessionRole = localStorage.getItem('current_role')
+      if (sessionRole) params.rol = sessionRole
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos/${procesoId}/etapas`, {
         headers: { Authorization: `Bearer ${token}` },
         params
