@@ -75,7 +75,18 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     setLoadingProcesos(true)
     try {
       const params: any = {}
-      const sessionRole = localStorage.getItem('current_role')
+      // Espera a que exista current_role en localStorage (evita llamadas prematuras)
+      const waitForCurrentRole = async (timeout = 5000, interval = 100) => {
+        const start = Date.now()
+        while (Date.now() - start < timeout) {
+          const r = localStorage.getItem('current_role')
+          if (r) return r
+          await new Promise(res => setTimeout(res, interval))
+        }
+        return null
+      }
+
+      const sessionRole = await waitForCurrentRole()
       if (sessionRole) params.rol = sessionRole
       if (empresaFiltro) params.empresa = empresaFiltro
       if (rolFiltro) params.rol = rolFiltro
@@ -103,7 +114,18 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     setLoadingEtapas(prev => ({ ...prev, [procesoId]: true }))
     try {
       const params: any = {}
-      const sessionRole = localStorage.getItem('current_role')
+      // Reutiliza la misma técnica de espera por current_role antes de pedir las etapas
+      const waitForCurrentRole = async (timeout = 5000, interval = 100) => {
+        const start = Date.now()
+        while (Date.now() - start < timeout) {
+          const r = localStorage.getItem('current_role')
+          if (r) return r
+          await new Promise(res => setTimeout(res, interval))
+        }
+        return null
+      }
+
+      const sessionRole = await waitForCurrentRole()
       if (sessionRole) params.rol = sessionRole
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos/${procesoId}/etapas`, {
         headers: { Authorization: `Bearer ${token}` },
