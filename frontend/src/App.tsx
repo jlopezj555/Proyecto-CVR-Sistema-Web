@@ -33,7 +33,7 @@ function App() {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
   const [rolePickerOpen, setRolePickerOpen] = useState(false);
-  const [roleOptions, setRoleOptions] = useState<string[]>([]);
+  const [roleOptions, setRoleOptions] = useState<Array<{ id: number; nombre_rol: string }>>([]);
   const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutos
 
   useEffect(() => {
@@ -218,14 +218,22 @@ function App() {
             const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-roles`, {
               headers: { Authorization: `Bearer ${token}` }
             });
-            const roles: string[] = (data?.data || []).map((r: any) => r.nombre_rol);
-            const tieneRevisor = roles.some(r => r.toLowerCase().includes('revisor'));
-            const tieneNoRevisor = roles.some(r => !r.toLowerCase().includes('revisor'));
-            if (tieneRevisor && tieneNoRevisor) {
-              setRoleOptions(roles);
+            const roles: Array<{ id_rol: number; nombre_rol: string }> = (data?.data || []).map((r: any) => ({ id_rol: r.id_rol, nombre_rol: r.nombre_rol }));
+            if (roles.length === 1) {
+              // Auto-seleccionar si solo tiene un rol
+              const single = roles[0];
+              localStorage.setItem('current_role', single.nombre_rol);
+              localStorage.setItem('current_role_id', String(single.id_rol));
+              localStorage.setItem('rol', single.nombre_rol);
+              setUserRole(single.nombre_rol);
+            } else if (roles.length > 1) {
+              // Guardar opciones y abrir selector
+              setRoleOptions(roles.map(r => ({ id: r.id_rol, nombre_rol: r.nombre_rol })));
               setRolePickerOpen(true);
             }
-          } catch (_) {}
+          } catch (err) {
+            console.error('Error cargando roles del empleado:', err);
+          }
         }
 
         setIsLoginOpen(false);
@@ -336,17 +344,18 @@ function App() {
               <div style={{ display: 'grid', gap: 8 }}>
                 {roleOptions.map((r) => (
                   <button
-                    key={r}
+                    key={r.id}
                     className="password-btn-verify"
                     onClick={() => {
-                      // Si elige un rol que contiene 'revisor' ir a RevisorView, de lo contrario UserView
-                      const isRevisor = r.toLowerCase().includes('revisor');
-                      localStorage.setItem('rol', isRevisor ? r : 'Empleado');
-                      setUserRole(isRevisor ? r : 'Empleado');
+                      // Guardar selección en localStorage (nombre e id) y en 'rol' para compatibilidad
+                      localStorage.setItem('current_role', r.nombre_rol);
+                      localStorage.setItem('current_role_id', String(r.id));
+                      localStorage.setItem('rol', r.nombre_rol);
+                      setUserRole(r.nombre_rol);
                       setRolePickerOpen(false);
                     }}
                   >
-                    {r}
+                    {r.nombre_rol}
                   </button>
                 ))}
               </div>
