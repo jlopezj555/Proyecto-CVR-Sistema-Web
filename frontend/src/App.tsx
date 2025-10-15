@@ -26,21 +26,19 @@ function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false); 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  // Preferir `current_role` como la fuente de la sesión (nombre de rol seleccionado)
-  const [userRole, setUserRole] = useState<string | null>(localStorage.getItem('current_role') || localStorage.getItem('rol'));
+  const [userRole, setUserRole] = useState<string | null>(localStorage.getItem('rol'));
   const [userName, setUserName] = useState<string | null>(localStorage.getItem('nombre'));
   const [userType, setUserType] = useState<string | null>(localStorage.getItem('tipo'));
   const [userFoto, setUserFoto] = useState<string | null>(localStorage.getItem('foto'));
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
   const [rolePickerOpen, setRolePickerOpen] = useState(false);
-  const [roleOptions, setRoleOptions] = useState<Array<{ id: number; nombre_rol: string }>>([]);
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
   const IDLE_LIMIT_MS = 10 * 60 * 1000; // 10 minutos
 
   useEffect(() => {
     const storageListener = () => {
-      // Leer la selección efectiva de rol desde `current_role` (fallback a 'rol' para compatibilidad)
-      setUserRole(localStorage.getItem('current_role') || localStorage.getItem('rol'))
+      setUserRole(localStorage.getItem('rol'))
       setUserName(localStorage.getItem('nombre'))
       setUserType(localStorage.getItem('tipo'))
       setUserFoto(localStorage.getItem('foto'))
@@ -203,18 +201,14 @@ function App() {
       if ((response.data as any).success) {
         const { nombre, rol, token, tipo, foto } = (response.data as any);
 
-  // Store token and user data
-  localStorage.setItem('token', token);
-  // Guardar el rol devuelto por el servidor como valor por compatibilidad
-  localStorage.setItem('rol', rol);
-  // Inicializar la selección efectiva de sesión en `current_role` para evitar inconsistencias
-  localStorage.setItem('current_role', rol);
-  localStorage.setItem('nombre', nombre);
-  localStorage.setItem('tipo', tipo);
-  localStorage.setItem('foto', foto || '');
+        // Store token and user data
+        localStorage.setItem('token', token);
+        localStorage.setItem('rol', rol);
+        localStorage.setItem('nombre', nombre);
+        localStorage.setItem('tipo', tipo);
+        localStorage.setItem('foto', foto || '');
 
-  // Usar current_role como estado de UI
-  setUserRole(localStorage.getItem('current_role'));
+        setUserRole(rol);
         setUserName(nombre);
         setUserType(tipo);
         setUserFoto(foto || '');
@@ -224,18 +218,11 @@ function App() {
             const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-roles`, {
               headers: { Authorization: `Bearer ${token}` }
             });
-            const roles: Array<{ id_rol: number; nombre_rol: string }> = (data?.data || []).map((r: any) => ({ id_rol: r.id_rol, nombre_rol: r.nombre_rol }));
-            if (roles.length === 1) {
-              // Auto-seleccionar si solo tiene un rol
-              const single = roles[0];
-              localStorage.setItem('current_role', single.nombre_rol);
-              localStorage.setItem('current_role_id', String(single.id_rol));
-              // mantener compatibilidad en 'rol' también
-              localStorage.setItem('rol', single.nombre_rol);
-              setUserRole(single.nombre_rol);
-            } else if (roles.length > 1) {
-              // Guardar opciones y abrir selector
-              setRoleOptions(roles.map(r => ({ id: r.id_rol, nombre_rol: r.nombre_rol })));
+            const roles: string[] = (data?.data || []).map((r: any) => r.nombre_rol);
+            const tieneRevisor = roles.some(r => r.toLowerCase().includes('revisor'));
+            const tieneNoRevisor = roles.some(r => !r.toLowerCase().includes('revisor'));
+            if (tieneRevisor && tieneNoRevisor) {
+              setRoleOptions(roles);
               setRolePickerOpen(true);
             }
           } catch (err) {
@@ -351,18 +338,17 @@ function App() {
               <div style={{ display: 'grid', gap: 8 }}>
                 {roleOptions.map((r) => (
                   <button
-                    key={r.id}
+                    key={r}
                     className="password-btn-verify"
                     onClick={() => {
-                      // Guardar selección en localStorage (nombre e id) y en 'rol' para compatibilidad
-                      localStorage.setItem('current_role', r.nombre_rol);
-                      localStorage.setItem('current_role_id', String(r.id));
-                      localStorage.setItem('rol', r.nombre_rol);
-                      setUserRole(r.nombre_rol);
+                      // Si elige un rol que contiene 'revisor' ir a RevisorView, de lo contrario UserView
+                      const isRevisor = r.toLowerCase().includes('revisor');
+                      localStorage.setItem('rol', isRevisor ? r : 'Empleado');
+                      setUserRole(isRevisor ? r : 'Empleado');
                       setRolePickerOpen(false);
                     }}
                   >
-                    {r.nombre_rol}
+                    {r}
                   </button>
                 ))}
               </div>

@@ -27,15 +27,13 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const token = localStorage.getItem('token')
 
   // Rol de sesión (leer y reaccionar a cambios)
-  const [sessionRole, setSessionRole] = useState<string>(localStorage.getItem('current_role') || localStorage.getItem('rol') || '')
+    const [sessionRole, setSessionRole] = useState<string>(localStorage.getItem('rol') || '')
 
   useEffect(() => {
-    const onStorage = () => setSessionRole(localStorage.getItem('current_role') || localStorage.getItem('rol') || '')
+      const onStorage = () => setSessionRole(localStorage.getItem('rol') || '')
     window.addEventListener('storage', onStorage)
-    window.addEventListener('focus', onStorage)
     return () => {
       window.removeEventListener('storage', onStorage)
-      window.removeEventListener('focus', onStorage)
     }
   }, [])
 
@@ -58,7 +56,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     setLoadingProc(true)
     try {
       const params: any = {}
-  if (sessionRole) params.rol = sessionRole
+        if (sessionRole) params.rol = sessionRole
       if (empresaFiltro) params.empresa = empresaFiltro
       if (mesFiltro && anioFiltro) {
         // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
