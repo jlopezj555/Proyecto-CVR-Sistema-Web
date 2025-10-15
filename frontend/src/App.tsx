@@ -26,7 +26,8 @@ function App() {
   const [isLoginOpen, setIsLoginOpen] = useState(false); 
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [showMap, setShowMap] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(localStorage.getItem('rol'));
+  // Preferir `current_role` como la fuente de la sesión (nombre de rol seleccionado)
+  const [userRole, setUserRole] = useState<string | null>(localStorage.getItem('current_role') || localStorage.getItem('rol'));
   const [userName, setUserName] = useState<string | null>(localStorage.getItem('nombre'));
   const [userType, setUserType] = useState<string | null>(localStorage.getItem('tipo'));
   const [userFoto, setUserFoto] = useState<string | null>(localStorage.getItem('foto'));
@@ -38,7 +39,8 @@ function App() {
 
   useEffect(() => {
     const storageListener = () => {
-      setUserRole(localStorage.getItem('rol'))
+      // Leer la selección efectiva de rol desde `current_role` (fallback a 'rol' para compatibilidad)
+      setUserRole(localStorage.getItem('current_role') || localStorage.getItem('rol'))
       setUserName(localStorage.getItem('nombre'))
       setUserType(localStorage.getItem('tipo'))
       setUserFoto(localStorage.getItem('foto'))
@@ -201,14 +203,18 @@ function App() {
       if ((response.data as any).success) {
         const { nombre, rol, token, tipo, foto } = (response.data as any);
 
-        // Store token and user data
-        localStorage.setItem('token', token);
-        localStorage.setItem('rol', rol);
-        localStorage.setItem('nombre', nombre);
-        localStorage.setItem('tipo', tipo);
-        localStorage.setItem('foto', foto || '');
+  // Store token and user data
+  localStorage.setItem('token', token);
+  // Guardar el rol devuelto por el servidor como valor por compatibilidad
+  localStorage.setItem('rol', rol);
+  // Inicializar la selección efectiva de sesión en `current_role` para evitar inconsistencias
+  localStorage.setItem('current_role', rol);
+  localStorage.setItem('nombre', nombre);
+  localStorage.setItem('tipo', tipo);
+  localStorage.setItem('foto', foto || '');
 
-        setUserRole(rol);
+  // Usar current_role como estado de UI
+  setUserRole(localStorage.getItem('current_role'));
         setUserName(nombre);
         setUserType(tipo);
         setUserFoto(foto || '');
@@ -224,6 +230,7 @@ function App() {
               const single = roles[0];
               localStorage.setItem('current_role', single.nombre_rol);
               localStorage.setItem('current_role_id', String(single.id_rol));
+              // mantener compatibilidad en 'rol' también
               localStorage.setItem('rol', single.nombre_rol);
               setUserRole(single.nombre_rol);
             } else if (roles.length > 1) {

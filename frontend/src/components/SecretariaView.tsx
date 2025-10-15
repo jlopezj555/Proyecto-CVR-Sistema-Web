@@ -26,6 +26,19 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const [activeTab, setActiveTab] = useState<'cuadernillos' | 'papeleria'>('cuadernillos')
   const token = localStorage.getItem('token')
 
+  // Rol de sesión (leer y reaccionar a cambios)
+  const [sessionRole, setSessionRole] = useState<string>(localStorage.getItem('current_role') || localStorage.getItem('rol') || '')
+
+  useEffect(() => {
+    const onStorage = () => setSessionRole(localStorage.getItem('current_role') || localStorage.getItem('rol') || '')
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('focus', onStorage)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('focus', onStorage)
+    }
+  }, [])
+
   // Filtros de procesos
   const [empresaFiltro, setEmpresaFiltro] = useState<string>('')
   const [anioFiltro, setAnioFiltro] = useState<string>('')
@@ -45,8 +58,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     setLoadingProc(true)
     try {
       const params: any = {}
-      const sessionRole = localStorage.getItem('current_role')
-      if (sessionRole) params.rol = sessionRole
+  if (sessionRole) params.rol = sessionRole
       if (empresaFiltro) params.empresa = empresaFiltro
       if (mesFiltro && anioFiltro) {
         // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
@@ -94,8 +106,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const cargarEtapasProceso = async (id: number) => {
     try {
       const params: any = {}
-      const sessionRole = localStorage.getItem('current_role')
-      if (sessionRole) params.rol = sessionRole
+  if (sessionRole) params.rol = sessionRole
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos/${id}/etapas`, {
         headers: { Authorization: `Bearer ${token}` },
         params
@@ -112,7 +123,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     if (activeTab === 'cuadernillos') {
       cargarProcesos()
     }
-  }, [empresaFiltro, mesFiltro, anioFiltro, activeTab])
+  }, [empresaFiltro, mesFiltro, anioFiltro, activeTab, sessionRole])
 
   // Cargar progreso para todos los procesos listados
   useEffect(() => {

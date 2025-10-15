@@ -58,6 +58,19 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [pendingEtapaId, setPendingEtapaId] = useState<number | null>(null)
 
+  // Rol de sesión (leer y reaccionar a cambios en localStorage)
+  const [sessionRole, setSessionRole] = useState<string>(localStorage.getItem('current_role') || localStorage.getItem('rol') || '')
+
+  useEffect(() => {
+    const onStorage = () => setSessionRole(localStorage.getItem('current_role') || localStorage.getItem('rol') || '')
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('focus', onStorage)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('focus', onStorage)
+    }
+  }, [])
+
   const token = localStorage.getItem('token')
 
   const empresasDisponibles = useMemo(() => {
@@ -76,8 +89,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     setLoadingProcesos(true)
     try {
       const params: any = {}
-      const sessionRole = localStorage.getItem('current_role')
-      if (sessionRole) params.rol = sessionRole
+  if (sessionRole) params.rol = sessionRole
       if (empresaFiltro) params.empresa = empresaFiltro
       if (rolFiltro) params.rol = rolFiltro
       if (mesFiltro && anioFiltro) {
@@ -104,8 +116,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     setLoadingEtapas(prev => ({ ...prev, [procesoId]: true }))
     try {
       const params: any = {}
-      const sessionRole = localStorage.getItem('current_role')
-      if (sessionRole) params.rol = sessionRole
+  if (sessionRole) params.rol = sessionRole
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos/${procesoId}/etapas`, {
         headers: { Authorization: `Bearer ${token}` },
         params
@@ -122,7 +133,7 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
   useEffect(() => {
     cargarProcesos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empresaFiltro, rolFiltro, mesFiltro, anioFiltro])
+  }, [empresaFiltro, rolFiltro, mesFiltro, anioFiltro, sessionRole])
 
   const toggleExpand = (procesoId: number) => {
     const newId = expandedProcesoId === procesoId ? null : procesoId
@@ -135,12 +146,13 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
   const solicitarCompletarEtapa = (etapaId: number, estadoActual: EstadoEtapa) => {
     if (estadoActual === 'Completada') return
     // Before opening verification, check if the etapa is a revision stage and whether session role allows it
-    const sessionRole = localStorage.getItem('current_role') || localStorage.getItem('rol') || ''
+  // Usar el estado reactivo sessionRole para consistencia
+  const currentSessionRole = sessionRole || localStorage.getItem('rol') || ''
     const etapas = Object.values(etapasPorProceso).flat() as EtapaAsignadaItem[]
     const etapa = etapas.find(e => e.id_etapa_proceso === etapaId)
     if (etapa && etapa.es_revision) {
       // If not a revisor role, block
-      const isRevisor = String(sessionRole).toLowerCase().includes('revisor')
+      const isRevisor = String(currentSessionRole).toLowerCase().includes('revisor')
       if (!isRevisor) {
         alert('Inicie sesión como revisor para completar esta tarea')
         return

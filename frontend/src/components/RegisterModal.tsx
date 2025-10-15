@@ -64,6 +64,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onLoginS
           localStorage.setItem('token', response.data.token);
           // Forzamos rol/tipo cliente para nuevos registros desde UI
           localStorage.setItem('rol', 'Cliente');
+          localStorage.setItem('current_role', 'Cliente');
           localStorage.setItem('nombre', response.data.nombre);
           localStorage.setItem('tipo', 'cliente');
           localStorage.setItem('foto', response.data.foto || '');
