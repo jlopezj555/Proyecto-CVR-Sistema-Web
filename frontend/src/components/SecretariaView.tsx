@@ -45,6 +45,8 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     setLoadingProc(true)
     try {
       const params: any = {}
+      const sessionRole = localStorage.getItem('current_role')
+      if (sessionRole) params.rol = sessionRole
       if (empresaFiltro) params.empresa = empresaFiltro
       if (mesFiltro && anioFiltro) {
         // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
@@ -91,8 +93,12 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
   const cargarEtapasProceso = async (id: number) => {
     try {
-      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos/${id}/etapas`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const params: any = {}
+      const sessionRole = localStorage.getItem('current_role')
+      if (sessionRole) params.rol = sessionRole
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos/${id}/etapas`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params
       })
       setEtapasPorProceso(prev => ({ ...prev, [id]: data?.data || [] }))
     } catch (e) {
@@ -333,7 +339,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                                   {isAlmostComplete && (
                                     <div style={{ marginTop: 12 }}>
                                       <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <span style={{ color: '#ffc107', fontWeight: 600 }}>¡Solo falta una etapa para completar el proceso!</span>
+                                        <span style={{ color: 'black', fontWeight: 600 }}>¡Solo falta una etapa para completar el proceso!</span>
                                         <button
                                           className="crud-btn-save"
                                           onClick={() => setConfirmPwdOpenForProceso(p.id_proceso)}

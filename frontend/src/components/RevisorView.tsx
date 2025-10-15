@@ -29,6 +29,7 @@ interface EtapaItem {
   nombre_etapa: string
   etapa_descripcion: string
   motivo_rechazo?: string
+  es_revision?: boolean
 }
 
 const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
@@ -311,7 +312,7 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
                               <label style={{ fontWeight: 600, color: '#000' }}>Selecciona las etapas a rechazar:</label>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 8 }}>
                                 {(etapas[p.id_proceso] || [])
-                                  .filter(et => et.nombre_etapa !== 'Ingreso de papelería' && et.estado === 'Completada')
+                                  .filter(et => et.nombre_etapa !== 'Ingreso de papelería' && et.estado === 'Completada' && !et.es_revision)
                                   .map(et => (
                                     <div key={et.id_etapa_proceso} style={{ background: 'white', color: '#000', borderRadius: 8, border: '1.5px solid #e9ecef', padding: '8px 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
                                       <input

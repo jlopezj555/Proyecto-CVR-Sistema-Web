@@ -75,6 +75,8 @@ const PapeleriaCRUD: React.FC = () => {
           // Intentar consultar procesos disponibles para el empleado (mis-procesos). Si 403 o vacío, intentar /api/procesos (admin)
           let rows: any[] = [];
           try {
+            const sessionRole = localStorage.getItem('current_role')
+            if (sessionRole) params.append('rol', sessionRole)
             const resp = await fetch(`${API_CONFIG.BASE_URL}/api/mis-procesos?${params.toString()}`, { headers: { Authorization: `Bearer ${token}` } });
             if (resp.status === 200) {
               const json = await resp.json();

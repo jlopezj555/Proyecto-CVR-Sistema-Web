@@ -2510,6 +2510,7 @@ app.get('/api/mis-empresas', verificarToken, async (req, res) => {
 // Obtener etapas de un proceso para el empleado autenticado
 app.get('/api/mis-procesos/:id/etapas', verificarToken, async (req, res) => {
   const { id } = req.params;
+  const { rol } = req.query; // nombre de rol con el que el usuario inició sesión (opcional)
   try {
     // Obtener id_empleado del usuario autenticado
     const [usrRows] = await pool.query('SELECT id_empleado FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
@@ -2525,8 +2526,20 @@ app.get('/api/mis-procesos/:id/etapas', verificarToken, async (req, res) => {
     }
 
     // Traer solo etapas cuyos roles estén asignados al empleado en la empresa del proceso
+    // Si se provee `rol` (nombre de rol con el que el usuario inició sesión) y ese rol no es de revisión,
+    // excluir etapas cuyo EtapaCatalogo.es_revision = TRUE para evitar mostrar etapas de revisión a roles no revisores.
+    const rolSesion = rol ? String(rol) : null;
+    const esRolRevisor = rolSesion ? /revisor/i.test(rolSesion) : null;
+
+    let extraWhere = '';
+    const params = [id, empleadoId];
+    if (rolSesion && !esRolRevisor) {
+      // excluir etapas catalogadas como es_revision
+      extraWhere = " AND (et.es_revision = FALSE OR et.es_revision IS NULL)";
+    }
+
     const [rows] = await pool.query(
-      `SELECT ep.*, r.nombre_rol, et.nombre_etapa, et.descripcion AS etapa_descripcion
+      `SELECT ep.*, r.nombre_rol, et.nombre_etapa, et.descripcion AS etapa_descripcion, et.es_revision
        FROM EtapaProceso ep
        INNER JOIN Proceso p ON p.id_proceso = ep.id_proceso
        LEFT JOIN Rol r ON ep.id_rol = r.id_rol
@@ -2536,8 +2549,9 @@ app.get('/api/mis-procesos/:id/etapas', verificarToken, async (req, res) => {
            SELECT 1 FROM AsignacionRol ar
            WHERE ar.id_empleado = ? AND ar.id_rol = ep.id_rol AND ar.id_empresa = p.id_empresa AND ar.estado = 'Activo'
          )
+         ${extraWhere}
        ORDER BY ep.fecha_inicio ASC, ep.id_etapa_proceso ASC`,
-      [id, empleadoId]
+      params
     );
 
     res.json({ success: true, data: rows });
@@ -3147,6 +3161,14 @@ app.post('/api/procesos/:id/confirmar-envio', verificarToken, verificarSecretari
 
     // Marcar el proceso como completado
     await pool.query('UPDATE Proceso SET estado = "Completado", fecha_completado = NOW() WHERE id_proceso = ?', [id]);
+
+    // Marcar fecha de entrega en la tabla Papeleria si existe un registro vinculado
+    try {
+      await pool.query('UPDATE Papeleria SET fecha_entrega = NOW(), estado = ? WHERE id_proceso = ?', ['Entregada', id]);
+    } catch (err) {
+      // No bloquear la operación principal por errores aquí, solo loggear
+      console.error('Error actualizando fecha_entrega en Papeleria para proceso', id, err);
+    }
 
     // Enviar notificación de proceso enviado
     enviarNotificacionProcesoEnviado(id);
