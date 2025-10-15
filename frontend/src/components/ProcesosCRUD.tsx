@@ -11,11 +11,15 @@ const ProcesosCRUD: React.FC = () => {
   useEffect(() => {
     const token = localStorage.getItem('token');
     // Cargar empresas
-  fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
+    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
-      .then(data => setEmpresas(data.data || []))
+      .then(data => {
+        const rows = data.data || [];
+        const sorted = rows.slice().sort((a: any, b: any) => (String(a.nombre_empresa || '')).localeCompare(String(b.nombre_empresa || '')));
+        setEmpresas(sorted);
+      })
       .catch(console.error);
   }, []);
 

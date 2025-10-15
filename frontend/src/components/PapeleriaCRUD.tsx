@@ -15,7 +15,8 @@ const PapeleriaCRUD: React.FC = () => {
           const json = await resp.json();
           const rows = json?.data || [];
           if (rows && rows.length > 0) {
-            setEmpresas(rows);
+            const sorted = rows.slice().sort((a: any, b: any) => (String(a.nombre_empresa || '')).localeCompare(String(b.nombre_empresa || '')));
+            setEmpresas(sorted);
             return;
           }
         }
@@ -26,8 +27,10 @@ const PapeleriaCRUD: React.FC = () => {
       // Fallback: listar todas las empresas (para administradores)
       try {
         const resp2 = await fetch(`${API_CONFIG.BASE_URL}/api/empresas`, { headers: { Authorization: `Bearer ${token}` } });
-        const json2 = await resp2.json();
-        setEmpresas(json2?.data || []);
+  const json2 = await resp2.json();
+  const rows2 = json2?.data || [];
+  const sorted2 = rows2.slice().sort((a: any, b: any) => (String(a.nombre_empresa || '')).localeCompare(String(b.nombre_empresa || '')));
+  setEmpresas(sorted2);
       } catch (e) {
         console.error('Error cargando empresas:', e);
       }
