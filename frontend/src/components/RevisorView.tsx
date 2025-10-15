@@ -63,17 +63,6 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
     setLoading(true)
     try {
       const params: any = {}
-      // Espera a que exista current_role en localStorage para evitar llamadas prematuras
-      const waitForCurrentRole = async (timeout = 5000, interval = 100) => {
-        const start = Date.now()
-        while (Date.now() - start < timeout) {
-          const r = localStorage.getItem('current_role')
-          if (r) return r
-          await new Promise(res => setTimeout(res, interval))
-        }
-        return null
-      }
-      await waitForCurrentRole()
       if (empresaFiltro) params.empresa = empresaFiltro
       if (mesFiltro && anioFiltro) {
         // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
@@ -106,17 +95,6 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const loadEtapas = async (id: number) => {
     setLoadingEtapas(prev => ({ ...prev, [id]: true }))
     try {
-      // Espera a que exista current_role en localStorage antes de cargar las etapas
-      const waitForCurrentRole = async (timeout = 5000, interval = 100) => {
-        const start = Date.now()
-        while (Date.now() - start < timeout) {
-          const r = localStorage.getItem('current_role')
-          if (r) return r
-          await new Promise(res => setTimeout(res, interval))
-        }
-        return null
-      }
-      await waitForCurrentRole()
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/revisor/procesos/${id}/etapas`, {
         headers: { Authorization: `Bearer ${token}` }
       })
