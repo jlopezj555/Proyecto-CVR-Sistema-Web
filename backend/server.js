@@ -68,6 +68,15 @@ let pool;
 if (process.env.DATABASE_URL) {
   console.log("🔌 Conectando a MySQL usando DATABASE_URL");
   pool = mysql.createPool(process.env.DATABASE_URL);
+  // Forzar time_zone por sesión a Guatemala en conexiones creadas desde el pool
+  try {
+    pool.on('connection', (conn) => {
+      try { conn.query("SET time_zone = '-06:00'"); } catch (e) { console.warn('Warning: no se pudo forzar time_zone en la conexión MySQL (DATABASE_URL):', e && e.message ? e.message : e); }
+    });
+    console.log("MySQL pool (DATABASE_URL): se configurará time_zone='-06:00' en cada conexión");
+  } catch (e) {
+    console.warn('No fue posible configurar el time_zone en la rama DATABASE_URL:', e && e.message ? e.message : e);
+  }
 } else {
   console.log("🔧 DATABASE_URL no encontrada — usando configuración local por piezas");
   pool = mysql.createPool({
@@ -78,8 +87,33 @@ if (process.env.DATABASE_URL) {
     port: toNumber(process.env.DB_PORT, 3306),
     waitForConnections: true,
     connectionLimit: toNumber(process.env.DB_CONN_LIMIT, 10),
+    // timezone para que el driver interprete/serialize fechas usando UTC-06:00
+    timezone: '-06:00',
     queueLimit: 0
   });
+
+  // Configurar timezone para parsing de fechas en el driver (UTC-6 Guatemala)
+  // y forzar la zona de sesión MySQL en cada nueva conexión del pool.
+  try {
+    // timezone option ayuda al driver a serializar/deserializar fechas
+    // (mysql2 acepta offsets como '-06:00')
+    pool.config = pool.config || {};
+    if (!pool.config.connectionConfig) pool.config.connectionConfig = {};
+    pool.config.connectionConfig.timezone = '-06:00';
+
+    // Ejecutar SET time_zone en cada conexión nueva
+    pool.on('connection', (conn) => {
+      try {
+        conn.query("SET time_zone = '-06:00'");
+      } catch (e) {
+        console.warn('Warning: no se pudo forzar time_zone en la conexión MySQL:', e && e.message ? e.message : e);
+      }
+    });
+
+    console.log("MySQL pool: sesión configurada para time_zone='-06:00' (Guatemala)");
+  } catch (e) {
+    console.warn('No fue posible configurar la zona horaria del pool MySQL:', e && e.message ? e.message : e);
+  }
 }
 
 // Comprobar conexión (no aborta el proceso si falla)
