@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import CRUDTable from './CRUDTable';
 import API_CONFIG from '../config/api'
 
@@ -135,6 +136,62 @@ const ProcesosCRUD: React.FC = () => {
     queryParams.year = anioFiltro;
   }
 
+  // Control de visibilidad especial para encargada/o de impresión
+  const sessionRole = (localStorage.getItem('rol') || '').toLowerCase();
+  const isImpresora = sessionRole.includes('impres');
+
+  // Si es impresora, precargar etapas para poder filtrar procesos según la regla
+  const [etapasPorProceso, setEtapasPorProceso] = useState<Record<number, any[]>>({});
+  const [loadingEtapas, setLoadingEtapas] = useState(false);
+
+  useEffect(() => {
+    if (!isImpresora) return;
+    let mounted = true;
+    (async () => {
+      setLoadingEtapas(true);
+      try {
+        const token = localStorage.getItem('token');
+        // Obtener todos los procesos con los mismos params que CRUDTable
+        const resp = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos`, { headers: { Authorization: `Bearer ${token}` }, params: queryParams });
+        const procesos = resp?.data?.data || [];
+        const etapasMap: Record<number, any[]> = {};
+        // Traer etapas por proceso (paralelo)
+        await Promise.all(procesos.map(async (p: any) => {
+          try {
+            const r = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos/${p.id_proceso}/etapas`, { headers: { Authorization: `Bearer ${token}` } });
+            etapasMap[p.id_proceso] = r?.data?.data || [];
+          } catch (e) {
+            etapasMap[p.id_proceso] = [];
+          }
+        }));
+        if (mounted) setEtapasPorProceso(etapasMap);
+      } catch (e) {
+        console.error('Error preloading procesos/etapas for impresora:', e);
+      } finally {
+        if (mounted) setLoadingEtapas(false);
+      }
+    })();
+    return () => { mounted = false };
+    // Recalcular cuando cambian los filtros (queryParams)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(queryParams), isImpresora]);
+
+  const filterForImpresora = (row: any) => {
+    if (!isImpresora) return true;
+    // Si aún no cargamos las etapas del proceso, ocultarlo hasta tener datos
+    const etapas = etapasPorProceso[row.id_proceso];
+    if (!etapas) return false;
+    // Buscar la etapa de impresión (nombre que contenga 'impres' o 'cuadern')
+    const idx = etapas.findIndex((e: any) => String(e.nombre_etapa || '').toLowerCase().includes('impres') || String(e.nombre_etapa || '').toLowerCase().includes('cuadern'));
+    if (idx === -1) return false; // si no hay etapa de impresión, no mostrar
+    // Todas las etapas anteriores a la etapa de impresión deben estar completas
+    for (let i = 0; i < idx; i++) {
+      const est = etapas[i];
+      if (!est || String(est.estado || '').toLowerCase() !== 'completada') return false;
+    }
+    return true;
+  };
+
   return (
     <div>
       {/* Filtros */}
@@ -177,6 +234,10 @@ const ProcesosCRUD: React.FC = () => {
         </div>
       </div>
 
+      {isImpresora && loadingEtapas && (
+        <div style={{ padding: 12, background: 'white', borderRadius: 8, marginBottom: 12 }}>Cargando procesos y etapas para verificación de impresión...</div>
+      )}
+
       <CRUDTable
         title="Cuadernillos"
         endpoint="procesos"
@@ -184,6 +245,7 @@ const ProcesosCRUD: React.FC = () => {
         createFields={createFields}
         editFields={editFields}
         queryParams={queryParams}
+        filterFunction={filterForImpresora}
       />
     </div>
   );

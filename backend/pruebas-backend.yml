@@ -1,0 +1,142 @@
+config:
+  target: "https://proyecto-cvr-sistema-web-production.up.railway.app"
+  # Para pruebas locales, cambiar a: target: "http://localhost:8080"
+  phases:
+    - duration: 120        # duración extendida para pruebas completas
+      arrivalRate: 2      # menos usuarios para evitar límites
+  defaults:
+    headers:
+      Content-Type: application/json
+scenarios:
+  # Escenario 1: Login y acceso a endpoints básicos
+  - name: "Test Login and Basic Endpoints"
+    flow:
+      - post:
+          url: "/api/login"
+          json:
+            correo: "impuestos@cvrasesoria.com.gt"  # Cambiar por un correo válido de prueba
+            contrasena: "*********" #dato falso temporal
+          capture:
+            json: $.token
+            as: token
+      - get:
+          url: "/api/me"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/api/health"
+      - post:
+          url: "/api/contact"
+          json:
+            nombre: "Usuario de Prueba"
+            correo: "test@example.com"
+            mensaje: "Mensaje de prueba desde Artillery"
+
+  # Escenario 2: CRUD de empresas (requiere admin)
+  - name: "Test Company CRUD Operations"
+    flow:
+      - post:
+          url: "/api/login"
+          json:
+            correo: "admin@cvrasesoria.com"
+            contrasena: "Admin123$"
+          capture:
+            json: $.token
+            as: token
+      - get:
+          url: "/api/empresas"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - post:
+          url: "/api/empresas"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            nombre_empresa: "Empresa de Prueba Artillery"
+            direccion_empresa: "Dirección de prueba"
+            telefono_empresa: "12345678"
+            correo_empresa: "empresa@test.com"
+          capture:
+            json: $.data.id
+            as: empresaId
+      - put:
+          url: "/api/empresas/{{ empresaId }}"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            nombre_empresa: "Empresa Actualizada Artillery"
+            direccion_empresa: "Dirección actualizada"
+            telefono_empresa: "87654321"
+            correo_empresa: "empresa@updated.com"
+
+  # Escenario 3: Empleado endpoints (si hay empleado)
+  - name: "Test Employee Operations"
+    flow:
+      - post:
+          url: "/api/login"
+          json:
+            correo: "thelmayolandajuarez@gmail.com"  # Cambiar por correo de empleado
+            contrasena: "Thelma123$"
+          capture:
+            json: $.token
+            as: token
+      - get:
+          url: "/api/mis-procesos"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/api/mis-empresas"
+          headers:
+            Authorization: "Bearer {{ token }}"
+
+  # Escenario 4: Carga de procesos y etapas
+  - name: "Test Process Listing and Details"
+    flow:
+      - post:
+          url: "/api/login"
+          json:
+            correo: "thelmayolandajuarez@gmail.com"
+            contrasena: "Thelma123$"
+          capture:
+            json: $.token
+            as: token
+      - get:
+          url: "/api/procesos"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/api/papeleria"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/api/roles"
+          headers:
+            Authorization: "Bearer {{ token }}"
+
+  # Escenario 5: Registro de usuario (endpoint público)
+  - name: "Test User Registration"
+    flow:
+      - post:
+          url: "/api/register"
+          json:
+            nombre: "Usuario Artillery Test"
+            correo: "artillery-test-{{ $randomInt }}@example.com"
+            contrasena: "testpass123"
+
+  # Escenario 6: Verificación de contraseña
+  - name: "Test Password Verification"
+    flow:
+      - post:
+          url: "/api/login"
+          json:
+            correo: "admin@cvrasesoria.com"
+            contrasena: "Admin123$"
+          capture:
+            json: $.token
+            as: token
+      - post:
+          url: "/api/verify-password"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            contrasena: "Admin123$"
