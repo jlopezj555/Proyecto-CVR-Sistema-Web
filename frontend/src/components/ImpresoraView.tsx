@@ -161,38 +161,9 @@ const ImpresoraView: React.FC<{ nombre: string }> = ({ nombre }) => {
     { value: 10, label: 'Octubre' }, { value: 11, label: 'Noviembre' }, { value: 12, label: 'Diciembre' }
   ]
 
-  // Función auxiliar para normalizar texto (quitar tildes y convertir a minúsculas)
-  const normalizeText = (text: string) => {
-    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  };
-
-  // Lista de variantes del nombre de la etapa de impresión
-  const etapaVariants = [
-    'impresion de cuadernillo',
-    'impresion cuadernillo',
-    'imprimir cuadernillo',
-    'impresion',
-    'cuadernillo'
-  ];
-
-  // FILTRO: solo mostrar procesos cuya etapa de impresión exista y todas las etapas anteriores estén completadas
-  const procesosFiltrados = procesos.filter(proceso => {
-    const etapas = etapasPorProceso[proceso.id_proceso] || [];
-    // Buscar la etapa de impresión usando coincidencia flexible
-    const idxImpresion = etapas.findIndex(e => {
-      const nombreNormalizado = normalizeText(e.nombre_etapa || '');
-      return etapaVariants.some(variant => nombreNormalizado.includes(variant));
-    });
-    if (idxImpresion === -1) return false
-    for (let i = 0; i < idxImpresion; i++) {
-      if (String(etapas[i]?.estado || '').toLowerCase() !== 'completada') return false
-    }
-    const etapaImpresion = etapas[idxImpresion]
-    if (!etapaImpresion) return false
-    const estadoImpresion = String(etapaImpresion.estado || '').toLowerCase()
-    if (estadoImpresion === 'completada' || estadoImpresion === 'rechazada') return false
-    return true
-  })
+  // El backend ya devuelve solo procesos listos para impresión.
+  // Mostrar directamente los procesos devueltos.
+  const procesosFiltrados = procesos
 
   return (
     <div className="admin-view-container">

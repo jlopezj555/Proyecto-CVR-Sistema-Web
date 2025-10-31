@@ -3433,13 +3433,6 @@ app.listen(PORT, '0.0.0.0', () => {
 // Endpoint específico para procesos listos para impresión
 app.get('/api/impresora/procesos-listos', verificarToken, async (req, res) => {
   const { empresa, rol, month, year } = req.query;
-  let userId;
-  try {
-    const decoded = jwt.verify(req.token, JWT_SECRET);
-    userId = decoded.id;
-  } catch (err) {
-    return res.status(401).json({ success: false, message: 'Token inválido' });
-  }
 
   try {
     // 1. Obtener el ID de la etapa de impresión desde el catálogo
@@ -3474,12 +3467,11 @@ app.get('/api/impresora/procesos-listos', verificarToken, async (req, res) => {
         INNER JOIN Empresa e ON p.id_empresa = e.id_empresa
         INNER JOIN EtapaProceso ep ON p.id_proceso = ep.id_proceso
         INNER JOIN EtapaCatalogo ec ON ep.id_etapa = ec.id_etapa
-        INNER JOIN RolEtapaCatalogo rec ON ec.id_etapa = rec.id_etapa
-        INNER JOIN Asignacion a ON ep.id_asignacion = a.id_asignacion
-        WHERE a.id_usuario = ? AND ep.estado != 'Eliminada'
+  INNER JOIN RolEtapaCatalogo rec ON ec.id_etapa = rec.id_etapa
+  WHERE ep.estado != 'Eliminada'
     `;
 
-    const params = [userId];
+  const params = [];
     let filterConditions = [];
 
     if (empresa) {
@@ -3501,6 +3493,8 @@ app.get('/api/impresora/procesos-listos', verificarToken, async (req, res) => {
       query += ' AND ' + filterConditions.join(' AND ');
     }
 
+    // Nota: no filtramos por asignación a usuario (a.id_usuario) aquí porque la encargada de impresión
+    // debe ver procesos listos independientemente de si una asignación individual ya existe.
     query += `)
       SELECT DISTINCT 
         pce.id_proceso,

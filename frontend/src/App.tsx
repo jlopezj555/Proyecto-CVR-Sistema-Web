@@ -342,10 +342,18 @@ function App() {
                     key={r}
                     className="password-btn-verify"
                     onClick={() => {
-                      // Si elige un rol que contiene 'revisor' ir a RevisorView, de lo contrario UserView
-                      const isRevisor = r.toLowerCase().includes('revisor');
-                      localStorage.setItem('rol', isRevisor ? r : 'Empleado');
-                      setUserRole(isRevisor ? r : 'Empleado');
+                      // Detectar revisor, secretaria o impresora por substrings tolerantes
+                      const low = r.toLowerCase();
+                      const isRevisor = low.includes('revisor');
+                      const isSecretaria = low.includes('secretaria');
+                      const isImpresora = low.includes('encarg') || low.includes('impres');
+                      let roleToStore = 'Empleado';
+                      if (isRevisor) roleToStore = r;
+                      else if (isSecretaria) roleToStore = r;
+                      else if (isImpresora) roleToStore = r;
+
+                      localStorage.setItem('rol', roleToStore);
+                      setUserRole(roleToStore);
                       setRolePickerOpen(false);
                     }}
                   >
