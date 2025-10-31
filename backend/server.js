@@ -3526,6 +3526,48 @@ app.get('/api/impresora/procesos-listos', verificarToken, async (req, res) => {
 
     const [procesos] = await pool.query(query, params);
 
+    // Si no encontramos procesos usando la lógica por orden de etapas, aplicar fallback:
+    // devolver procesos cuyo progreso redondeado sea 82% (caso: 9/11 completadas -> 81.818... -> 82)
+    if ((!procesos || procesos.length === 0)) {
+      console.log('No se encontraron procesos por orden de etapas; aplicando fallback por avance 82%');
+      const [[totalRow]] = await pool.query('SELECT COUNT(*) AS total FROM EtapaCatalogo');
+      const total = Number(totalRow?.total || 0);
+      if (total > 0) {
+        let fallbackQuery = `
+          SELECT DISTINCT p.id_proceso,
+            p.nombre_proceso,
+            p.tipo_proceso,
+            p.estado,
+            p.fecha_creacion,
+            p.fecha_completado,
+            e.nombre_empresa,
+            COALESCE(epc.completadas, 0) AS completadas
+          FROM Proceso p
+          INNER JOIN Empresa e ON p.id_empresa = e.id_empresa
+          LEFT JOIN (
+            SELECT id_proceso, SUM(CASE WHEN estado = 'Completada' THEN 1 ELSE 0 END) AS completadas
+            FROM EtapaProceso
+            GROUP BY id_proceso
+          ) epc ON epc.id_proceso = p.id_proceso
+          WHERE ROUND((COALESCE(epc.completadas,0) / ?) * 100) = ?
+        `;
+        const fallbackParams = [total, 82];
+
+        if (empresa) {
+          fallbackQuery += ' AND p.id_empresa = ?';
+          fallbackParams.push(empresa);
+        }
+        if (month && year) {
+          fallbackQuery += ' AND MONTH(p.fecha_creacion) = ? AND YEAR(p.fecha_creacion) = ?';
+          fallbackParams.push(month, year);
+        }
+        fallbackQuery += ' ORDER BY p.fecha_creacion DESC';
+
+        const [fallbackResultados] = await pool.query(fallbackQuery, fallbackParams);
+        return res.json({ success: true, data: fallbackResultados, fallback: true });
+      }
+    }
+
     res.json({
       success: true,
       data: procesos
