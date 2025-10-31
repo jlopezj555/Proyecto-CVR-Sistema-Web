@@ -24,9 +24,17 @@ const ProcesosCRUD: React.FC = () => {
       .catch(console.error);
   }, []);
 
+  const meses = [
+    { value: 1, label: 'Enero' }, { value: 2, label: 'Febrero' }, { value: 3, label: 'Marzo' },
+    { value: 4, label: 'Abril' }, { value: 5, label: 'Mayo' }, { value: 6, label: 'Junio' },
+    { value: 7, label: 'Julio' }, { value: 8, label: 'Agosto' }, { value: 9, label: 'Septiembre' },
+    { value: 10, label: 'Octubre' }, { value: 11, label: 'Noviembre' }, { value: 12, label: 'Diciembre' }
+  ];
+
   const columns = [
     { key: 'id_proceso', label: 'ID' },
     { key: 'nombre_proceso', label: 'Nombre del Proceso' },
+    { key: 'descripcion_proceso', label: 'Descripción' },
     { key: 'tipo_proceso', label: 'Tipo' },
     {
       key: 'estado',
@@ -48,9 +56,13 @@ const ProcesosCRUD: React.FC = () => {
       }
     },
     { key: 'nombre_empresa', label: 'Empresa' },
+    { key: 'mes', label: 'Mes' },
+    { key: 'anio', label: 'Año' },
     { key: 'fecha_creacion', label: 'Fecha Creación' },
     { key: 'fecha_completado', label: 'Fecha Completado' }
   ];
+
+  
 
   const createFields = [
     { 
@@ -63,6 +75,9 @@ const ProcesosCRUD: React.FC = () => {
         label: emp.nombre_empresa
       }))
     },
+    { key: 'descripcion_proceso', label: 'Descripción', type: 'text' as const, required: false },
+    { key: 'mes', label: 'Mes asignado', type: 'select' as const, required: true, options: meses.map(m => ({ value: m.value, label: m.label })) },
+    { key: 'anio', label: 'Año asignado', type: 'select' as const, required: true, options: Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => ({ value: y, label: String(y) })) },
     { key: 'nombre_proceso', label: 'Nombre del Proceso', type: 'text' as const, required: true },
     { 
       key: 'tipo_proceso', 
@@ -87,6 +102,9 @@ const ProcesosCRUD: React.FC = () => {
         label: emp.nombre_empresa
       }))
     },
+    { key: 'descripcion_proceso', label: 'Descripción', type: 'text' as const, required: false },
+    { key: 'mes', label: 'Mes asignado', type: 'select' as const, required: true, options: meses.map(m => ({ value: m.value, label: m.label })) },
+    { key: 'anio', label: 'Año asignado', type: 'select' as const, required: true, options: Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => ({ value: y, label: String(y) })) },
     { key: 'nombre_proceso', label: 'Nombre del Proceso', type: 'text' as const, required: true },
     { 
       key: 'tipo_proceso', 
@@ -111,30 +129,11 @@ const ProcesosCRUD: React.FC = () => {
     }
   ];
 
-  const meses = [
-    { value: 1, label: 'Enero' }, { value: 2, label: 'Febrero' }, { value: 3, label: 'Marzo' },
-    { value: 4, label: 'Abril' }, { value: 5, label: 'Mayo' }, { value: 6, label: 'Junio' },
-    { value: 7, label: 'Julio' }, { value: 8, label: 'Agosto' }, { value: 9, label: 'Septiembre' },
-    { value: 10, label: 'Octubre' }, { value: 11, label: 'Noviembre' }, { value: 12, label: 'Diciembre' }
-  ];
-
   const queryParams: Record<string, any> = {};
   if (empresaFiltro) queryParams.empresa = empresaFiltro;
-  if (mesFiltro && anioFiltro) {
-    // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
-    const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
-    const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro;
-    queryParams.month = mesAnterior;
-    queryParams.year = anioAnterior;
-  } else if (mesFiltro) {
-    // Si solo se selecciona mes sin año, usar año actual
-    const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
-    const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear());
-    queryParams.month = mesAnterior;
-    queryParams.year = anioAnterior;
-  } else if (anioFiltro) {
-    queryParams.year = anioFiltro;
-  }
+  // En el nuevo esquema `Proceso` tiene columnas `mes` y `anio`. Enviar directamente.
+  if (mesFiltro) queryParams.month = mesFiltro;
+  if (anioFiltro) queryParams.year = anioFiltro;
 
   // Control de visibilidad especial para encargada/o de impresión
   const sessionRole = (localStorage.getItem('rol') || '').toLowerCase();

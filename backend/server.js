@@ -1299,10 +1299,10 @@ app.get('/api/procesos', verificarToken, verificarAdmin, async (req, res) => {
     let where = ' WHERE 1=1';
     if (empresa) { where += ' AND p.id_empresa = ?'; params.push(Number(empresa)); }
 
-    // Importante: los filtros de mes/año se aplican al "mes asignado" del proceso,
-    // que es el mes anterior a la fecha de creación
-    if (year) { where += ' AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?'; params.push(Number(year)); }
-    if (month) { where += ' AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?'; params.push(Number(month)); }
+    // Nuevo esquema: Proceso tiene columnas `mes` y `anio` (valores numéricos).
+    // Aplicar filtros directamente sobre esas columnas cuando se provean.
+    if (year) { where += ' AND p.anio = ?'; params.push(Number(year)); }
+    if (month) { where += ' AND p.mes = ?'; params.push(Number(month)); }
 
     const [rows] = await pool.query(
       `SELECT p.*, e.nombre_empresa, e.correo_empresa
@@ -1321,7 +1321,7 @@ app.get('/api/procesos', verificarToken, verificarAdmin, async (req, res) => {
 
 // Crear proceso (sin cliente)
 app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
-  const { id_empresa, nombre_proceso, tipo_proceso } = req.body;
+  const { id_empresa, nombre_proceso, tipo_proceso, descripcion_proceso, mes, anio } = req.body;
 
   try {
     const [empresa] = await pool.query('SELECT id_empresa FROM Empresa WHERE id_empresa = ?', [id_empresa]);
@@ -1329,41 +1329,43 @@ app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
     }
 
-    // Validar unicidad por empresa/mes asignado/tipo (solo un proceso de Venta y uno de Compra por mes)
+    // Calcular mes/anio por defecto (mes asignado = mes anterior) si no se proveen
     const now = new Date();
     const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonth = prev.getMonth() + 1; // 1-12
-    const prevYear = prev.getFullYear();
+    const defaultMes = prev.getMonth() + 1; // 1-12
+    const defaultAnio = prev.getFullYear();
+    const finalMes = mes ? Number(mes) : defaultMes;
+    const finalAnio = anio ? Number(anio) : defaultAnio;
+
+    // Validar unicidad por empresa/mes/anio/tipo (solo un proceso de cada tipo por mes asignado)
     const [[dup]] = await pool.query(
       `SELECT COUNT(*) AS cnt
        FROM Proceso p
-       WHERE p.id_empresa = ? AND p.tipo_proceso = ?
-         AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?
-         AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?`,
-      [id_empresa, tipo_proceso, prevYear, prevMonth]
+       WHERE p.id_empresa = ? AND p.tipo_proceso = ? AND p.mes = ? AND p.anio = ?`,
+      [id_empresa, tipo_proceso, finalMes, finalAnio]
     );
     if (Number(dup?.cnt || 0) > 0) {
       const alterno = tipo_proceso === 'Venta' ? 'Compra' : 'Venta';
-      return res.status(400).json({ success: false, message: `Ya existe un proceso de ${tipo_proceso} para este mes asignado. Solo puedes registrar ${alterno}.` });
+      return res.status(400).json({ success: false, message: `Ya existe un proceso de ${tipo_proceso} para este mes/año asignado. Solo puedes registrar ${alterno}.` });
     }
 
-    // Si no viene nombre_proceso, generar con mes anterior
+    // Si no viene nombre_proceso, generar con mes/anio por defecto
     let finalNombre = nombre_proceso;
     if (!finalNombre || !String(finalNombre).trim()) {
-      const mes = prev.toLocaleString('es-ES', { month: 'long' });
-      const anio = prev.getFullYear();
-      finalNombre = `Proceso de ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`;
+      const mesName = prev.toLocaleString('es-ES', { month: 'long' });
+      const anioName = finalAnio;
+      finalNombre = `Proceso de ${mesName.charAt(0).toUpperCase() + mesName.slice(1)} ${anioName}`;
     }
 
     const [result] = await pool.query(
-      'INSERT INTO Proceso (id_empresa, nombre_proceso, tipo_proceso) VALUES (?, ?, ?)',
-      [id_empresa, finalNombre, tipo_proceso]
+      'INSERT INTO Proceso (id_empresa, nombre_proceso, tipo_proceso, descripcion_proceso, mes, anio) VALUES (?, ?, ?, ?, ?, ?)',
+      [id_empresa, finalNombre, tipo_proceso, descripcion_proceso ?? null, finalMes, finalAnio]
     );
 
     // Instanciar etapas segun asignaciones activas
     await instanciarEtapasParaProceso(result.insertId, id_empresa);
 
-    // Marcar "Ingreso de papelería" como completada para este proceso
+    // Marcar "Ingreso de papelería" como completada para este proceso (si existe la etapa)
     try {
       await pool.query(
         `UPDATE EtapaProceso ep
@@ -1374,16 +1376,6 @@ app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin
       );
     } catch (err) {
       console.error('Error marcando ingreso de papelería como completada (admin):', err);
-    }
-
-    // Crear registro de Papelería vinculado
-    try {
-      await pool.query(
-        'INSERT INTO Papeleria (id_empresa, descripcion, tipo_papeleria, id_proceso) VALUES (?, ?, ?, ?)',
-        [id_empresa, 'Creado automáticamente desde Proceso', tipo_proceso, result.insertId]
-      );
-    } catch (err) {
-      console.error('Error creando papelería asociada al proceso:', err);
     }
 
     res.status(201).json({ 
@@ -1400,10 +1392,10 @@ app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin
 // Actualizar proceso (sin cliente)
 app.put('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
   const { id } = req.params;
-  const { id_empresa, nombre_proceso, tipo_proceso, estado } = req.body;
+  const { id_empresa, nombre_proceso, tipo_proceso, estado, descripcion_proceso, mes, anio } = req.body;
 
   try {
-    const [existing] = await pool.query('SELECT id_proceso FROM Proceso WHERE id_proceso = ?', [id]);
+    const [existing] = await pool.query('SELECT * FROM Proceso WHERE id_proceso = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Proceso no encontrado' });
     }
@@ -1413,8 +1405,22 @@ app.put('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswordAd
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
     }
 
-    let updateQuery = 'UPDATE Proceso SET id_empresa = ?, nombre_proceso = ?, tipo_proceso = ?';
-    let updateParams = [id_empresa, nombre_proceso, tipo_proceso];
+    // Si se cambian mes/anio/tipo/id_empresa, validar unicidad
+    const finalMes = mes !== undefined ? Number(mes) : existing[0].mes;
+    const finalAnio = anio !== undefined ? Number(anio) : existing[0].anio;
+    const finalTipo = tipo_proceso || existing[0].tipo_proceso;
+    const finalEmpresa = id_empresa || existing[0].id_empresa;
+
+    const [[dup]] = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM Proceso WHERE id_empresa = ? AND tipo_proceso = ? AND mes = ? AND anio = ? AND id_proceso <> ?`,
+      [finalEmpresa, finalTipo, finalMes, finalAnio, id]
+    );
+    if (Number(dup?.cnt || 0) > 0) {
+      return res.status(400).json({ success: false, message: 'Ya existe otro proceso con el mismo empresa/tipo/mes/anio.' });
+    }
+
+    let updateQuery = 'UPDATE Proceso SET id_empresa = ?, nombre_proceso = ?, tipo_proceso = ?, descripcion_proceso = ?, mes = ?, anio = ?';
+    let updateParams = [id_empresa, nombre_proceso, tipo_proceso, descripcion_proceso ?? null, finalMes, finalAnio];
 
     if (estado) {
       updateQuery += ', estado = ?';
@@ -1483,12 +1489,11 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
 
   try {
     let [rows] = await pool.query(`
-      SELECT ep.*, 
-             CASE WHEN et.nombre_etapa LIKE 'Ingreso de papeler%'
-                       AND ppr.descripcion = 'Creado automáticamente desde Proceso'
-                  THEN NULL ELSE r.nombre_rol END AS nombre_rol,
-             et.nombre_etapa, et.descripcion as etapa_descripcion,
-             eto.nombre_etapa as etapa_origen_nombre,
+   SELECT ep.*, 
+       CASE WHEN et.nombre_etapa LIKE 'Ingreso de papeler%'
+         THEN NULL ELSE r.nombre_rol END AS nombre_rol,
+       et.nombre_etapa, et.descripcion as etapa_descripcion,
+       eto.nombre_etapa as etapa_origen_nombre,
              (
                SELECT GROUP_CONCAT(CONCAT(e.nombre, ' ', e.apellido) SEPARATOR ', ')
                FROM AsignacionRol ar
@@ -1502,7 +1507,6 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
       LEFT JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
       LEFT JOIN EtapaCatalogo eto ON ep.etapa_origen_error = eto.id_etapa
       LEFT JOIN Proceso p ON p.id_proceso = ep.id_proceso
-      LEFT JOIN Papeleria ppr ON ppr.id_proceso = ep.id_proceso
       LEFT JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
       WHERE ep.id_proceso = ?
       ORDER BY rec.orden ASC, ep.fecha_inicio ASC, ep.id_etapa_proceso ASC
@@ -1511,13 +1515,12 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
       const [proc] = await pool.query('SELECT id_empresa FROM Proceso WHERE id_proceso = ? LIMIT 1', [id]);
       if (proc.length > 0) {
         await instanciarEtapasParaProceso(id, proc[0].id_empresa);
-        const [rows2] = await pool.query(`
-          SELECT ep.*, 
-                 CASE WHEN et.nombre_etapa LIKE 'Ingreso de papeler%'
-                           AND ppr.descripcion = 'Creado automáticamente desde Proceso'
-                      THEN NULL ELSE r.nombre_rol END AS nombre_rol,
-                 et.nombre_etapa, et.descripcion as etapa_descripcion,
-                 eto.nombre_etapa as etapa_origen_nombre,
+     const [rows2] = await pool.query(`
+    SELECT ep.*, 
+        CASE WHEN et.nombre_etapa LIKE 'Ingreso de papeler%'
+          THEN NULL ELSE r.nombre_rol END AS nombre_rol,
+        et.nombre_etapa, et.descripcion as etapa_descripcion,
+        eto.nombre_etapa as etapa_origen_nombre,
                  (
                    SELECT GROUP_CONCAT(CONCAT(e.nombre, ' ', e.apellido) SEPARATOR ', ')
                    FROM AsignacionRol ar
@@ -1531,7 +1534,6 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
           LEFT JOIN EtapaCatalogo et ON ep.id_etapa = et.id_etapa
           LEFT JOIN EtapaCatalogo eto ON ep.etapa_origen_error = eto.id_etapa
           LEFT JOIN Proceso p ON p.id_proceso = ep.id_proceso
-          LEFT JOIN Papeleria ppr ON ppr.id_proceso = ep.id_proceso
           LEFT JOIN RolEtapaCatalogo rec ON rec.id_rol = ep.id_rol AND rec.id_etapa = ep.id_etapa
           WHERE ep.id_proceso = ?
           ORDER BY rec.orden ASC, ep.fecha_inicio ASC, ep.id_etapa_proceso ASC
@@ -1547,212 +1549,12 @@ app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, 
 });
 
 // ============================================
-// ENDPOINTS CRUD PARA PAPELERÍA
+// Papelería: eliminada del esquema
 // ============================================
-
-// Obtener toda la papelería con información de empresa y proceso
-app.get('/api/papeleria', verificarToken, verificarSecretariaOrAdmin, async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT p.*, 
-             e.nombre_empresa, pr.nombre_proceso
-      FROM Papeleria p
-      LEFT JOIN Empresa e ON p.id_empresa = e.id_empresa
-      LEFT JOIN Proceso pr ON p.id_proceso = pr.id_proceso
-      ORDER BY p.id_papeleria ASC
-    `);
-    res.json({ success: true, data: rows });
-  } catch (error) {
-    console.error('Error obteniendo papelería:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-});
-
-// Crear papelería (sin cliente)
-app.post('/api/papeleria', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
-  const { id_empresa, descripcion, tipo_papeleria } = req.body;
-
-  try {
-    const [empresa] = await pool.query('SELECT id_empresa FROM Empresa WHERE id_empresa = ?', [id_empresa]);
-    if (empresa.length === 0) {
-      return res.status(404).json({ success: false, message: 'Empresa no encontrada' });
-    }
-
-    // Validar unicidad por empresa/mes asignado/tipo (solo un proceso de Venta y uno de Compra por mes)
-    const now = new Date();
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const prevMonth = prev.getMonth() + 1; // 1-12
-    const prevYear = prev.getFullYear();
-
-    const [[dup]] = await pool.query(
-      `SELECT COUNT(*) AS cnt
-       FROM Proceso p
-       WHERE p.id_empresa = ? AND p.tipo_proceso = ?
-         AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?
-         AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?`,
-      [id_empresa, tipo_papeleria, prevYear, prevMonth]
-    );
-    if (Number(dup?.cnt || 0) > 0) {
-      const alterno = tipo_papeleria === 'Venta' ? 'Compra' : 'Venta';
-      return res.status(400).json({ success: false, message: `Ya existe un proceso de ${tipo_papeleria} para este mes asignado. Solo puedes registrar ${alterno}.` });
-    }
-
-    const [result] = await pool.query(
-      'INSERT INTO Papeleria (id_empresa, descripcion, tipo_papeleria) VALUES (?, ?, ?)',
-      [id_empresa, descripcion, tipo_papeleria]
-    );
-
-    // Crear proceso automáticamente y vincular
-    const nuevoProcesoId = await crearProcesoDesdePapeleria(id_empresa, tipo_papeleria);
-    if (nuevoProcesoId) {
-      await pool.query('UPDATE Papeleria SET id_proceso = ? WHERE id_papeleria = ?', [nuevoProcesoId, result.insertId]);
-    }
-
-    res.status(201).json({ 
-      success: true, 
-      message: 'Papelería creada exitosamente',
-      data: { id: result.insertId }
-    });
-  } catch (error) {
-    console.error('Error creando papelería:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-});
-
-// Actualizar papelería
-app.put('/api/papeleria/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { descripcion, estado, fecha_entrega, tipo_papeleria } = req.body;
-
-  try {
-    const [existing] = await pool.query('SELECT * FROM Papeleria WHERE id_papeleria = ?', [id]);
-    if (existing.length === 0) {
-      return res.status(404).json({ success: false, message: 'Papelería no encontrada' });
-    }
-
-    // Si se intenta cambiar el tipo, validar unicidad en el mes asignado
-    if (tipo_papeleria && tipo_papeleria !== existing[0].tipo_papeleria) {
-      const now = new Date();
-      const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const prevMonth = prev.getMonth() + 1;
-      const prevYear = prev.getFullYear();
-      const [[dup]] = await pool.query(
-        `SELECT COUNT(*) AS cnt
-         FROM Proceso p
-         WHERE p.id_empresa = ? AND p.tipo_proceso = ?
-           AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?
-           AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?`,
-        [existing[0].id_empresa, tipo_papeleria, prevYear, prevMonth]
-      );
-      if (Number(dup?.cnt || 0) > 0) {
-        const alterno = tipo_papeleria === 'Venta' ? 'Compra' : 'Venta';
-        return res.status(400).json({ success: false, message: `Ya existe un proceso de ${tipo_papeleria} para este mes asignado. Solo puedes usar ${alterno}.` });
-      }
-    }
-
-    await pool.query(
-      'UPDATE Papeleria SET descripcion = ?, estado = ?, fecha_entrega = ?, tipo_papeleria = ? WHERE id_papeleria = ?',
-      [descripcion, estado, fecha_entrega, tipo_papeleria, id]
-    );
-
-    if (estado === 'Entregada' && tipo_papeleria) {
-      const nuevoProcesoId = await crearProcesoDesdePapeleria(existing[0].id_empresa, tipo_papeleria);
-      if (nuevoProcesoId) {
-        await pool.query('UPDATE Papeleria SET id_proceso = ? WHERE id_papeleria = ?', [nuevoProcesoId, id]);
-      }
-    }
-
-    res.json({ success: true, message: 'Papelería actualizada exitosamente' });
-  } catch (error) {
-    console.error('Error actualizando papelería:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-});
-
-// Función auxiliar para crear proceso desde papelería (sin cliente)
-const crearProcesoDesdePapeleria = async (id_empresa, tipo_papeleria) => {
-  try {
-    const now = new Date();
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const mes = prev.toLocaleString('es-ES', { month: 'long' });
-    const anio = prev.getFullYear();
-    const nombreProceso = `Proceso de ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${anio}`;
-    const [result] = await pool.query(
-      'INSERT INTO Proceso (id_empresa, nombre_proceso, tipo_proceso) VALUES (?, ?, ?)',
-      [id_empresa, nombreProceso, tipo_papeleria]
-    );
-    await instanciarEtapasParaProceso(result.insertId, id_empresa);
-    // Marcar la etapa "Ingreso de papelería" como completada para este proceso
-    try {
-      await pool.query(
-        `UPDATE EtapaProceso ep
-         JOIN EtapaCatalogo ec ON ep.id_etapa = ec.id_etapa
-         SET ep.estado = 'Completada', ep.fecha_inicio = NOW(), ep.fecha_fin = NOW()
-         WHERE ep.id_proceso = ? AND ec.nombre_etapa LIKE 'Ingreso de papeler%'
-        `,
-        [result.insertId]
-      );
-    } catch (err) {
-      console.error('Error marcando ingreso de papelería como completada:', err);
-    }
-
-    // Enviar notificaciones por email a empleados asignados
-    enviarNotificacionNuevoProceso(result.insertId, id_empresa);
-
-    return result.insertId;
-  } catch (error) {
-    console.error('Error creando proceso desde papelería:', error);
-    return null;
-  }
-};
-
-// Eliminar papelería
-app.delete('/api/papeleria/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
-  const { id } = req.params;
-
-  const conn = await pool.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    // Verificar si la papelería existe
-    const [[pap]] = await conn.query('SELECT id_papeleria, id_proceso FROM Papeleria WHERE id_papeleria = ? LIMIT 1', [id]);
-    if (!pap) {
-      await conn.rollback();
-      return res.status(404).json({ success: false, message: 'Papelería no encontrada' });
-    }
-
-    if (pap.id_proceso) {
-      // Verificar que el proceso pueda eliminarse (mismas reglas que /api/procesos/:id)
-      const [[bloqueos]] = await conn.query(
-        `SELECT COUNT(*) AS cnt
-         FROM EtapaProceso ep
-         INNER JOIN EtapaCatalogo ec ON ec.id_etapa = ep.id_etapa
-         WHERE ep.id_proceso = ?
-           AND ep.estado <> 'Pendiente'
-           AND ec.nombre_etapa NOT LIKE 'Ingreso de papeler%'`,
-        [pap.id_proceso]
-      );
-      if (Number(bloqueos?.cnt || 0) > 0) {
-        await conn.rollback();
-        return res.status(400).json({ success: false, message: 'No se puede eliminar: el proceso asociado ya tiene etapas trabajadas.' });
-      }
-
-      // Eliminar proceso (cascadeará EtapaProceso) y luego la papelería
-      await conn.query('DELETE FROM Proceso WHERE id_proceso = ?', [pap.id_proceso]);
-    }
-
-    await conn.query('DELETE FROM Papeleria WHERE id_papeleria = ?', [id]);
-
-    await conn.commit();
-    res.json({ success: true, message: 'Papelería eliminada exitosamente' });
-  } catch (error) {
-    await conn.rollback();
-    console.error('Error eliminando papelería:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  } finally {
-    conn.release();
-  }
-});
+// La tabla `Papeleria` fue eliminada en el nuevo script de base de datos. Los endpoints
+// relacionados con papelería han sido retirados para evitar consultas a una tabla inexistente.
+// Si se necesita funcionalidad equivalente, implementar endpoints nuevos que trabajen con
+// las nuevas columnas/entidades del esquema (por ejemplo usando `Proceso.descripcion_proceso`).
 
 // ============================================
 // ENDPOINTS CRUD PARA ETAPA CATÁLOGO
@@ -3213,13 +3015,7 @@ app.post('/api/procesos/:id/confirmar-envio', verificarToken, verificarSecretari
     // Marcar el proceso como completado
     await pool.query('UPDATE Proceso SET estado = "Completado", fecha_completado = NOW() WHERE id_proceso = ?', [id]);
 
-    // Marcar fecha de entrega en la tabla Papeleria si existe un registro vinculado
-    try {
-      await pool.query('UPDATE Papeleria SET fecha_entrega = NOW(), estado = ? WHERE id_proceso = ?', ['Entregada', id]);
-    } catch (err) {
-      // No bloquear la operación principal por errores aquí, solo loggear
-      console.error('Error actualizando fecha_entrega en Papeleria para proceso', id, err);
-    }
+    // La tabla Papeleria fue eliminada del esquema; no hay acción sobre Papeleria aquí.
 
     // Enviar notificación de proceso enviado
     enviarNotificacionProcesoEnviado(id);
