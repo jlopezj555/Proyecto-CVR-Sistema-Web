@@ -4,8 +4,7 @@ import API_CONFIG from '../config/api'
 import './AdminView.css'
 import './EtapasCuentaView.css'
 import iconProcesos from '../assets/admin-etapas-proceso-white.svg'
-import iconPapeleria from '../assets/admin-papeleria-white.svg'
-import PapeleriaCRUD from './PapeleriaCRUD'
+import ProcesosCRUD from './ProcesosCRUD'
 import PasswordVerificationModal from './PasswordVerificationModal'
 
 interface ProcesoItem {
@@ -192,7 +191,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
             <span className="nav-label">Cuadernillos</span>
           </button>
           <button className={`admin-nav-item ${activeTab === 'papeleria' ? 'active' : ''}`} onClick={() => setActiveTab('papeleria')}>
-            <span className="nav-icon"><img src={iconPapeleria} alt="Papelería" className="nav-icon-img" /></span>
+            <span className="nav-icon"><img src={iconProcesos} alt="Papelería" className="nav-icon-img" /></span>
             <span className="nav-label">Papelería</span>
           </button>
         </nav>
@@ -219,7 +218,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
               onClick={() => setActiveTab('papeleria')}
               title="Papelería"
             >
-              <span className="admin-tab-icon"><img src={iconPapeleria} alt="Papelería" /></span>
+              <span className="admin-tab-icon"><img src={iconProcesos} alt="Papelería" /></span>
               <span className="admin-tab-label">Papelería</span>
             </button>
           </div>
@@ -374,7 +373,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
           )}
           {activeTab === 'papeleria' && (
             <div>
-              <PapeleriaCRUD />
+              <ProcesosCRUD />
             </div>
           )}
           {/* Modal de verificación para confirmar envío */}

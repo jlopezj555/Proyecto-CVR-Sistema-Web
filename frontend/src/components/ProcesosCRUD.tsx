@@ -1,10 +1,40 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import CRUDTable from './CRUDTable';
+import type { TableData } from './CRUDTable';
 import API_CONFIG from '../config/api'
 
+interface Empresa {
+  id_empresa: number;
+  nombre_empresa: string;
+}
+
+interface Etapa {
+  id_etapa: number;
+  nombre_etapa: string;
+  descripcion_etapa?: string;
+  estado: string;
+  fecha_inicio?: string;
+  fecha_fin?: string;
+  id_proceso: number;
+}
+
+interface Proceso {
+  id_proceso: number;
+  nombre_proceso: string;
+  descripcion_proceso?: string;
+  tipo_proceso: 'Venta' | 'Compra';
+  estado: string;
+  mes: number;
+  anio: number;
+  id_empresa: number;
+  nombre_empresa: string;
+  fecha_creacion: string;
+  fecha_completado?: string;
+}
+
 const ProcesosCRUD: React.FC = () => {
-  const [empresas, setEmpresas] = useState<any[]>([]);
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [empresaFiltro, setEmpresaFiltro] = useState<string>('');
   const [anioFiltro, setAnioFiltro] = useState<string>('');
   const [mesFiltro, setMesFiltro] = useState<string>('');
@@ -17,8 +47,10 @@ const ProcesosCRUD: React.FC = () => {
     })
       .then(res => res.json())
       .then(data => {
-        const rows = data.data || [];
-        const sorted = rows.slice().sort((a: any, b: any) => (String(a.nombre_empresa || '')).localeCompare(String(b.nombre_empresa || '')));
+        const rows = ((data as any)?.data || []) as Empresa[];
+        const sorted = rows.slice().sort((a, b) => 
+          (a.nombre_empresa || '').localeCompare(b.nombre_empresa || '')
+        );
         setEmpresas(sorted);
       })
       .catch(console.error);
@@ -140,7 +172,7 @@ const ProcesosCRUD: React.FC = () => {
   const isImpresora = sessionRole.includes('impres');
 
   // Si es impresora, precargar etapas para poder filtrar procesos según la regla
-  const [etapasPorProceso, setEtapasPorProceso] = useState<Record<number, any[]>>({});
+  const [etapasPorProceso, setEtapasPorProceso] = useState<Record<number, Etapa[]>>({});
   const [loadingEtapas, setLoadingEtapas] = useState(false);
 
   useEffect(() => {
@@ -152,13 +184,13 @@ const ProcesosCRUD: React.FC = () => {
         const token = localStorage.getItem('token');
         // Obtener todos los procesos con los mismos params que CRUDTable
         const resp = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos`, { headers: { Authorization: `Bearer ${token}` }, params: queryParams });
-        const procesos = resp?.data?.data || [];
+        const procesos = ((resp.data as any)?.data || []) as Proceso[];
         const etapasMap: Record<number, any[]> = {};
         // Traer etapas por proceso (paralelo)
-        await Promise.all(procesos.map(async (p: any) => {
+        await Promise.all(procesos.map(async (p: Proceso) => {
           try {
             const r = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos/${p.id_proceso}/etapas`, { headers: { Authorization: `Bearer ${token}` } });
-            etapasMap[p.id_proceso] = r?.data?.data || [];
+            etapasMap[p.id_proceso] = ((r.data as any)?.data || []) as Etapa[];
           } catch (e) {
             etapasMap[p.id_proceso] = [];
           }
@@ -175,13 +207,13 @@ const ProcesosCRUD: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(queryParams), isImpresora]);
 
-  const filterForImpresora = (row: any) => {
+  const filterForImpresora = (row: TableData) => {
     if (!isImpresora) return true;
     // Si aún no cargamos las etapas del proceso, ocultarlo hasta tener datos
     const etapas = etapasPorProceso[row.id_proceso];
     if (!etapas) return false;
     // Buscar la etapa de impresión (nombre que contenga 'impres' o 'cuadern')
-    const idx = etapas.findIndex((e: any) => String(e.nombre_etapa || '').toLowerCase().includes('impres') || String(e.nombre_etapa || '').toLowerCase().includes('cuadern'));
+    const idx = etapas.findIndex((e) => String(e.nombre_etapa || '').toLowerCase().includes('impres') || String(e.nombre_etapa || '').toLowerCase().includes('cuadern'));
     if (idx === -1) return false; // si no hay etapa de impresión, no mostrar
     // Todas las etapas anteriores a la etapa de impresión deben estar completas
     for (let i = 0; i < idx; i++) {
@@ -245,6 +277,74 @@ const ProcesosCRUD: React.FC = () => {
         editFields={editFields}
         queryParams={queryParams}
         filterFunction={filterForImpresora}
+        onBeforeCreate={async (data) => {
+          // Validar que no exista un proceso del mismo tipo para la misma empresa en el mismo mes/año
+          const token = localStorage.getItem('token');
+          try {
+            const response = await axios.get(`${API_CONFIG.BASE_URL}/api/procesos`, {
+              headers: { Authorization: `Bearer ${token}` },
+              params: {
+                empresa: data.id_empresa,
+                month: data.mes,
+                year: data.anio,
+                tipo: data.tipo_proceso
+              }
+            });
+            const procesos = ((response.data as any)?.data || []) as Proceso[];
+            if (procesos.length > 0) {
+              throw new Error(`Ya existe un proceso de tipo ${data.tipo_proceso} para esta empresa en el mes ${data.mes} del año ${data.anio}`);
+            }
+            return true;
+          } catch (error: any) {
+            if (error?.response) {
+              throw new Error(error.response.data.message || 'Error validando proceso');
+            }
+            throw error;
+          }
+        }}
+        onUpdate={async (id: string | number, formData: TableData, token: string) => {
+          // Si no cambia empresa, mes, año o tipo, permitir la edición directamente
+          const response = await axios.get(`${API_CONFIG.BASE_URL}/api/procesos/${id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const originalData = (response.data as any)?.data as Proceso;
+          
+          if (
+            formData.id_empresa === originalData.id_empresa &&
+            formData.mes === originalData.mes &&
+            formData.anio === originalData.anio &&
+            formData.tipo_proceso === originalData.tipo_proceso
+          ) {
+            return false; // Usar el flujo normal de actualización
+          }
+
+          // Si cambia alguno de estos campos, validar que no exista otro proceso
+          try {
+            const existingResponse = await axios.get(`${API_CONFIG.BASE_URL}/api/procesos`, {
+              headers: { Authorization: `Bearer ${token}` },
+              params: {
+                empresa: formData.id_empresa,
+                month: formData.mes,
+                year: formData.anio,
+                tipo: formData.tipo_proceso
+              }
+            });
+            const procesos = ((existingResponse.data as any)?.data || []) as Proceso[];
+            // Filtrar excluyendo el proceso actual
+            const procesosConflicto = procesos.filter((p: Proceso) => p.id_proceso !== originalData.id_proceso);
+            if (procesosConflicto.length > 0) {
+              throw new Error(`Ya existe un proceso de tipo ${formData.tipo_proceso} para esta empresa en el mes ${formData.mes} del año ${formData.anio}`);
+            }
+            
+            // Si no hay conflictos, permitir la actualización
+            return false; // Usar el flujo normal de actualización
+          } catch (error: any) {
+            if (error?.response) {
+              throw new Error(error.response.data.message || 'Error validando proceso');
+            }
+            throw error;
+          }
+        }}
       />
     </div>
   );

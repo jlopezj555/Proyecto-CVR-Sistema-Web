@@ -47,6 +47,8 @@ interface CRUDTableProps {
   onUpdate?: (id: string | number, formData: TableData, token: string) => Promise<void | boolean>;
   // Opcional: deshabilitar botón de eliminar para ciertos registros
   disableDeleteFor?: (item: TableData) => boolean;
+  // Opcional: validar antes de crear (devuelve true si es válido, o lanza error)
+  onBeforeCreate?: (formData: TableData) => Promise<boolean>;
 }
 
 export interface TableData {
@@ -69,6 +71,7 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
   deletePathBuilder,
   shouldRequirePassword,
   onUpdate,
+  onBeforeCreate,
   disableEdit = false,
   disableDeleteFor,
   getItemId
@@ -220,6 +223,17 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
       if (pendingAction === 'create') {
         const payload = { ...(formData || {}) } as any;
         payload.adminContrasena = password;
+        
+        // Validar antes de crear si existe onBeforeCreate
+        if (typeof onBeforeCreate === 'function') {
+          try {
+            await onBeforeCreate(formData as TableData);
+          } catch (e: any) {
+            setError(e.message || 'Error en validación previa');
+            return false;
+          }
+        }
+
         const resp = await axios.post<any>(`${API_CONFIG.BASE_URL}/api/${endpoint}`, payload, {
           headers: { Authorization: `Bearer ${token}` }
         });
