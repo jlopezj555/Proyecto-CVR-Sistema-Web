@@ -3430,30 +3430,36 @@ app.listen(PORT, '0.0.0.0', () => {
   }
 });
 
-// Endpoint específico para procesos listos para impresión
-app.get('/api/impresora/procesos-listos', verificarToken, async (req, res) => {
-  const { empresa, rol, month, year } = req.query;
 
+// Endpoint: procesos listos para impresión (alias /api/impresora/procesos-listos y /api/impresion/procesos-pendientes)
+app.get(['/api/impresion/procesos-pendientes', '/api/impresora/procesos-listos'], verificarToken, async (req, res) => {
   try {
-    // 1. Obtener la etapa de impresión desde el catálogo
-    const [[etapaImpresion]] = await pool.query(`
-      SELECT ec.id_etapa, ec.orden, ec.nombre_etapa
-      FROM EtapaCatalogo ec
-      WHERE ec.nombre_etapa LIKE '%Impresión de cuadernillo%'
-      LIMIT 1
-    `);
-
-    if (!etapaImpresion) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Etapa de impresión no encontrada' 
-      });
+    // Obtener id_empleado del usuario autenticado
+    const [usrRows] = await pool.query('SELECT id_empleado FROM Usuario WHERE id_usuario = ? LIMIT 1', [req.user.id]);
+    const empleadoId = usrRows?.[0]?.id_empleado;
+    if (!empleadoId) {
+      return res.status(403).json({ success: false, message: 'Acceso no autorizado' });
     }
 
-    // 2. Obtener procesos donde:
-    // - La etapa de impresión está pendiente/en progreso
-    // - Todas las etapas anteriores están completadas
-    let query = `
+    // Verificar que tenga rol de Encargada de Impresión
+    const [roleRows] = await pool.query(`
+      SELECT 1 FROM AsignacionRol ar 
+      INNER JOIN Rol r ON ar.id_rol = r.id_rol
+      WHERE ar.id_empleado = ? 
+      AND r.nombre_rol = 'Encargada de Impresión'
+      AND ar.estado = 'Activo'
+      LIMIT 1
+    `, [empleadoId]);
+
+    if ((roleRows || []).length === 0) {
+      return res.status(403).json({ success: false, message: 'Rol no autorizado' });
+    }
+
+    // Obtener procesos que:
+    // 1. Tienen todas las revisiones completadas (no existe revisión pendiente)
+    // 2. No están marcados como completados
+    // 3. La etapa de impresión (rol Encargada de Impresión) está pendiente
+    const [rows] = await pool.query(`
       SELECT DISTINCT 
         p.id_proceso,
         p.nombre_proceso,
@@ -3461,111 +3467,55 @@ app.get('/api/impresora/procesos-listos', verificarToken, async (req, res) => {
         p.estado,
         p.fecha_creacion,
         p.fecha_completado,
-        e.nombre_empresa
+        e.id_empresa,
+        e.nombre_empresa,
+        (
+          SELECT COUNT(*) 
+          FROM EtapaProceso ep2 
+          INNER JOIN Rol r2 ON ep2.id_rol = r2.id_rol
+          WHERE ep2.id_proceso = p.id_proceso 
+          AND r2.nombre_rol LIKE 'Revisor %' 
+          AND ep2.estado = 'Completada'
+        ) as revisiones_completadas
       FROM Proceso p
-      INNER JOIN Empresa e ON p.id_empresa = e.id_empresa
-      INNER JOIN EtapaProceso ep ON ep.id_proceso = p.id_proceso 
+      INNER JOIN Empresa e ON e.id_empresa = p.id_empresa
+      INNER JOIN EtapaProceso ep ON ep.id_proceso = p.id_proceso
+      INNER JOIN Rol r ON ep.id_rol = r.id_rol
       WHERE p.estado != 'Completado'
-      AND EXISTS (
-        -- Existe la etapa de impresión y está pendiente/en progreso
-        SELECT 1 FROM EtapaProceso ep_imp
-        WHERE ep_imp.id_proceso = p.id_proceso
-        AND ep_imp.id_etapa = ?
-        AND ep_imp.estado IN ('Pendiente', 'En progreso')
-      )
+      AND r.nombre_rol = 'Encargada de Impresión'
+      AND ep.estado = 'Pendiente'
       AND NOT EXISTS (
-        -- No hay etapas anteriores sin completar
-        SELECT 1 FROM EtapaProceso ep_ant
-        INNER JOIN EtapaCatalogo ec_ant ON ec_ant.id_etapa = ep_ant.id_etapa
-        WHERE ep_ant.id_proceso = p.id_proceso
-        AND ec_ant.orden < ?
-        AND ep_ant.estado != 'Completada'
+        SELECT 1 FROM EtapaProceso ep3
+        INNER JOIN Rol r3 ON ep3.id_rol = r3.id_rol
+        WHERE ep3.id_proceso = p.id_proceso
+        AND r3.nombre_rol LIKE 'Revisor %'
+        AND ep3.estado != 'Completada'
       )
-    `;
+      ORDER BY p.fecha_creacion DESC
+    `);
 
-    const params = [etapaImpresion.id_etapa, etapaImpresion.orden];
+    // Marcar listoParaImprimir cuando las 3 revisiones estén completadas (o ajustar según conteo real)
+    const data = (rows || []).map(row => ({
+      id_proceso: row.id_proceso,
+      id_empresa: row.id_empresa,
+      nombre_proceso: row.nombre_proceso,
+      tipo_proceso: row.tipo_proceso,
+      estado: row.estado,
+      fecha_creacion: row.fecha_creacion,
+      fecha_completado: row.fecha_completado,
+      nombre_empresa: row.nombre_empresa,
+      revisiones_completadas: Number(row.revisiones_completadas || 0),
+      listoParaImprimir: Number(row.revisiones_completadas || 0) >= 3
+    }));
 
-    // Añadir filtros
-    if (empresa) {
-      query += ' AND p.id_empresa = ?';
-      params.push(empresa);
-    }
-    if (month && year) {
-      query += ' AND MONTH(p.fecha_creacion) = ? AND YEAR(p.fecha_creacion) = ?';
-      params.push(month, year);
-    }
-
-    query += ' ORDER BY p.fecha_creacion DESC';
-
-    const [procesos] = await pool.query(query, params);
-
-    // Si no hay resultados, intentar fallback por número de etapas completadas
-    if (!procesos.length) {
-      console.log('No se encontraron procesos por orden, probando fallback...');
-      const [[totalEtapas]] = await pool.query('SELECT COUNT(*) as total FROM EtapaCatalogo');
-      
-      if (totalEtapas?.total) {
-        const fallbackQuery = `
-          SELECT DISTINCT 
-            p.id_proceso,
-            p.nombre_proceso,
-            p.tipo_proceso,
-            p.estado,
-            p.fecha_creacion,
-            p.fecha_completado,
-            e.nombre_empresa
-          FROM Proceso p
-          INNER JOIN Empresa e ON p.id_empresa = e.id_empresa
-          WHERE p.id_proceso IN (
-            SELECT id_proceso
-            FROM EtapaProceso
-            WHERE estado = 'Completada'
-            GROUP BY id_proceso
-            HAVING COUNT(*) = ?
-          )
-          AND EXISTS (
-            SELECT 1 FROM EtapaProceso ep_imp
-            WHERE ep_imp.id_proceso = p.id_proceso
-            AND ep_imp.id_etapa = ?
-            AND ep_imp.estado IN ('Pendiente', 'En progreso')
-          )
-        `;
-        
-        const fallbackParams = [totalEtapas.total - 2, etapaImpresion.id_etapa]; // -2 porque falta la actual y la siguiente
-        
-        if (empresa) {
-          fallbackQuery += ' AND p.id_empresa = ?';
-          fallbackParams.push(empresa);
-        }
-        if (month && year) {
-          fallbackQuery += ' AND MONTH(p.fecha_creacion) = ? AND YEAR(p.fecha_creacion) = ?';
-          fallbackParams.push(month, year);
-        }
-
-        fallbackQuery += ' ORDER BY p.fecha_creacion DESC';
-        
-        const [fallbackProcesos] = await pool.query(fallbackQuery, fallbackParams);
-        console.log(`Fallback encontró ${fallbackProcesos.length} procesos`);
-        return res.json({
-          success: true,
-          data: fallbackProcesos,
-          fallback: true
-        });
-      }
-    }
-
-    res.json({
-      success: true,
-      data: procesos
-    });
+    return res.json({ success: true, data });
   } catch (error) {
-    console.error('Error en /api/impresora/procesos-listos:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error al obtener procesos listos para impresión'
-    });
+    console.error('Error obteniendo procesos para impresión:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 });
+
+// ...existing code...
 
 // Express error handler (last middleware)
 app.use((err, req, res, next) => {
