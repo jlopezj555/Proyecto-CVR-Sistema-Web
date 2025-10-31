@@ -382,7 +382,10 @@ const verificarSecretariaOrAdmin = (req, res, next) => {
   return res.status(403).json({ success: false, message: 'Acceso denegado. Solo secretarias o administradores.' });
 };
 
-// Middleware para verificar contraseña: admin o usuario actual
+// Middleware para verificar contraseña de administrador (acepta la contraseña de cualquier administrador)
+// Esto permite que un usuario autorizado (p.ej. secretaria) provea la contraseña de un administrador
+// para acciones sensibles. Se compara la contraseña proporcionada contra los hashes de todos
+// los administradores y pasa si al menos uno coincide.
 const verificarPasswordAdmin = async (req, res, next) => {
   const contrasena = req.body?.adminContrasena || req.body?.contrasena;
   
@@ -391,30 +394,29 @@ const verificarPasswordAdmin = async (req, res, next) => {
   }
 
   try {
-    console.log('Verificando contraseña admin para usuario ID:', req.user.id);
-    
-    // Buscar el administrador actual
+    // Obtener todos los hashes de administradores
     const [adminRows] = await pool.query(
-      'SELECT contrasena FROM Usuario WHERE id_usuario = ? AND tipo_usuario = "administrador"',
-      [req.user.id]
+      'SELECT contrasena FROM Usuario WHERE tipo_usuario = "administrador"'
     );
 
-    console.log('Resultado de consulta admin:', adminRows.length);
-
-    if (adminRows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Administrador no encontrado' });
+    if (!adminRows || adminRows.length === 0) {
+      return res.status(404).json({ success: false, message: 'No hay administradores registrados para verificar la contraseña' });
     }
 
-    const passwordValida = await bcrypt.compare(contrasena, adminRows[0].contrasena);
-    console.log('Contraseña válida:', passwordValida);
-    
-    if (!passwordValida) {
-      return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
+    // Comparar contra cada hash hasta encontrar una coincidencia
+    for (const row of adminRows) {
+      const hash = row.contrasena;
+      try {
+        const ok = await bcrypt.compare(contrasena, hash);
+        if (ok) return next();
+      } catch (e) {
+        // ignorar errores de comparación individuales
+      }
     }
 
-    next();
+    return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
   } catch (error) {
-    console.error('Error verificando contraseña:', error);
+    console.error('Error verificando contraseña admin:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 };
@@ -1292,7 +1294,7 @@ app.delete('/api/roles/:id', verificarToken, verificarAdmin, verificarPasswordAd
 // ============================================
 
 // Obtener todos los procesos con información de empresa
-app.get('/api/procesos', verificarToken, verificarAdmin, async (req, res) => {
+app.get('/api/procesos', verificarToken, verificarSecretariaOrAdmin, async (req, res) => {
   try {
     const { empresa, year, month } = req.query;
     const params = [];
@@ -1320,7 +1322,7 @@ app.get('/api/procesos', verificarToken, verificarAdmin, async (req, res) => {
 });
 
 // Crear proceso (sin cliente)
-app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+app.post('/api/procesos', verificarToken, verificarSecretariaOrAdmin, verificarPasswordAdmin, async (req, res) => {
   const { id_empresa, nombre_proceso, tipo_proceso, descripcion_proceso, mes, anio } = req.body;
 
   try {
@@ -1390,7 +1392,7 @@ app.post('/api/procesos', verificarToken, verificarAdmin, verificarPasswordAdmin
 });
 
 // Actualizar proceso (sin cliente)
-app.put('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+app.put('/api/procesos/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordAdmin, async (req, res) => {
   const { id } = req.params;
   const { id_empresa, nombre_proceso, tipo_proceso, estado, descripcion_proceso, mes, anio } = req.body;
 
@@ -1443,7 +1445,7 @@ app.put('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswordAd
 });
 
 // Eliminar proceso
-app.delete('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswordAdmin, async (req, res) => {
+app.delete('/api/procesos/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -1484,7 +1486,7 @@ app.delete('/api/procesos/:id', verificarToken, verificarAdmin, verificarPasswor
 // ============================================
 
 // Obtener etapas de un proceso específico (admin)
-app.get('/api/procesos/:id/etapas', verificarToken, verificarAdmin, async (req, res) => {
+app.get('/api/procesos/:id/etapas', verificarToken, verificarSecretariaOrAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
