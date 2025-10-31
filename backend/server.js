@@ -3430,6 +3430,121 @@ app.listen(PORT, '0.0.0.0', () => {
   }
 });
 
+// Endpoint específico para procesos listos para impresión
+app.get('/api/impresora/procesos-listos', verificarToken, async (req, res) => {
+  const { empresa, rol, month, year } = req.query;
+  let userId;
+  try {
+    const decoded = jwt.verify(req.token, JWT_SECRET);
+    userId = decoded.id;
+  } catch (err) {
+    return res.status(401).json({ success: false, message: 'Token inválido' });
+  }
+
+  try {
+    // 1. Obtener el ID de la etapa de impresión desde el catálogo
+    const etapaQuery = `
+      SELECT id_etapa, orden 
+      FROM EtapaCatalogo 
+      WHERE LOWER(nombre_etapa) LIKE '%impres%' OR LOWER(nombre_etapa) LIKE '%cuadern%'
+      ORDER BY orden ASC 
+      LIMIT 1
+    `;
+    const [etapaResults] = await pool.query(etapaQuery);
+    if (!etapaResults.length) {
+      return res.status(404).json({ success: false, message: 'Etapa de impresión no encontrada' });
+    }
+    const { id_etapa: idEtapaImpresion, orden: ordenImpresion } = etapaResults[0];
+
+    // 2. Obtener procesos donde la etapa de impresión está pendiente/en progreso y todas las anteriores completas
+    let query = `
+      WITH ProcesosConEtapas AS (
+        SELECT DISTINCT 
+          p.id_proceso,
+          p.nombre_proceso,
+          p.tipo_proceso,
+          p.estado,
+          p.fecha_creacion,
+          p.fecha_completado,
+          e.nombre_empresa,
+          ep.id_etapa,
+          ep.estado as estado_etapa,
+          ec.orden
+        FROM Proceso p
+        INNER JOIN Empresa e ON p.id_empresa = e.id_empresa
+        INNER JOIN EtapaProceso ep ON p.id_proceso = ep.id_proceso
+        INNER JOIN EtapaCatalogo ec ON ep.id_etapa = ec.id_etapa
+        INNER JOIN RolEtapaCatalogo rec ON ec.id_etapa = rec.id_etapa
+        INNER JOIN Asignacion a ON ep.id_asignacion = a.id_asignacion
+        WHERE a.id_usuario = ? AND ep.estado != 'Eliminada'
+    `;
+
+    const params = [userId];
+    let filterConditions = [];
+
+    if (empresa) {
+      filterConditions.push('p.id_empresa = ?');
+      params.push(empresa);
+    }
+
+    if (rol) {
+      filterConditions.push('rec.nombre_rol = ?');
+      params.push(rol);
+    }
+
+    if (month && year) {
+      filterConditions.push('MONTH(p.fecha_creacion) = ? AND YEAR(p.fecha_creacion) = ?');
+      params.push(month, year);
+    }
+
+    if (filterConditions.length > 0) {
+      query += ' AND ' + filterConditions.join(' AND ');
+    }
+
+    query += `)
+      SELECT DISTINCT 
+        pce.id_proceso,
+        pce.nombre_proceso,
+        pce.tipo_proceso,
+        pce.estado,
+        pce.fecha_creacion,
+        pce.fecha_completado,
+        pce.nombre_empresa
+      FROM ProcesosConEtapas pce
+      WHERE 
+        -- Existe la etapa de impresión y no está completada/rechazada
+        EXISTS (
+          SELECT 1 FROM ProcesosConEtapas sub 
+          WHERE sub.id_proceso = pce.id_proceso 
+            AND sub.id_etapa = ? 
+            AND sub.estado_etapa NOT IN ('Completada', 'Rechazada')
+        )
+        -- Todas las etapas anteriores están completadas
+        AND NOT EXISTS (
+          SELECT 1 FROM ProcesosConEtapas sub
+          WHERE sub.id_proceso = pce.id_proceso
+            AND sub.orden < ?
+            AND sub.estado_etapa != 'Completada'
+        )
+      ORDER BY pce.fecha_creacion DESC
+    `;
+    params.push(idEtapaImpresion, ordenImpresion);
+
+    const [procesos] = await pool.query(query, params);
+
+    res.json({
+      success: true,
+      data: procesos
+    });
+  } catch (error) {
+    console.error('Error en /api/impresora/procesos-listos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al obtener procesos listos para impresión'
+    });
+  }
+});
+
 // Express error handler (last middleware)
 app.use((err, req, res, next) => {
   console.error('Express error handler caught:', err && err.stack ? err.stack : err);

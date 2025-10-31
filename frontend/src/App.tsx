@@ -18,6 +18,7 @@ import AdminView from './components/AdminView';
 import UserView from './components/UserView';
 import SecretariaView from './components/SecretariaView';
 import RevisorView from './components/RevisorView';
+import ImpresoraView from './components/ImpresoraView';
 import axios from 'axios';
 import API_CONFIG from './config/api';
 
@@ -599,9 +600,19 @@ function App() {
           ) : (
             <div style={{ marginTop: '20px' }}>
               <h2 className="white-title">Bienvenido {userName}</h2>
-              {activeTab === 'Cuentas' && <UserView nombre={userName || ''} />}
-              {activeTab === 'Empresas' && <UserView nombre={userName || ''} />}
-              {!activeTab && <UserView nombre={userName || ''} />}
+              {Number(localStorage.getItem('id_rol')) === 7 ? (
+                <>
+                  {activeTab === 'Cuentas' && <ImpresoraView nombre={userName || ''} />}
+                  {activeTab === 'Empresas' && <ImpresoraView nombre={userName || ''} />}
+                  {!activeTab && <ImpresoraView nombre={userName || ''} />}
+                </>
+              ) : (
+                <>
+                  {activeTab === 'Cuentas' && <UserView nombre={userName || ''} />}
+                  {activeTab === 'Empresas' && <UserView nombre={userName || ''} />}
+                  {!activeTab && <UserView nombre={userName || ''} />}
+                </>
+              )}
             </div>
           )}
         </div>

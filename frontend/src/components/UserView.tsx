@@ -186,27 +186,8 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     { value: 12, label: 'Diciembre' },
   ]
 
-  // FILTRO para encargado de impresión (id_rol === 7)
-  const idRolSesion = Number(localStorage.getItem('id_rol') || '0');
-  let procesosFiltrados = procesos;
-  if (idRolSesion === 7) {
-    procesosFiltrados = procesos.filter(proceso => {
-      const etapas = etapasPorProceso[proceso.id_proceso] || [];
-      // Buscar la etapa de impresión de cuadernillo
-      const idxImpresion = etapas.findIndex(e => String(e.nombre_etapa || '').toLowerCase().includes('impresión de cuadernillo'));
-      if (idxImpresion === -1) return false; // Si no existe, no mostrar
-      // Todas las etapas anteriores deben estar completas
-      for (let i = 0; i < idxImpresion; i++) {
-        if (String(etapas[i]?.estado || '').toLowerCase() !== 'completada') return false;
-      }
-      // La etapa de impresión debe estar activa (no completada ni rechazada)
-      const etapaImpresion = etapas[idxImpresion];
-      if (!etapaImpresion) return false;
-      const estadoImpresion = String(etapaImpresion.estado || '').toLowerCase();
-      if (estadoImpresion === 'completada' || estadoImpresion === 'rechazada') return false;
-      return true;
-    });
-  }
+  // No aplicar filtros especiales - usar los procesos tal cual vienen
+  const procesosFiltrados = procesos;
 
   return (
     <div className="admin-view-container">
