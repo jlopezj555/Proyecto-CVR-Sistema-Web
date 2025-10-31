@@ -597,6 +597,8 @@ function App() {
             <SecretariaView nombre={userName || ''} />
           ) : userRole?.toLowerCase().includes('revisor') ? (
             <RevisorView nombre={userName || ''} />
+          ) : userRole?.toLowerCase().includes('encargada') || userRole?.toLowerCase().includes('impres') ? (
+            <ImpresoraView nombre={userName || ''} />
           ) : (
             <div style={{ marginTop: '20px' }}>
               <h2 className="white-title">Bienvenido {userName}</h2>

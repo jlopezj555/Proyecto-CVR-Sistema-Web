@@ -45,10 +45,9 @@ const ImpresoraView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const [loadingEtapas, setLoadingEtapas] = useState<Record<number, boolean>>({})
 
   // Filtros
-  const [empresaFiltro, setEmpresaFiltro] = useState<string>('')
-  const [rolFiltro, setRolFiltro] = useState<string>('')
-  const [mesFiltro, setMesFiltro] = useState<string>('')
-  const [anioFiltro, setAnioFiltro] = useState<string>('')
+    const [empresaFiltro, setEmpresaFiltro] = useState<string>('')
+    const [mesFiltro, setMesFiltro] = useState<string>('')
+    const [anioFiltro, setAnioFiltro] = useState<string>('')
 
   // Modal de contraseña
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
@@ -62,18 +61,12 @@ const ImpresoraView: React.FC<{ nombre: string }> = ({ nombre }) => {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
   }, [procesos])
 
-  const rolesDisponibles = useMemo(() => {
-    const set = new Set<string>()
-    procesos.forEach(p => p.nombre_rol && set.add(p.nombre_rol))
-    return Array.from(set.values())
-  }, [procesos])
 
   const cargarProcesos = async () => {
     setLoadingProcesos(true)
     try {
       const params: any = {}
       if (empresaFiltro) params.empresa = empresaFiltro
-      if (rolFiltro) params.rol = rolFiltro
       if (mesFiltro && anioFiltro) {
         const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
         const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro
@@ -111,7 +104,7 @@ const ImpresoraView: React.FC<{ nombre: string }> = ({ nombre }) => {
   useEffect(() => {
     cargarProcesos()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [empresaFiltro, rolFiltro, mesFiltro, anioFiltro])
+    }, [empresaFiltro, mesFiltro, anioFiltro])
 
   const toggleExpand = (procesoId: number) => {
     const newId = expandedProcesoId === procesoId ? null : procesoId
