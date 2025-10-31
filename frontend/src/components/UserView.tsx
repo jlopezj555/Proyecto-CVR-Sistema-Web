@@ -186,6 +186,27 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
     { value: 12, label: 'Diciembre' },
   ]
 
+  // FILTRO para encargado de impresión (id_rol === 7)
+  const idRolSesion = Number(localStorage.getItem('id_rol') || '0');
+  let procesosFiltrados = procesos;
+  if (idRolSesion === 7) {
+    procesosFiltrados = procesos.filter(proceso => {
+      const etapas = etapasPorProceso[proceso.id_proceso] || [];
+      // Deben existir al menos 10 etapas
+      if (etapas.length < 10) return false;
+      // Etapas 1 a 9 deben estar completas
+      for (let i = 0; i < 9; i++) {
+        if (String(etapas[i]?.estado || '').toLowerCase() !== 'completada') return false;
+      }
+      // La etapa 10 debe existir y estar activa (no completada ni rechazada)
+      const etapa10 = etapas[9];
+      if (!etapa10) return false;
+      const estado10 = String(etapa10.estado || '').toLowerCase();
+      if (estado10 === 'completada' || estado10 === 'rechazada') return false;
+      return true;
+    });
+  }
+
   return (
     <div className="admin-view-container">
       {/* Sidebar: solo 1 pestaña "Procesos" para mantener el diseño */}
@@ -282,11 +303,11 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
           {/* Lista de procesos */}
           {loadingProcesos ? (
             <div className="crud-loading">Cargando procesos...</div>
-          ) : procesos.length === 0 ? (
+          ) : procesosFiltrados.length === 0 ? (
             <div className="crud-error">No hay procesos asignados.</div>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-              {procesos.map(proceso => {
+              {procesosFiltrados.map(proceso => {
                 const tieneRechazada = (etapasPorProceso[proceso.id_proceso] || []).some(et => et.estado === 'Rechazada');
                 const isEntregado = !!proceso.fecha_completado || proceso.estado === 'Completado';
                 const headerBg = tieneRechazada
