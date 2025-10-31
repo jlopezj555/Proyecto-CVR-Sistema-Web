@@ -139,20 +139,16 @@ CREATE TABLE IF NOT EXISTS Usuario (
         ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ============================================
--- TABLA DE PAPELERÍA
--- ============================================
-CREATE TABLE IF NOT EXISTS Papeleria (
-    id_papeleria INT AUTO_INCREMENT PRIMARY KEY,
-    id_empresa INT NOT NULL,
-    descripcion VARCHAR(200) NOT NULL,
-    tipo_papeleria ENUM('Venta', 'Compra') NOT NULL,
-    fecha_recepcion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    fecha_entrega TIMESTAMP NULL,
-    estado ENUM('Recibida','En proceso','Entregada') DEFAULT 'Recibida',
-    id_proceso INT NULL,
-    FOREIGN KEY (id_empresa) REFERENCES Empresa(id_empresa)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (id_proceso) REFERENCES Proceso(id_proceso)
-        ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+-- 1. Eliminar la tabla Papeleria
+DROP TABLE IF EXISTS Papeleria;
+
+-- 2. Modificar la tabla Proceso
+ALTER TABLE Proceso
+    ADD COLUMN descripcion_proceso VARCHAR(200) NULL AFTER nombre_proceso,
+    ADD COLUMN mes TINYINT NULL AFTER descripcion_proceso,
+    ADD COLUMN anio SMALLINT NULL AFTER mes;
+ALTER TABLE Proceso ADD CONSTRAINT chk_mes CHECK (mes BETWEEN 1 AND 12);
+ALTER TABLE Proceso ADD CONSTRAINT chk_anio CHECK (anio >= 2000 AND anio <= 2100);
+
+
+

@@ -3515,8 +3515,6 @@ app.get(['/api/impresion/procesos-pendientes', '/api/impresora/procesos-listos']
   }
 });
 
-// ...existing code...
-
 // Express error handler (last middleware)
 app.use((err, req, res, next) => {
   console.error('Express error handler caught:', err && err.stack ? err.stack : err);
