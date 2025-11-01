@@ -20,30 +20,16 @@ interface ProcesoItem {
   cliente_nombre: string
 }
 
-interface ProgresoItem {
-  porcentaje: number
-  total: number
-  completadas: number
-}
 
-interface EtapaItem {
-  id_etapa_proceso: number
-  nombre_etapa: string
-  estado: string
-  nombre_rol?: string
-  responsable_nombres?: string
-  motivo_rechazo?: string
-}
-
-const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactElement => {
+const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
   const [activeTab, setActiveTab] = useState<'cuadernillos' | 'papeleria'>('cuadernillos')
   const token = localStorage.getItem('token')
 
   // Rol de sesión (leer y reaccionar a cambios)
-  const [sessionRole, setSessionRole] = useState<string>(localStorage.getItem('rol') || '')
+    const [sessionRole, setSessionRole] = useState<string>(localStorage.getItem('rol') || '')
 
   useEffect(() => {
-    const onStorage = () => setSessionRole(localStorage.getItem('rol') || '')
+      const onStorage = () => setSessionRole(localStorage.getItem('rol') || '')
     window.addEventListener('storage', onStorage)
     return () => {
       window.removeEventListener('storage', onStorage)
@@ -57,26 +43,37 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
 
   // Procesos (solo cabecera + progreso)
   const [procesos, setProcesos] = useState<ProcesoItem[]>([])
-  const [loadingProc, setLoadingProc] = useState(false)
-  const [progreso, setProgreso] = useState<Record<number, ProgresoItem>>({})
+    const [loadingProc, setLoadingProc] = useState(false)
+  const [progreso, setProgreso] = useState<Record<number, { porcentaje: number, total: number, completadas: number }>>({})
   const [loadingProgreso, setLoadingProgreso] = useState<Record<number, boolean>>({})
-  const [etapasPorProceso, setEtapasPorProceso] = useState<Record<number, EtapaItem[]>>({})
+  const [etapasPorProceso, setEtapasPorProceso] = useState<Record<number, any[]>>({})
   const [expandedProcesoId, setExpandedProcesoId] = useState<number | null>(null)
   const [confirmPwdOpenForProceso, setConfirmPwdOpenForProceso] = useState<number | null>(null)
   const [confirmPwdError, setConfirmPwdError] = useState<string>('')
 
-  // Eliminar estados no usados para años y meses disponibles
-
-  const cargarProcesos = async (): Promise<void> => {
+  const cargarProcesos = async () => {
     setLoadingProc(true)
     try {
-      const params: Record<string, string> = {}
-      if (sessionRole) params.rol = sessionRole
+      const params: any = {}
+        if (sessionRole) params.rol = sessionRole
       if (empresaFiltro) params.empresa = empresaFiltro
-      if (mesFiltro) params.month = mesFiltro
-      if (anioFiltro) params.year = anioFiltro
+      if (mesFiltro && anioFiltro) {
+        // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
+        const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro
+        params.month = mesAnterior
+        params.year = anioAnterior
+      } else if (mesFiltro) {
+        // Si solo se selecciona mes sin año, usar año actual
+        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
+        const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear())
+        params.month = mesAnterior
+        params.year = anioAnterior
+      } else if (anioFiltro) {
+        params.year = anioFiltro
+      }
 
-      const { data } = await axios.get<{data: ProcesoItem[]}>(`${API_CONFIG.BASE_URL}/api/procesos`, {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       })
@@ -88,13 +85,14 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
     }
   }
 
-  const cargarProgreso = async (id: number): Promise<void> => {
+  const cargarProgreso = async (id: number) => {
     setLoadingProgreso(prev => ({ ...prev, [id]: true }))
     try {
-      const { data } = await axios.get<{data: ProgresoItem}>(`${API_CONFIG.BASE_URL}/api/procesos/${id}/progreso`, {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos/${id}/progreso`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      setProgreso(prev => ({ ...prev, [id]: data?.data }))
+      const payload = data?.data || { porcentaje: 0, total: 0, completadas: 0 }
+      setProgreso(prev => ({ ...prev, [id]: payload }))
     } catch (e) {
       console.error('Error cargando progreso del proceso:', e)
     } finally {
@@ -102,11 +100,11 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
     }
   }
 
-  const cargarEtapasProceso = async (id: number): Promise<void> => {
+  const cargarEtapasProceso = async (id: number) => {
     try {
-      const params: Record<string, string> = {}
-      if (sessionRole) params.rol = sessionRole
-      const { data } = await axios.get<{data: EtapaItem[]}>(`${API_CONFIG.BASE_URL}/api/mis-procesos/${id}/etapas`, {
+      const params: any = {}
+  if (sessionRole) params.rol = sessionRole
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos/${id}/etapas`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       })
@@ -130,9 +128,21 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
     procesos.forEach(p => {
       if (!progreso[p.id_proceso]) cargarProgreso(p.id_proceso)
     })
-  }, [procesos, progreso])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [procesos])
 
-  const toggleProceso = (procesoId: number): void => {
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  const toggleProceso = (procesoId: number) => {
     const newId = expandedProcesoId === procesoId ? null : procesoId
     setExpandedProcesoId(newId)
     if (newId) {
@@ -145,11 +155,11 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
     }
   }
 
-  const formatDate = (s?: string | null): string => (s ? new Date(s).toLocaleDateString('es-ES') : '-')
+  const formatDate = (s?: string | null) => (s ? new Date(s).toLocaleDateString('es-ES') : '-')
 
-  const getProcesoEstado = (proceso: ProcesoItem): string => {
+  const getProcesoEstado = (proceso: ProcesoItem) => {
     const etapas = etapasPorProceso[proceso.id_proceso] || []
-    const tieneRechazada = etapas.some((e) => e.estado === 'Rechazada')
+    const tieneRechazada = etapas.some((e: any) => e.estado === 'Rechazada')
     const isEntregado = !!proceso.fecha_completado || proceso.estado === 'Completado'
     
     if (tieneRechazada) return 'rechazado'
@@ -157,7 +167,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
     return 'normal'
   }
 
-  const getProcesoColor = (estado: string): string => {
+  const getProcesoColor = (estado: string) => {
     switch (estado) {
       case 'entregado':
         return 'linear-gradient(135deg, #1f5d32 0%, #2e7d32 100%)'
@@ -176,17 +186,11 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
           <p>Hola, {nombre}</p>
         </div>
         <nav className="admin-nav">
-          <button 
-            className={`admin-nav-item ${activeTab === 'cuadernillos' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('cuadernillos')}
-          >
+          <button className={`admin-nav-item ${activeTab === 'cuadernillos' ? 'active' : ''}`} onClick={() => setActiveTab('cuadernillos')}>
             <span className="nav-icon"><img src={iconProcesos} alt="Cuadernillos" className="nav-icon-img" /></span>
             <span className="nav-label">Cuadernillos</span>
           </button>
-          <button 
-            className={`admin-nav-item ${activeTab === 'papeleria' ? 'active' : ''}`} 
-            onClick={() => setActiveTab('papeleria')}
-          >
+          <button className={`admin-nav-item ${activeTab === 'papeleria' ? 'active' : ''}`} onClick={() => setActiveTab('papeleria')}>
             <span className="nav-icon"><img src={iconProcesos} alt="Papelería" className="nav-icon-img" /></span>
             <span className="nav-label">Papelería</span>
           </button>
@@ -226,53 +230,28 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
               <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
                 <div>
                   <label>Empresa</label>
-                  <select 
-                    value={empresaFiltro} 
-                    onChange={(e) => setEmpresaFiltro(e.target.value)} 
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}
-                  >
+                  <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
                     <option value="">Todas</option>
-                    {Array.from(new Set(procesos.map(p => ({ id: p.id_empresa, nombre: p.nombre_empresa }))
-                      .sort((a, b) => a.nombre.localeCompare(b.nombre))))
-                      .map(emp => (
-                        <option key={emp.id} value={String(emp.id)}>{emp.nombre}</option>
+                    {Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries()).map(([id, nombre]) => (
+                      <option key={id} value={String(id)}>{nombre}</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label>Año</label>
-                  <select 
-                    value={anioFiltro} 
-                    onChange={(e) => setAnioFiltro(e.target.value)} 
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}
-                  >
+                  <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
                     <option value="">Todos</option>
-                    {[...new Set(procesos.map(p => p.fecha_creacion ? new Date(p.fecha_creacion).getFullYear() : null))]
-                      .filter(Boolean)
-                      .sort((a, b) => Number(b) - Number(a))
-                      .map(year => (
-                        <option key={year} value={String(year)}>{year}</option>
+                    {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => (
+                      <option key={y} value={String(y)}>{y}</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <label>Mes</label>
-                  <select 
-                    value={mesFiltro} 
-                    onChange={(e) => setMesFiltro(e.target.value)} 
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}
-                  >
+                  <select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
                     <option value="">Todos</option>
-                    {[{value:1,label:'Enero'},{value:2,label:'Febrero'},{value:3,label:'Marzo'},{value:4,label:'Abril'},
-                      {value:5,label:'Mayo'},{value:6,label:'Junio'},{value:7,label:'Julio'},{value:8,label:'Agosto'},
-                      {value:9,label:'Septiembre'},{value:10,label:'Octubre'},{value:11,label:'Noviembre'},{value:12,label:'Diciembre'}]
-                      .filter(m => !mesFiltro || procesos.some(p => {
-                        const fecha = p.fecha_creacion ? new Date(p.fecha_creacion) : null;
-                        return fecha && fecha.getMonth() + 1 === m.value && 
-                               (!anioFiltro || fecha.getFullYear() === Number(anioFiltro));
-                      }))
-                      .map(m => (
-                        <option key={m.value} value={String(m.value)}>{m.label}</option>
+                    {[{value:1,label:'Enero'},{value:2,label:'Febrero'},{value:3,label:'Marzo'},{value:4,label:'Abril'},{value:5,label:'Mayo'},{value:6,label:'Junio'},{value:7,label:'Julio'},{value:8,label:'Agosto'},{value:9,label:'Septiembre'},{value:10,label:'Octubre'},{value:11,label:'Noviembre'},{value:12,label:'Diciembre'}].map(m => (
+                      <option key={m.value} value={String(m.value)}>{m.label}</option>
                     ))}
                   </select>
                 </div>
@@ -327,7 +306,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
                             <h4 style={{ margin: '0 0 12px 0', fontSize: 14, fontWeight: 600, color: '#000' }}>Etapas del Proceso</h4>
                             <div style={{ width: '100%', overflowX: 'auto', overflowY: 'hidden', paddingBottom: 8 }}>
                               <div style={{ display: 'flex', flexWrap: 'nowrap', gap: 8, alignItems: 'stretch', minWidth: 'max-content' }}>
-                                {(etapasPorProceso[p.id_proceso] || []).map((etapa) => (
+                                {(etapasPorProceso[p.id_proceso] || []).map((etapa: any) => (
                                   <div key={etapa.id_etapa_proceso} style={{ minWidth: 140, flex: '0 0 auto', background: 'white', border: '1px solid #dee2e6', borderRadius: 10, padding: 8, textAlign: 'center' }}>
                                     <div style={{ fontWeight: 700, color: '#000', fontSize: 13 }}>{etapa.nombre_etapa}</div>
                                     <div style={{ marginTop: 4, fontSize: 11, color: '#495057' }}>Estado: <span style={{ color: etapa.estado === 'Completada' ? '#28a745' : etapa.estado === 'En progreso' ? '#ffc107' : etapa.estado === 'Rechazada' ? '#dc3545' : '#6c757d' }}>{etapa.estado}</span></div>

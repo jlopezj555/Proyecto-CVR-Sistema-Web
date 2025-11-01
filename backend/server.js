@@ -1101,30 +1101,10 @@ app.delete('/api/empleados/:id', verificarToken, verificarAdmin, verificarPasswo
 // ENDPOINTS CRUD PARA EMPRESAS
 // ============================================
 
-// Obtener todas las empresas (para creación de procesos)
-app.get('/api/empresas/all', verificarToken, async (req, res) => {
+// Obtener todas las empresas
+app.get('/api/empresas', verificarToken, verificarAdmin, async (req, res) => {
   try {
-    const [rows] = await pool.query(`
-      SELECT * FROM Empresa 
-      WHERE activo = 1
-      ORDER BY nombre_empresa ASC
-    `);
-    res.json({ success: true, data: rows });
-  } catch (error) {
-    console.error('Error obteniendo todas las empresas:', error);
-    res.status(500).json({ success: false, message: 'Error interno del servidor' });
-  }
-});
-
-// Obtener todas las empresas con procesos (para filtros)
-app.get('/api/empresas', verificarToken, async (req, res) => {
-  try {
-    const [rows] = await pool.query(`
-      SELECT DISTINCT e.*
-      FROM Empresa e
-      INNER JOIN Proceso p ON e.id_empresa = p.id_empresa
-      ORDER BY e.nombre_empresa ASC
-    `);
+    const [rows] = await pool.query('SELECT * FROM Empresa ORDER BY id_empresa ASC');
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error obteniendo empresas:', error);
@@ -1320,17 +1300,11 @@ app.get('/api/procesos', verificarToken, verificarSecretariaOrAdmin, async (req,
     const params = [];
     let where = ' WHERE 1=1';
     if (empresa) { where += ' AND p.id_empresa = ?'; params.push(Number(empresa)); }
-    if (month) { where += ' AND p.mes = ?'; params.push(Number(month)); }
+
+    // Nuevo esquema: Proceso tiene columnas `mes` y `anio` (valores numéricos).
+    // Aplicar filtros directamente sobre esas columnas cuando se provean.
     if (year) { where += ' AND p.anio = ?'; params.push(Number(year)); }
-    
-    // Obtener años y meses disponibles para los filtros
-    const [[{ years, months }]] = await pool.query(`
-      SELECT 
-        GROUP_CONCAT(DISTINCT anio ORDER BY anio DESC) as years,
-        GROUP_CONCAT(DISTINCT mes ORDER BY mes ASC) as months
-      FROM Proceso
-      ${where}
-    `, params);
+    if (month) { where += ' AND p.mes = ?'; params.push(Number(month)); }
 
     const [rows] = await pool.query(
       `SELECT p.*, e.nombre_empresa, e.correo_empresa
@@ -1340,14 +1314,7 @@ app.get('/api/procesos', verificarToken, verificarSecretariaOrAdmin, async (req,
        ORDER BY p.id_proceso ASC`,
       params
     );
-    res.json({ 
-      success: true, 
-      data: rows,
-      metadata: {
-        availableYears: years ? years.split(',').map(Number) : [],
-        availableMonths: months ? months.split(',').map(Number) : []
-      }
-    });
+    res.json({ success: true, data: rows });
   } catch (error) {
     console.error('Error obteniendo procesos:', error);
     res.status(500).json({ success: false, message: 'Error interno del servidor' });
