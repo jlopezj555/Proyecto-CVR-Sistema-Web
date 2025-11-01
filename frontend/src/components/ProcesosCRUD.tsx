@@ -41,8 +41,8 @@ const ProcesosCRUD: React.FC = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    // Cargar todas las empresas para el formulario de creación y los filtros
-    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
+    // Cargar todas las empresas para el formulario de creación
+    fetch(`${API_CONFIG.BASE_URL}/api/empresas/all`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())

@@ -1101,7 +1101,22 @@ app.delete('/api/empleados/:id', verificarToken, verificarAdmin, verificarPasswo
 // ENDPOINTS CRUD PARA EMPRESAS
 // ============================================
 
-// Obtener todas las empresas con procesos
+// Obtener todas las empresas (para creación de procesos)
+app.get('/api/empresas/all', verificarToken, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT * FROM Empresa 
+      WHERE activo = 1
+      ORDER BY nombre_empresa ASC
+    `);
+    res.json({ success: true, data: rows });
+  } catch (error) {
+    console.error('Error obteniendo todas las empresas:', error);
+    res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+});
+
+// Obtener todas las empresas con procesos (para filtros)
 app.get('/api/empresas', verificarToken, async (req, res) => {
   try {
     const [rows] = await pool.query(`

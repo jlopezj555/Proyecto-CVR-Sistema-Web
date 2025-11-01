@@ -76,7 +76,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }): React.ReactEl
       if (mesFiltro) params.month = mesFiltro
       if (anioFiltro) params.year = anioFiltro
 
-      const { data } = await axios.get<{data: ProcesoItem[]}>(`${API_CONFIG.BASE_URL}/api/mis-procesos`, {
+      const { data } = await axios.get<{data: ProcesoItem[]}>(`${API_CONFIG.BASE_URL}/api/procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       })
