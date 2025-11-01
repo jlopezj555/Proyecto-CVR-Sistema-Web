@@ -43,6 +43,8 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
 
   // Procesos (solo cabecera + progreso)
   const [procesos, setProcesos] = useState<ProcesoItem[]>([])
+  // Empresas asignadas al empleado (fuente estable para el select)
+  const [misEmpresas, setMisEmpresas] = useState<{ id_empresa: number; nombre_empresa: string }[]>([])
     const [loadingProc, setLoadingProc] = useState(false)
   const [progreso, setProgreso] = useState<Record<number, { porcentaje: number, total: number, completadas: number }>>({})
   const [loadingProgreso, setLoadingProgreso] = useState<Record<number, boolean>>({})
@@ -56,7 +58,7 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
     try {
       const params: any = {};
       if (sessionRole) params.rol = sessionRole;
-      if (empresaFiltro) params.empresa = empresaFiltro;
+      if (empresaFiltro) params.empresa = Number(empresaFiltro);
       // En el nuevo esquema, filtrar directamente por mes y año almacenados en Proceso
       if (mesFiltro) params.month = Number(mesFiltro);
       if (anioFiltro) params.year = Number(anioFiltro);
@@ -70,6 +72,18 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
       console.error('Error cargando procesos secretaria:', e)
     } finally {
       setLoadingProc(false)
+    }
+  }
+
+  const cargarMisEmpresas = async () => {
+    try {
+      const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-empresas`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      setMisEmpresas(data.data || [])
+    } catch (err) {
+      console.error('Error cargando mis empresas:', err)
+      setMisEmpresas([])
     }
   }
 
@@ -109,6 +123,12 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
       cargarProcesos()
     }
   }, [empresaFiltro, mesFiltro, anioFiltro, activeTab, sessionRole])
+
+  // Cargar mis empresas al montar y cuando cambie el rol/usuario
+  useEffect(() => {
+    cargarMisEmpresas()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionRole])
 
   // Cargar progreso para todos los procesos listados
   useEffect(() => {
@@ -220,8 +240,8 @@ const SecretariaView: React.FC<{ nombre: string }> = ({ nombre }) => {
                   <label>Empresa</label>
                   <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
                     <option value="">Todas</option>
-                    {Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries()).map(([id, nombre]) => (
-                      <option key={id} value={String(id)}>{nombre}</option>
+                    {misEmpresas.map((emp) => (
+                      <option key={emp.id_empresa} value={String(emp.id_empresa)}>{emp.nombre_empresa}</option>
                     ))}
                   </select>
                 </div>

@@ -2274,17 +2274,17 @@ app.get('/api/mis-procesos', verificarToken, async (req, res) => {
       whereFecha = ' AND p.fecha_creacion BETWEEN ? AND ?';
       params.push(from, to);
     } else if (month && year) {
-      // Mes + año aplicados al "mes asignado" (fecha_creacion - 1 mes)
-      whereFecha = ' AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ? AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?';
+      // Filtrar por mes y año almacenados en Proceso (p.mes / p.anio)
+      whereFecha = ' AND p.mes = ? AND p.anio = ?';
       params.push(Number(month), Number(year));
     } else if (year) {
-      // Solo año del mes asignado
-      whereFecha = ' AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?';
+      // Solo año (campo p.anio)
+      whereFecha = ' AND p.anio = ?';
       params.push(Number(year));
     } else if (month) {
-      // Solo mes del mes asignado (asumir año actual)
+      // Solo mes (asumir año actual)
       const currentYear = new Date().getFullYear();
-      whereFecha = ' AND MONTH(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ? AND YEAR(DATE_SUB(p.fecha_creacion, INTERVAL 1 MONTH)) = ?';
+      whereFecha = ' AND p.mes = ? AND p.anio = ?';
       params.push(Number(month), currentYear);
     }
 
