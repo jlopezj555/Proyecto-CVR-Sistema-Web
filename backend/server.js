@@ -1323,7 +1323,8 @@ app.get('/api/procesos', verificarToken, verificarSecretariaOrAdmin, async (req,
 });
 
 // Crear proceso (sin cliente)
-app.post('/api/procesos', verificarToken, verificarSecretariaOrAdmin, verificarPasswordAdmin, async (req, res) => {
+// Permitir verificación con contraseña del usuario actual (secretaria) o del administrador según quien la provea
+app.post('/api/procesos', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
   const { id_empresa, nombre_proceso, tipo_proceso, descripcion_proceso, mes, anio } = req.body;
 
   try {
@@ -1393,7 +1394,7 @@ app.post('/api/procesos', verificarToken, verificarSecretariaOrAdmin, verificarP
 });
 
 // Actualizar proceso (sin cliente)
-app.put('/api/procesos/:id', verificarToken, verificarSecretariaOrAdmin, async (req, res) => {
+app.put('/api/procesos/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
   const { id } = req.params;
   const { id_empresa, nombre_proceso, tipo_proceso, estado, descripcion_proceso, mes, anio } = req.body;
 
@@ -1401,40 +1402,6 @@ app.put('/api/procesos/:id', verificarToken, verificarSecretariaOrAdmin, async (
     const [existing] = await pool.query('SELECT * FROM Proceso WHERE id_proceso = ?', [id]);
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Proceso no encontrado' });
-    }
-
-    // Lógica de verificación de contraseña condicional:
-    // - Si el proceso original tiene campos legacy vacíos (mes/anio/id_empresa nulos)
-    //   y la petición proviene de una secretaria y SOLO está modificando mes/anio/id_empresa,
-    //   permitimos la actualización SIN requerir contraseña de admin.
-    // - En cualquier otro caso, se requiere la contraseña de administrador (se busca entre los hashes de admins).
-    const original = existing[0];
-    const incomingKeys = Object.keys(req.body).filter(k => !['adminContrasena','contrasena'].includes(k));
-    const onlyLegacyKeys = incomingKeys.length > 0 && incomingKeys.every(k => ['mes','anio','id_empresa'].includes(k));
-    const legacyMissing = (original.mes == null || original.anio == null || original.id_empresa == null);
-
-    if (!(onlyLegacyKeys && legacyMissing && String(req.user.tipo) !== 'administrador')) {
-      // Requerir contraseña de administrador
-      const contrasena = req.body?.adminContrasena || req.body?.contrasena;
-      if (!contrasena) {
-        return res.status(400).json({ success: false, message: 'Contraseña requerida' });
-      }
-
-      try {
-        const [adminRows] = await pool.query('SELECT contrasena FROM Usuario WHERE tipo_usuario = "administrador"');
-        if (!adminRows || adminRows.length === 0) return res.status(404).json({ success: false, message: 'No hay administradores registrados para verificar la contraseña' });
-        let passOk = false;
-        for (const row of adminRows) {
-          try {
-            const ok = await bcrypt.compare(contrasena, row.contrasena);
-            if (ok) { passOk = true; break; }
-          } catch (e) { /* ignore */ }
-        }
-        if (!passOk) return res.status(401).json({ success: false, message: 'Contraseña incorrecta' });
-      } catch (err) {
-        console.error('Error verificando contraseña admin (condicional):', err);
-        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
-      }
     }
 
     const [empresa] = await pool.query('SELECT id_empresa FROM Empresa WHERE id_empresa = ?', [id_empresa]);
@@ -1480,7 +1447,7 @@ app.put('/api/procesos/:id', verificarToken, verificarSecretariaOrAdmin, async (
 });
 
 // Eliminar proceso
-app.delete('/api/procesos/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordAdmin, async (req, res) => {
+app.delete('/api/procesos/:id', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
@@ -3032,7 +2999,7 @@ app.delete('/api/rol-etapas/:idRol/:idEtapa', verificarToken, verificarAdmin, ve
 });
 
 // Confirmar envío de proceso (secretaria completa el proceso si está casi listo)
-app.post('/api/procesos/:id/confirmar-envio', verificarToken, verificarSecretariaOrAdmin, async (req, res) => {
+app.post('/api/procesos/:id/confirmar-envio', verificarToken, verificarSecretariaOrAdmin, verificarPasswordActualOAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     // Verificar que el proceso existe y no esté completado
