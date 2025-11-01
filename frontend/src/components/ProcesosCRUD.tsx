@@ -41,17 +41,18 @@ const ProcesosCRUD: React.FC = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    // Cargar empresas
+    // Cargar todas las empresas para el formulario de creación y los filtros
     fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
       .then(data => {
         const rows = ((data as any)?.data || []) as Empresa[];
-        const sorted = rows.slice().sort((a, b) => 
-          (a.nombre_empresa || '').localeCompare(b.nombre_empresa || '')
+        // Ordenar empresas alfabéticamente por nombre antes de guardarlas
+        const empresasOrdenadas = [...rows].sort((a, b) => 
+          a.nombre_empresa.localeCompare(b.nombre_empresa)
         );
-        setEmpresas(sorted);
+        setEmpresas(empresasOrdenadas);
       })
       .catch(console.error);
   }, []);
@@ -161,11 +162,43 @@ const ProcesosCRUD: React.FC = () => {
     }
   ];
 
+  // Construir queryParams para todos los componentes
   const queryParams: Record<string, any> = {};
   if (empresaFiltro) queryParams.empresa = empresaFiltro;
-  // En el nuevo esquema `Proceso` tiene columnas `mes` y `anio`. Enviar directamente.
   if (mesFiltro) queryParams.month = mesFiltro;
   if (anioFiltro) queryParams.year = anioFiltro;
+
+  // Estado para años y meses disponibles
+  const [aniosDisponibles, setAniosDisponibles] = useState<number[]>([]);
+  const [mesesDisponibles, setMesesDisponibles] = useState<number[]>([]);
+
+  // Función para cargar procesos y actualizar filtros disponibles
+  const cargarProcesos = async () => {
+    const token = localStorage.getItem('token');
+
+    const queryString = Object.entries(queryParams)
+      .map(([key, value]) => `${key}=${value}`)
+      .join('&');
+
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}/api/procesos${queryString ? `?${queryString}` : ''}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        // Actualizar años y meses disponibles para los filtros
+        setAniosDisponibles(data.metadata?.availableYears || []);
+        setMesesDisponibles(data.metadata?.availableMonths || []);
+      }
+    } catch (error) {
+      console.error('Error cargando procesos:', error);
+    }
+  };
+
+  // Llamar a cargarProcesos cuando cambien los filtros
+  useEffect(() => {
+    cargarProcesos();
+  }, [empresaFiltro, mesFiltro, anioFiltro]);
 
   // Control de visibilidad especial para encargada/o de impresión
   const sessionRole = (localStorage.getItem('rol') || '').toLowerCase();
@@ -245,20 +278,23 @@ const ProcesosCRUD: React.FC = () => {
             ))}
           </select>
         </div>
-        <div>
+          <div>
           <label style={{ fontWeight: 600, color: '#000' }}>Mes</label>
           <select value={mesFiltro} onChange={(e) => setMesFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
             <option value="">Todos</option>
-            {meses.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
+            {mesesDisponibles.map(mesNum => {
+              const mes = meses.find(m => m.value === mesNum);
+              return (
+                <option key={mesNum} value={mesNum}>{mes ? mes.label : `Mes ${mesNum}`}</option>
+              );
+            })}
           </select>
         </div>
         <div>
           <label style={{ fontWeight: 600, color: '#000' }}>Año</label>
           <select value={anioFiltro} onChange={(e) => setAnioFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
             <option value="">Todos</option>
-            {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => (
+            {aniosDisponibles.map(y => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>

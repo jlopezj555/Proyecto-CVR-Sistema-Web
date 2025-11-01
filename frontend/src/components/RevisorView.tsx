@@ -65,21 +65,9 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
       const params: any = {}
       // Cargar procesos sin esperar por current_role
       if (empresaFiltro) params.empresa = empresaFiltro
-      if (mesFiltro && anioFiltro) {
-        // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
-        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
-        const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro
-        params.month = mesAnterior
-        params.year = anioAnterior
-      } else if (mesFiltro) {
-        // Si solo se selecciona mes sin año, usar año actual
-        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
-        const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear())
-        params.month = mesAnterior
-        params.year = anioAnterior
-      } else if (anioFiltro) {
-        params.year = anioFiltro
-      }
+      // Agregar mes y año a los parámetros si están seleccionados
+      if (mesFiltro) params.month = mesFiltro
+      if (anioFiltro) params.year = anioFiltro
 
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/revisor/procesos-terminados`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -220,9 +208,14 @@ const RevisorView: React.FC<{ nombre: string }> = ({ nombre }) => {
               <label style={{ fontWeight: 600, color: '#000' }}>Empresa</label>
               <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
                 <option value="">Todas</option>
-                {Array.from(new Map(procesos.map(p => [p.id_empresa, p.nombre_empresa])).entries()).map(([id, nombre]) => (
-                  <option key={id} value={String(id)}>{nombre}</option>
-                ))}
+                {procesos
+                  .map(p => ({ id: p.id_empresa, nombre: p.nombre_empresa }))
+                  .filter((emp, index, self) => index === self.findIndex(e => e.id === emp.id))
+                  .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                  .map(emp => (
+                    <option key={emp.id} value={String(emp.id)}>{emp.nombre}</option>
+                  ))
+                }
               </select>
             </div>
             <div>
