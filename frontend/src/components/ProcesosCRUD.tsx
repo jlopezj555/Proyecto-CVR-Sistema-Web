@@ -103,7 +103,7 @@ const ProcesosCRUD: React.FC = () => {
       type: 'select' as const, 
       required: true,
       options: empresas.map(emp => ({
-        value: emp.id_empresa,
+        value: String(emp.id_empresa),
         label: emp.nombre_empresa
       }))
     },
@@ -130,7 +130,7 @@ const ProcesosCRUD: React.FC = () => {
       type: 'select' as const, 
       required: true,
       options: empresas.map(emp => ({
-        value: emp.id_empresa,
+        value: String(emp.id_empresa),
         label: emp.nombre_empresa
       }))
     },
@@ -241,7 +241,7 @@ const ProcesosCRUD: React.FC = () => {
           <select value={empresaFiltro} onChange={(e) => setEmpresaFiltro(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}>
             <option value="">Todas</option>
             {empresas.map(emp => (
-              <option key={emp.id_empresa} value={emp.id_empresa}>{emp.nombre_empresa}</option>
+              <option key={emp.id_empresa} value={String(emp.id_empresa)}>{emp.nombre_empresa}</option>
             ))}
           </select>
         </div>
@@ -284,9 +284,9 @@ const ProcesosCRUD: React.FC = () => {
             const response = await axios.get(`${API_CONFIG.BASE_URL}/api/procesos`, {
               headers: { Authorization: `Bearer ${token}` },
               params: {
-                empresa: data.id_empresa,
-                month: data.mes,
-                year: data.anio,
+                empresa: Number(data.id_empresa),
+                month: Number(data.mes),
+                year: Number(data.anio),
                 tipo: data.tipo_proceso
               }
             });
@@ -310,9 +310,9 @@ const ProcesosCRUD: React.FC = () => {
           const originalData = (response.data as any)?.data as Proceso;
           
           if (
-            formData.id_empresa === originalData.id_empresa &&
-            formData.mes === originalData.mes &&
-            formData.anio === originalData.anio &&
+            Number(formData.id_empresa) === originalData.id_empresa &&
+            Number(formData.mes) === originalData.mes &&
+            Number(formData.anio) === originalData.anio &&
             formData.tipo_proceso === originalData.tipo_proceso
           ) {
             return false; // Usar el flujo normal de actualización
@@ -323,9 +323,9 @@ const ProcesosCRUD: React.FC = () => {
             const existingResponse = await axios.get(`${API_CONFIG.BASE_URL}/api/procesos`, {
               headers: { Authorization: `Bearer ${token}` },
               params: {
-                empresa: formData.id_empresa,
-                month: formData.mes,
-                year: formData.anio,
+                empresa: Number(formData.id_empresa),
+                month: Number(formData.mes),
+                year: Number(formData.anio),
                 tipo: formData.tipo_proceso
               }
             });
