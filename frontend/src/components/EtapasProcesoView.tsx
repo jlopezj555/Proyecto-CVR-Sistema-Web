@@ -191,16 +191,18 @@ const EtapasProcesoView: React.FC = () => {
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: 12
       }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <label style={{ fontWeight: 600, color: '#000' }}>Empresa:</label>
-          <select 
+        <div>
+          <label style={{ fontWeight: 600, color: '#000' }}>Empresa</label>
+          <select
             value={empresaFiltro}
             onChange={(e) => setEmpresaFiltro(e.target.value)}
-            style={{ 
-              padding: '8px 10px', 
-              borderRadius: 8, 
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 8,
               border: '2px solid #e9ecef',
-              flexGrow: 1
+              backgroundColor: 'white',
+              color: 'black'
             }}
           >
             <option value="">Todas</option>
@@ -210,16 +212,18 @@ const EtapasProcesoView: React.FC = () => {
           </select>
         </div>
         
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <label style={{ fontWeight: 600, color: '#000' }}>Año:</label>
+        <div>
+          <label style={{ fontWeight: 600, color: '#000' }}>Año</label>
           <select
             value={anioFiltro}
             onChange={(e) => setAnioFiltro(e.target.value)}
-            style={{ 
-              padding: '8px 10px', 
-              borderRadius: 8, 
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 8,
               border: '2px solid #e9ecef',
-              flexGrow: 1
+              backgroundColor: 'white',
+              color: 'black'
             }}
           >
             <option value="">Todos</option>
@@ -229,16 +233,18 @@ const EtapasProcesoView: React.FC = () => {
           </select>
         </div>
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <label style={{ fontWeight: 600, color: '#000' }}>Mes:</label>
+        <div>
+          <label style={{ fontWeight: 600, color: '#000' }}>Mes</label>
           <select
             value={mesFiltro}
             onChange={(e) => setMesFiltro(e.target.value)}
-            style={{ 
-              padding: '8px 10px', 
-              borderRadius: 8, 
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 8,
               border: '2px solid #e9ecef',
-              flexGrow: 1
+              backgroundColor: 'white',
+              color: 'black'
             }}
           >
             <option value="">Todos</option>

@@ -84,15 +84,41 @@ const UsuariosCRUD: React.FC = () => {
 
   return (
     <>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-        <label style={{ fontWeight: 600, color: '#000' }}>Tipo de usuario:</label>
-        <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, border: '2px solid #e9ecef' }}>
-          <option value="">Todos</option>
-          <option value="administrador">Administrador</option>
-          <option value="empleado">Empleado</option>
-          <option value="cliente">Cliente</option>
-        </select>
-      </div>
+     {/* Filtro Tipo de Usuario */}
+<div
+  style={{
+    background: 'white',
+    border: '1px solid #e9ecef',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: 12
+  }}
+>
+  <div>
+    <label style={{ fontWeight: 600, color: '#000' }}>Tipo de usuario</label>
+    <select
+      value={tipoFiltro}
+      onChange={(e) => setTipoFiltro(e.target.value)}
+      style={{
+        width: '100%',
+        padding: '10px 12px',
+        borderRadius: 8,
+        border: '2px solid #e9ecef',
+        backgroundColor: 'white',
+        color: 'black'
+      }}
+    >
+      <option value="">Todos</option>
+      <option value="administrador">Administrador</option>
+      <option value="empleado">Empleado</option>
+      <option value="cliente">Cliente</option>
+    </select>
+  </div>
+</div>
+
       <CRUDTable
       title="Usuarios"
       endpoint="usuarios"
