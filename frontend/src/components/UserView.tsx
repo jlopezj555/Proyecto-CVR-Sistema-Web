@@ -62,11 +62,34 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
 
   const token = localStorage.getItem('token')
 
+  // Estado separado para las empresas asignadas
+  const [empresasAsignadas, setEmpresasAsignadas] = useState<Array<{ id: number; name: string }>>([]);
+
+  // Cargar empresas asignadas al usuario una sola vez al inicio
+  useEffect(() => {
+    const cargarEmpresasAsignadas = async () => {
+      try {
+        const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-empresas`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const empresas = (data.data || []).map((emp: any) => ({
+          id: emp.id_empresa,
+          name: emp.nombre_empresa
+        }));
+        // Ordenar por nombre
+        empresas.sort((a: any, b: any) => a.name.localeCompare(b.name));
+        setEmpresasAsignadas(empresas);
+      } catch (error) {
+        console.error('Error cargando empresas asignadas:', error);
+        setEmpresasAsignadas([]);
+      }
+    };
+    cargarEmpresasAsignadas();
+  }, [token]);
+
   const empresasDisponibles = useMemo(() => {
-    const map = new Map<number, string>()
-    procesos.forEach(p => map.set(p.id_empresa, p.nombre_empresa))
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
-  }, [procesos])
+    return empresasAsignadas;
+  }, [empresasAsignadas]);
 
   const rolesDisponibles = useMemo(() => {
     const set = new Set<string>()
@@ -77,16 +100,11 @@ const UserView: React.FC<UserViewProps> = ({ nombre }) => {
   const cargarProcesos = async () => {
     setLoadingProcesos(true)
     try {
-  const params: any = {}
+      const params: any = {}
       if (empresaFiltro) params.empresa = empresaFiltro
       if (rolFiltro) params.rol = rolFiltro
-      if (mesFiltro && anioFiltro) {
-        // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
-        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1)
-        const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro
-        params.month = mesAnterior
-        params.year = anioAnterior
-      }
+      if (mesFiltro) params.month = mesFiltro
+      if (anioFiltro) params.year = anioFiltro
       const { data } = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/mis-procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
