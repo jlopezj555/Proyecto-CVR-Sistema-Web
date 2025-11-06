@@ -1297,7 +1297,7 @@ app.delete('/api/roles/:id', verificarToken, verificarAdmin, verificarPasswordAd
 // Obtener todos los procesos con información de empresa
 app.get('/api/procesos', verificarToken, verificarSecretariaOrAdmin, async (req, res) => {
   try {
-    const { empresa, year, month } = req.query;
+    const { empresa, year, month, tipo } = req.query;
     const params = [];
     let where = ' WHERE 1=1';
     if (empresa) { where += ' AND p.id_empresa = ?'; params.push(Number(empresa)); }
@@ -1306,6 +1306,8 @@ app.get('/api/procesos', verificarToken, verificarSecretariaOrAdmin, async (req,
     // Aplicar filtros directamente sobre esas columnas cuando se provean.
     if (year) { where += ' AND p.anio = ?'; params.push(Number(year)); }
     if (month) { where += ' AND p.mes = ?'; params.push(Number(month)); }
+    // Opcional: filtrar por tipo de proceso (Venta/Compra) si se solicita desde el cliente
+    if (tipo) { where += ' AND p.tipo_proceso = ?'; params.push(String(tipo)); }
 
     const [rows] = await pool.query(
       `SELECT p.*, e.nombre_empresa, e.correo_empresa
