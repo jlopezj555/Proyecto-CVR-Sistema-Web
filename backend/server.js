@@ -1328,6 +1328,11 @@ app.post('/api/procesos', verificarToken, verificarSecretariaOrAdmin, verificarP
   const { id_empresa, nombre_proceso, tipo_proceso, descripcion_proceso, mes, anio } = req.body;
 
   try {
+    // DEBUG: registrar payload esencial entrante para ayudar a reproducir problemas de duplicado
+    try {
+      console.log('[POST /api/procesos] Payload recibido:', { id_empresa, tipo_proceso, mes, anio, nombre_proceso: (nombre_proceso || '').toString().slice(0, 120) });
+    } catch (logErr) { /* no bloquear en caso de error de logging */ }
+
     const [empresa] = await pool.query('SELECT id_empresa FROM Empresa WHERE id_empresa = ?', [id_empresa]);
     if (empresa.length === 0) {
       return res.status(404).json({ success: false, message: 'Empresa no encontrada' });

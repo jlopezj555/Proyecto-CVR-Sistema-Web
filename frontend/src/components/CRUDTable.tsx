@@ -229,7 +229,10 @@ const CRUDTable: React.FC<CRUDTableProps> = ({
           try {
             await onBeforeCreate(formData as TableData);
           } catch (e: any) {
-            setError(e.message || 'Error en validación previa');
+            const msg = e?.message || e?.response?.data?.message || 'Error en validación previa';
+            // Mostrar el mensaje tanto en el formulario como en el modal de contraseña
+            setError(msg);
+            setPasswordModalError(msg);
             return false;
           }
         }
