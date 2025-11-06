@@ -49,10 +49,11 @@ const EtapasProcesoView: React.FC = () => {
   const [expandedProcesoId, setExpandedProcesoId] = useState<number | null>(null);
 
   const token = localStorage.getItem('token');
+
   const [empresas, setEmpresas] = useState<{ id: number; name: string; }[]>([]);
 
-  // Cargar empresas asignadas al usuario
   useEffect(() => {
+    const token = localStorage.getItem('token');
     const userRole = localStorage.getItem('rol')?.toLowerCase() || '';
     
     // Si es administrador, cargar todas las empresas
@@ -60,24 +61,22 @@ const EtapasProcesoView: React.FC = () => {
       ? `${API_CONFIG.BASE_URL}/api/empresas`
       : `${API_CONFIG.BASE_URL}/api/usuarios/me/empresas`;
 
-    axios.get(endpoint, {
+    fetch(endpoint, {
       headers: { Authorization: `Bearer ${token}` }
     })
-    .then(response => {
-      const rows = ((response.data as any)?.data || []);
-      const sorted = rows.slice().sort((a: any, b: any) => 
-        (a.nombre_empresa || '').localeCompare(b.nombre_empresa || '')
-      );
-      setEmpresas(sorted.map((emp: any) => ({ 
-        id: emp.id_empresa || emp.empresa_id, // manejar ambos formatos posibles
-        name: emp.nombre_empresa 
-      })));
-    })
-    .catch(error => {
-      console.error('Error cargando empresas:', error);
-      setEmpresas([]); // En caso de error, limpiar el estado
-    });
-  }, []); // Solo cargar una vez al montar el componente
+      .then(res => res.json())
+      .then(data => {
+        const rows = ((data as any)?.data || []);
+        const sorted = rows.slice().sort((a: any, b: any) => 
+          (a.nombre_empresa || '').localeCompare(b.nombre_empresa || '')
+        );
+        setEmpresas(sorted.map((emp: any) => ({ 
+          id: emp.id_empresa, 
+          name: emp.nombre_empresa 
+        })));
+      })
+      .catch(console.error);
+  }, []);
 
   const fetchProcesos = async () => {
     try {
@@ -97,38 +96,14 @@ const EtapasProcesoView: React.FC = () => {
       
       // Aplicar filtros seleccionados
       if (empresaFiltro) params.empresa = empresaFiltro;
-      
-      // Aplicar filtros de fecha independientemente
       if (mesFiltro) params.month = mesFiltro;
       if (anioFiltro) params.year = anioFiltro;
-      
-      // Si solo hay mes sin año, usar el año actual
-      if (mesFiltro && !anioFiltro) {
-        params.year = new Date().getFullYear();
-      }
 
       const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       });
-
-      const procesosData = (response.data as any).data || [];
-      
-      // Si hay filtros de fecha, aplicar filtrado adicional en el cliente
-      let procesosFiltrados = procesosData;
-      if (mesFiltro || anioFiltro) {
-        procesosFiltrados = procesosData.filter((proceso: any) => {
-          if (!proceso.fecha_creacion) return false;
-          
-          const fecha = new Date(proceso.fecha_creacion);
-          const cumpleMes = !mesFiltro || (fecha.getMonth() + 1) === Number(mesFiltro);
-          const cumpleAnio = !anioFiltro || fecha.getFullYear() === Number(anioFiltro);
-          
-          return cumpleMes && cumpleAnio;
-        });
-      }
-
-      setProcesos(procesosFiltrados);
+      setProcesos((response.data as any).data || []);
     } catch (error) {
       console.error('Error cargando procesos:', error);
       setProcesos([]); // Limpiar procesos en caso de error
