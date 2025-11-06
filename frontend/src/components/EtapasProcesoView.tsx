@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import API_CONFIG from '../config/api';
 import './EtapasCuentaView.css';
@@ -50,31 +50,34 @@ const EtapasProcesoView: React.FC = () => {
 
   const token = localStorage.getItem('token');
 
-  const empresasDisponibles = useMemo(() => {
-    const map = new Map<number, string>();
-    procesos.forEach(p => map.set(p.id_empresa, p.nombre_empresa));
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [procesos]);
+  const [empresas, setEmpresas] = useState<{ id: number; name: string; }[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    // Cargar todas las empresas que tengan al menos un proceso
+    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        const rows = ((data as any)?.data || []);
+        const sorted = rows.slice().sort((a: any, b: any) => 
+          (a.nombre_empresa || '').localeCompare(b.nombre_empresa || '')
+        );
+        setEmpresas(sorted.map((emp: any) => ({ 
+          id: emp.id_empresa, 
+          name: emp.nombre_empresa 
+        })));
+      })
+      .catch(console.error);
+  }, []);
 
   const fetchProcesos = async () => {
     try {
       const params: any = {};
       if (empresaFiltro) params.empresa = empresaFiltro;
-      if (mesFiltro && anioFiltro) {
-        // Convertir el mes seleccionado al mes anterior para que coincida con la lógica del backend
-        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
-        const anioAnterior = mesFiltro === '1' ? String(parseInt(anioFiltro) - 1) : anioFiltro;
-        params.month = mesAnterior;
-        params.year = anioAnterior;
-      } else if (mesFiltro) {
-        // Si solo se selecciona mes sin año, usar año actual
-        const mesAnterior = mesFiltro === '1' ? '12' : String(parseInt(mesFiltro) - 1);
-        const anioAnterior = mesFiltro === '1' ? String(new Date().getFullYear() - 1) : String(new Date().getFullYear());
-        params.month = mesAnterior;
-        params.year = anioAnterior;
-      } else if (anioFiltro) {
-        params.year = anioFiltro;
-      }
+      if (mesFiltro) params.month = mesFiltro;
+      if (anioFiltro) params.year = anioFiltro;
       const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
@@ -178,26 +181,46 @@ const EtapasProcesoView: React.FC = () => {
       <h2>Gestión de Etapas de Procesos</h2>
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
-        <div>
-          <label>Empresa</label>
-          <select
+      <div style={{
+        background: 'white',
+        border: '1px solid #e9ecef',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: 12
+      }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ fontWeight: 600, color: '#000' }}>Empresa:</label>
+          <select 
             value={empresaFiltro}
             onChange={(e) => setEmpresaFiltro(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}
+            style={{ 
+              padding: '8px 10px', 
+              borderRadius: 8, 
+              border: '2px solid #e9ecef',
+              flexGrow: 1
+            }}
           >
             <option value="">Todas</option>
-            {empresasDisponibles.map(emp => (
+            {empresas.map(emp => (
               <option key={emp.id} value={String(emp.id)}>{emp.name}</option>
             ))}
           </select>
         </div>
-        <div>
-          <label>Año</label>
+        
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ fontWeight: 600, color: '#000' }}>Año:</label>
           <select
             value={anioFiltro}
             onChange={(e) => setAnioFiltro(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}
+            style={{ 
+              padding: '8px 10px', 
+              borderRadius: 8, 
+              border: '2px solid #e9ecef',
+              flexGrow: 1
+            }}
           >
             <option value="">Todos</option>
             {Array.from({ length: 6 }, (_, i) => new Date().getFullYear() - i).map(y => (
@@ -205,12 +228,18 @@ const EtapasProcesoView: React.FC = () => {
             ))}
           </select>
         </div>
-        <div>
-          <label>Mes</label>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <label style={{ fontWeight: 600, color: '#000' }}>Mes:</label>
           <select
             value={mesFiltro}
             onChange={(e) => setMesFiltro(e.target.value)}
-            style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #e9ecef', backgroundColor: 'white', color: 'black' }}
+            style={{ 
+              padding: '8px 10px', 
+              borderRadius: 8, 
+              border: '2px solid #e9ecef',
+              flexGrow: 1
+            }}
           >
             <option value="">Todos</option>
             {[
