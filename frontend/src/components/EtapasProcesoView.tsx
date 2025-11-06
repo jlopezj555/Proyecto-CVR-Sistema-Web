@@ -54,8 +54,14 @@ const EtapasProcesoView: React.FC = () => {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    // Cargar todas las empresas que tengan al menos un proceso
-    fetch(`${API_CONFIG.BASE_URL}/api/empresas`, {
+    const userRole = localStorage.getItem('rol')?.toLowerCase() || '';
+    
+    // Si es administrador, cargar todas las empresas
+    const endpoint = userRole.includes('admin') 
+      ? `${API_CONFIG.BASE_URL}/api/empresas`
+      : `${API_CONFIG.BASE_URL}/api/usuarios/me/empresas`;
+
+    fetch(endpoint, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -75,9 +81,24 @@ const EtapasProcesoView: React.FC = () => {
   const fetchProcesos = async () => {
     try {
       const params: any = {};
+      const userRole = localStorage.getItem('rol')?.toLowerCase() || '';
+      
+      // Si no es admin, forzar filtro por empresas asignadas
+      if (!userRole.includes('admin')) {
+        const meResponse = await axios.get(`${API_CONFIG.BASE_URL}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const userId = (meResponse.data as any)?.data?.id_usuario;
+        if (userId) {
+          params.usuario = userId;
+        }
+      }
+      
+      // Aplicar filtros seleccionados
       if (empresaFiltro) params.empresa = empresaFiltro;
       if (mesFiltro) params.month = mesFiltro;
       if (anioFiltro) params.year = anioFiltro;
+
       const response = await axios.get<any>(`${API_CONFIG.BASE_URL}/api/procesos`, {
         headers: { Authorization: `Bearer ${token}` },
         params
@@ -85,6 +106,7 @@ const EtapasProcesoView: React.FC = () => {
       setProcesos((response.data as any).data || []);
     } catch (error) {
       console.error('Error cargando procesos:', error);
+      setProcesos([]); // Limpiar procesos en caso de error
     }
   };
 
