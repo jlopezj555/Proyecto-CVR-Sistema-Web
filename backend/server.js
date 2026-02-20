@@ -3202,16 +3202,12 @@ if (fs.existsSync(distDir)) {
 }
 
 // Health check endpoint para Railway
-app.get('/api/health', async (req, res) => {
-  const info = { status: 'OK', timestamp: new Date().toISOString(), uptime: process.uptime() };
-  // Intentar un ping ligero a la base de datos para dar información útil, pero no fallar el healthcheck si DB no está lista
-  try {
-    const [rows] = await pool.query('SELECT 1');
-    info.db = { ok: true };
-  } catch (err) {
-    info.db = { ok: false, error: String(err.message || err) };
-  }
-  res.status(200).json(info);
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Production diagnostics
